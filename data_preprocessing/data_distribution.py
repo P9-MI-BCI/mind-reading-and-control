@@ -4,20 +4,19 @@ import random
 from data_preprocessing.trigger_points import is_triggered
 
 
-def aggregate_data(device_data_pd, freq_size, is_triggered_table):
+def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=1200):
     list_of_dataframes = []
-    counter = 0
 
     for i in range(0, device_data_pd.shape[0], freq_size):
-        # the label for the frame is attached first. we base being 'triggered' whether the center frequency is recorded during the triggered timeframe.
+        # the label for the frame is attached first. we base being 'triggered' whether the middle frequency is
+        # recorded during the triggered timeframe.
         list_of_dataframes.append(
-            [is_triggered(i + freq_size / 2, is_triggered_table), device_data_pd.iloc[i:i + freq_size]])
-
-        # notebook cant handle all the data at once.
+            [is_triggered(i + freq_size / 2, is_triggered_table, sample_rate), device_data_pd.iloc[i:i + freq_size]])
 
     return list_of_dataframes
 
 
+# todo generalize for x features
 def data_distribution(labelled_data_lst):
     triggered = 0
 
