@@ -3,7 +3,7 @@ import glob
 import os
 import scipy.io
 
-from data_preprocessing.data_distribution import aggregate_data, create_uniform_distribution
+from data_preprocessing.data_distribution import aggregate_data, create_uniform_distribution, z_score_normalization
 from definitions import DATASET_PATH
 from classes import Dataset
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date
@@ -49,8 +49,9 @@ if __name__ == '__main__':
 
     trigger_table = trigger_time_table(data.TriggerPoint, data.time_start_device1)
 
-    labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
+    labelled_data = aggregate_data(data.data_device1, 200, trigger_table, sample_rate=data.sample_rate)
     uniform_data = create_uniform_distribution(labelled_data)
+    # z_scored_data = z_score_normalization(uniform_data)
 
     train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 

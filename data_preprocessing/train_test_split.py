@@ -39,8 +39,8 @@ def format_dataset(data, channel=0):
     x = []
 
     for frame in data:
-        y.append(frame[0])
-        x.append(frame[1][channel])
+        y.append(frame.label)
+        x.append(frame.data[channel])
 
     # data, target
     return x, y

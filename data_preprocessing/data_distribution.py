@@ -2,6 +2,7 @@ import collections
 import random
 
 from data_preprocessing.trigger_points import is_triggered
+from classes import Frame
 
 
 def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=1200):
@@ -10,10 +11,15 @@ def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=12
     for i in range(0, device_data_pd.shape[0], freq_size):
         # the label for the frame is attached first. we base being 'triggered' whether the middle frequency is
         # recorded during the triggered timeframe.
-        list_of_dataframes.append(
-            [is_triggered(i + freq_size / 2, is_triggered_table, sample_rate), device_data_pd.iloc[i:i + freq_size]])
+        data_frame = Frame.Frame()
 
-    return list_of_dataframes
+        data_frame.label = is_triggered(i + freq_size / 2, is_triggered_table, sample_rate)
+        data_frame.data = device_data_pd.iloc[i:i + freq_size]
+
+        list_of_dataframes.append(data_frame)
+
+    # return all but the last frame, because it is not complete
+    return list_of_dataframes[:-1]
 
 
 # todo generalize for x features
@@ -21,7 +27,7 @@ def data_distribution(labelled_data_lst):
     triggered = 0
 
     for frame in labelled_data_lst:
-        if frame[0] == 1:
+        if frame.label == 1:
             triggered += 1
     # todo  counter = collections.Counter(features)
 
@@ -38,7 +44,7 @@ def create_uniform_distribution(data_list):
     features = []
 
     for frame in data_list:
-        features.append(frame[0])
+        features.append(frame.label)
 
     counter = collections.Counter(features)
     least_represented_feature = 99999999999
@@ -52,18 +58,16 @@ def create_uniform_distribution(data_list):
 
     uniform_data_list = []
     for frame in data_list:
-        if feat_counter[frame[0]] < least_represented_feature:
+        if feat_counter[frame.label] < least_represented_feature:
             uniform_data_list.append(frame)
-            feat_counter[frame[0]] += 1
+            feat_counter[frame.label] += 1
 
     return uniform_data_list
 
 
 def z_score_normalization(data_list):
-    z_scored_data = []
     for frame in data_list:
-        _temp = (frame[1] - frame[1].mean()) / frame[1].std()
-        z_scored_data.append([frame[0], _temp])
+        frame.data = (frame.data - frame.data.mean()) / frame.data.std()
 
-    return z_scored_data
+    return data_list
 

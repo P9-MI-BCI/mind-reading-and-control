@@ -2,10 +2,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from data_preprocessing.train_test_split import format_dataset
 from data_training.measurements import combine_predictions
 from data_training.measurements import get_accuracy
+import numpy as np
 
 
 def knn_classifier_all_channels(train_data, test_data):
-    channels = len(train_data[0][1].columns) - 6
+    channels = len(train_data[0].data.columns) - 4
     score_dict = {}
     ensemble_predictions_train = []
     ensemble_predictions_test = []
