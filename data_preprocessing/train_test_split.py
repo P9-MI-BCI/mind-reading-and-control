@@ -1,6 +1,8 @@
 import random
 from data_preprocessing.data_distribution import data_distribution
 
+from utility.logger import get_logger
+
 
 def train_test_split_data(data, split_per=10):
     dd = data_distribution(data)['expected_triggered_percent']
@@ -20,14 +22,14 @@ def train_test_split_data(data, split_per=10):
 
         if dd * upper_bound > train_dd > dd * lower_bound:
             if dd * upper_bound > test_dd > dd * lower_bound:
-                print(
+                get_logger().debug(
                     f'The Train and Test Data has an acceptable triggered distribution of {train_dd} and {test_dd} percent - Returning.')
                 isAcceptableDistribution = False
             else:
-                print(
+                get_logger().info(
                     f'Test Data did not have an acceptable triggered distribution of {test_dd} percent - expected {dd * lower_bound}-{dd * upper_bound} percent, trying again.')
         else:
-            print(
+            get_logger().info(
                 f'Training Data did not have an acceptable triggered distribution of {train_dd} percent - expected {dd * lower_bound}-{dd * upper_bound} percent, trying again.')
 
     return train_data, test_data

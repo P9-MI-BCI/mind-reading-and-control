@@ -4,12 +4,17 @@ import os
 import scipy.io
 
 from data_preprocessing.data_distribution import aggregate_data, create_uniform_distribution, z_score_normalization
-from definitions import DATASET_PATH
+from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 from data_training.KNN.knn_prediction import knn_classifier_all_channels
+
+# Logging imports
+import logging
+from utility.logger import get_logger
+get_logger().setLevel(logging.WARNING)
 
 
 def init(selected_cue_set=0):
@@ -56,10 +61,3 @@ if __name__ == '__main__':
     train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
     score = knn_classifier_all_channels(train_data, test_data)
-
-    print(pd.DataFrame(score))
-
-
-
-
-
