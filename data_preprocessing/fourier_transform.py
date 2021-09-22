@@ -26,11 +26,14 @@ def fourier_transform_single_dataframe(dataframe):
 
 
 # Add logger, Christoffer help
-def fourier_transform_listof_dataframes(dataframe):
+def fourier_transform_listof_dataframes(lst_dataframe):
 
     lst_transformed = []
 
-    for frame in dataframe:
+
+    for frame in lst_dataframe:
+        columns = len(frame.data.columns)
+
         transformed = []
         for channel in frame.data:
             get_logger().info("Fourier transforming channel: " + str(channel))
@@ -41,30 +44,12 @@ def fourier_transform_listof_dataframes(dataframe):
         transformed = transformed.transpose()
         frame.data = transformed
         lst_transformed.append(frame)
-
+        if len(frame.data.columns) != columns:
+            get_logger().warning("Failed to fourier transform all channels. Transformed " +
+                                 str(len(frame.data.columns)) + ", expected: " + str(columns))
+        get_logger().info("Fourier transformed " + str(len(frame.data.columns)) + " channels, returning")
 
     return lst_transformed
 
-# if __name__ == '__main__':
-#
-#     dataset = init()
-#     frequency = dataset.sample_rate
-#     data_pd = dataset.data_device1
-#
-#     # print(fourier_transform(data_pd))
-#
-#     N = data_pd.shape[0]
-#     T = 1.0 / frequency
-#     y = data_pd[15].values
-#
-#     #x = np.linspace(0.0, N * T, N, endpoint=False)
-#
-#
-#
-#     yf = fft(y)
-#     xf = fftfreq(N, T)
-#
-#     plt.plot(xf, np.abs(yf))
-#
-#     plt.show()
+
 
