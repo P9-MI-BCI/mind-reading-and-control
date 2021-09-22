@@ -10,7 +10,7 @@ from definitions import DATASET_PATH
 from classes import Dataset
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
-from data_preprocessing.train_test_split import train_test_split_data
+from data_preprocessing.train_test_split import train_test_split_data, save_train_test_split
 from data_training.KNN.knn_prediction import knn_classifier_all_channels
 
 # Logging imports
@@ -45,7 +45,7 @@ def init(selected_cue_set=0):
     dataset.time_after_first_window = convert_mat_date_to_python_date(cue_set['time_after_first_window'])
     dataset.time_after_last_window = convert_mat_date_to_python_date(cue_set['time_after_last_window'])
     dataset.time_stop_device1 = convert_mat_date_to_python_date(cue_set['time_stop_device1'])
-    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][15:])
+    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][7:])
     dataset.time_axis_all_device1 = pd.DataFrame(cue_set['time_axis_all_device1'])
 
     return dataset
@@ -68,5 +68,7 @@ if __name__ == '__main__':
     uniform_data = fourier_transform_listof_dataframes(uniform_data)
     train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
+    # save_train_test_split(train_data, test_data, 'shuffled')
+
     score = knn_classifier_all_channels(train_data, test_data)
-    print(pd.DataFrame(score))
+    print(score)

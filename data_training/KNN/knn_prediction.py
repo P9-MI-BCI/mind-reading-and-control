@@ -3,6 +3,9 @@ from data_preprocessing.train_test_split import format_dataset
 from data_training.measurements import combine_predictions
 from data_training.measurements import get_accuracy
 import numpy as np
+import pandas as pd
+
+pd.options.mode.chained_assignment = None
 
 
 def knn_classifier_all_channels(train_data, test_data):
@@ -37,5 +40,5 @@ def knn_classifier_all_channels(train_data, test_data):
 
     score_dict['ensemble'] = {'train_score': get_accuracy(ensemble_preds_train, y_train),
                               'test_score': get_accuracy(ensemble_preds_test, y_test)}
-    return score_dict
+    return pd.DataFrame(score_dict)
 
