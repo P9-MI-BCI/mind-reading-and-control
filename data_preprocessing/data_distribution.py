@@ -65,9 +65,13 @@ def create_uniform_distribution(data_list):
     return uniform_data_list
 
 
-def z_score_normalization(data_list):
-    for frame in data_list:
-        frame.data = (frame.data - frame.data.mean()) / frame.data.std()
+def z_score_normalization(frame):
+    return (frame - frame.mean()) / frame.std()
 
-    return data_list
 
+def max_absolute_scaling(frame):
+    return frame / frame.abs().max()
+
+
+def min_max_scaling(frame):
+    return (frame - frame.min()) / (frame.max() - frame.min())
