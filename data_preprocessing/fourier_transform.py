@@ -36,7 +36,7 @@ def fourier_transform_listof_dataframes(lst_dataframe):
 
         transformed = []
         for channel in frame.data:
-            get_logger().info("Fourier transforming channel: " + str(channel))
+            # get_logger().info("Fourier transforming channel: " + str(channel))
             fourier = fft(frame.data[channel].values)
             transformed.append(np.abs(fourier))
 
@@ -47,7 +47,7 @@ def fourier_transform_listof_dataframes(lst_dataframe):
         if len(frame.data.columns) != columns:
             get_logger().warning("Failed to fourier transform all channels. Transformed " +
                                  str(len(frame.data.columns)) + ", expected: " + str(columns))
-        get_logger().info("Fourier transformed " + str(len(frame.data.columns)) + " channels, returning")
+        # get_logger().info("Fourier transformed " + str(len(frame.data.columns)) + " channels, returning")
 
     return lst_transformed
 

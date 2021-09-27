@@ -9,7 +9,7 @@ pd.options.mode.chained_assignment = None
 
 
 def knn_classifier_all_channels(train_data, test_data):
-    channels = len(train_data[0].data.columns) - 4
+    channels = len(train_data[0].data.columns) - 6
     score_dict = {}
     ensemble_predictions_train = []
     ensemble_predictions_test = []

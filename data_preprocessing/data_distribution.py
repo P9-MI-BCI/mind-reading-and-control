@@ -3,6 +3,7 @@ import random
 
 from data_preprocessing.trigger_points import is_triggered
 from classes import Frame
+import datetime
 
 
 def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=1200):
@@ -20,6 +21,21 @@ def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=12
 
     # return all but the last frame, because it is not complete
     return list_of_dataframes[:-1]
+
+
+# finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
+# side into a dataframe.
+# this is used to find peaks locally in EMG data.
+def aggregate_trigger_points_for_emg_peak(tp_table, freq, data, frame_size=2):
+    list_of_trigger_frames = []
+
+    for i, row in tp_table.iterrows():
+        start = int(row['start'].total_seconds() * freq - frame_size * freq)
+        end = int(row['start'].total_seconds() * freq + frame_size * freq)
+        frame = data.iloc[start:end]
+        list_of_trigger_frames.append(frame)
+
+    return list_of_trigger_frames
 
 
 # todo generalize for x features
