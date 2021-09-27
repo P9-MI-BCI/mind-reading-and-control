@@ -47,7 +47,7 @@ def format_dataset(data, channel=0):
         get_logger().warning('List of Frames was empty while attempting to format data and target variables.')
     for frame in data:
         y.append(frame.label)
-        x.append(frame.data[channel])
+        x.append(frame.data.iloc[channel])
 
     # data, target
     return x, y
