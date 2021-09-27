@@ -22,7 +22,7 @@ get_logger().setLevel(logging.INFO)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 
 
-def init(selected_cue_set=0):
+def init(selected_cue_set=1):
     cue_sets = []
 
     for file in glob.glob(DATASET_PATH, recursive=True):
