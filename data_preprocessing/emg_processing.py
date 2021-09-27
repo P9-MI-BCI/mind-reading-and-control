@@ -4,11 +4,10 @@ import numpy as np
 from main import init
 import math
 
-def find_emg_peaks(channel=12, window=2.2, type=None):
+def find_emg_peaks(dataset, channel=12, window=2.2, type=None):
 
     if type is None:
         return
-    dataset = init()
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
     freq = dataset.sample_rate
