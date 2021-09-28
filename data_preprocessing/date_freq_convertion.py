@@ -21,8 +21,8 @@ def convert_mat_date_to_python_date(date_lst):
     return pd.DataFrame(columns=['Date'], data=p_date_lst)
 
 
-def convert_freq_to_datetime(freq, hz):
-    time_in_seconds = (freq / hz)
+def convert_freq_to_datetime(input_freq, sample_freq):
+    time_in_seconds = (input_freq / sample_freq)
     time_str = str(time_in_seconds).split('.')
 
     return datetime.timedelta(seconds=int(time_str[0]), microseconds=int(time_str[1][:3]) * 1000)
