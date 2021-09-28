@@ -5,7 +5,7 @@ import biosppy.plotting
 def find_emg_peaks(dataset, channel=12, window=2.15, type=None):
 
     if type is None:
-        return
+        type = 'first'
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
     freq = dataset.sample_rate
