@@ -3,7 +3,6 @@ import random
 
 from data_preprocessing.trigger_points import is_triggered
 from classes import Frame
-import datetime
 
 
 def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=1200):
@@ -26,16 +25,44 @@ def aggregate_data(device_data_pd, freq_size, is_triggered_table, sample_rate=12
 # finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
 # side into a dataframe.
 # this is used to find peaks locally in EMG data.
-def aggregate_trigger_points_for_emg_peak(tp_table, freq, data, frame_size=2):
+def aggregate_trigger_points_for_emg_peak(tp_table, column, data, frame_size=2):
     list_of_trigger_frames = []
+    indices_to_delete = []
 
     for i, row in tp_table.iterrows():
-        start = int(row['start'].total_seconds() * freq - frame_size * freq)
-        end = int(row['start'].total_seconds() * freq + frame_size * freq)
-        frame = data.iloc[start:end]
+        start = int(row[column].total_seconds() * data.sample_rate - frame_size * data.sample_rate)
+        end = int(row[column].total_seconds() * data.sample_rate + frame_size * data.sample_rate)
+        frame = Frame.Frame()
+        frame.data = data.data_device1.iloc[start:end]
+        frame.label = 1  # indicates EMG peak
+        indices_to_delete.append([start, end])
         list_of_trigger_frames.append(frame)
 
-    return list_of_trigger_frames
+    indices_to_delete.reverse()
+
+    for indices in indices_to_delete:
+        data.data_device1 = data.data_device1.drop(data.data_device1.index[indices[0]:indices[1]])
+
+    return list_of_trigger_frames, data
+
+
+def slice_and_label_idle_frames(data, frame_size=4800):
+    list_of_frames = []
+    i = 0
+    while i < len(data) and i + frame_size < len(data):
+        cutout = abs(data.index[i] - data.index[i+frame_size]) == frame_size
+        if cutout:
+            frame = Frame.Frame()
+            frame.data = data.iloc[i:i+frame_size]
+            frame.label = 0  # indicates no EMG peak / no MRCP should be present
+            list_of_frames.append(frame)
+            i += frame_size
+        else:
+            i += 1
+
+    return list_of_frames
+
+
 
 
 # todo generalize for x features

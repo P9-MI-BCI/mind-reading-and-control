@@ -1,10 +1,8 @@
 import biosppy.signals
 import biosppy.plotting
-import numpy as np
-from main import init
-import math
 
-def find_emg_peaks(dataset, channel=12, window=2.2, type=None):
+
+def find_emg_peaks(dataset, channel=12, window=2.15, type=None):
 
     if type is None:
         return

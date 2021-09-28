@@ -7,8 +7,8 @@ from utility.logger import get_logger
 def train_test_split_data(data, split_per=10):
     dd = data_distribution(data)['expected_triggered_percent']
     isAcceptableDistribution = True
-    upper_bound = 1.25
-    lower_bound = 0.75
+    upper_bound = 1.10
+    lower_bound = 0.90
 
     while isAcceptableDistribution:
         random.shuffle(data)
