@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 
 def get_accuracy(preds, targets):
@@ -7,7 +8,23 @@ def get_accuracy(preds, targets):
         if pred == target:
             counter += 1
 
-    return (counter / len(preds)) * 100
+    return (counter / len(preds))
+
+
+def get_precision(preds, targets):
+    return precision_score(preds,targets)
+
+
+def get_recall(preds, targets):
+    return recall_score(preds, targets)
+
+
+def get_f1_score(preds, targets):
+    return f1_score(preds, targets)
+
+
+def get_confusion_matrix(preds, targets):
+    return confusion_matrix(preds, targets)
 
 
 def combine_predictions(all_channel_predictions):
