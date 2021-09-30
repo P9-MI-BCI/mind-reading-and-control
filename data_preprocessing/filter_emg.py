@@ -5,7 +5,7 @@ from main import init
 from scipy.signal import butter, sosfilt, sosfreqz
 
 
-def butter_highpass(cutoff, fs, order=5):
+def butter_highpass(cutoff, fs, order=5) -> butter:
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     sos = butter(order, normal_cutoff, analog=False, btype='high', output='sos')
