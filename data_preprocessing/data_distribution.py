@@ -35,6 +35,7 @@ def aggregate_trigger_points_for_emg_peak(tp_table, column, data, frame_size=2):
         frame = Frame.Frame()
         frame.data = data.data_device1.iloc[start:end]
         frame.label = 1  # indicates EMG peak
+        frame.timestamp = row
         indices_to_delete.append([start, end])
         list_of_trigger_frames.append(frame)
 
@@ -61,8 +62,6 @@ def slice_and_label_idle_frames(data, frame_size=4800):
             i += 1
 
     return list_of_frames
-
-
 
 
 # todo generalize for x features

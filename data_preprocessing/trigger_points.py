@@ -28,7 +28,7 @@ def is_triggered(freq, is_triggered_table, sample_rate=1200):
     freq_in_sec = convert_freq_to_datetime(freq, sample_rate)
 
     for i, row in is_triggered_table.iterrows():
-        if row['start'] < freq_in_sec < row['end']:
+        if row['tp_start'] < freq_in_sec < row['tp_end']:
             return 1
     return 0
 
@@ -45,5 +45,5 @@ def trigger_time_table(trigger_points_pd, time_start):
 
             is_trigger_time_table.append([time_since_start.iloc[0][0], end_time.iloc[0][0]])
 
-    return pd.DataFrame(columns=['start', 'end'],
+    return pd.DataFrame(columns=['tp_start', 'tp_end'],
                         data=is_trigger_time_table)  # in seconds from time start
