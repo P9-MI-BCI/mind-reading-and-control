@@ -33,7 +33,7 @@ def is_triggered(freq, is_triggered_table, sample_rate=1200):
     return 0
 
 
-def trigger_time_table(trigger_points_pd, time_start):
+def trigger_time_table(trigger_points_pd: pd.DataFrame, time_start):
     is_trigger_time_table = []
 
     tp_iter = trigger_points_pd.iterrows()
