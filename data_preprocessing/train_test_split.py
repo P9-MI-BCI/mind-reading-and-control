@@ -2,9 +2,10 @@ import random
 from data_preprocessing.data_distribution import data_distribution
 
 from utility.logger import get_logger
+import pandas as pd
 
 
-def train_test_split_data(data, split_per=10):
+def train_test_split_data(data: [pd.DataFrame], split_per: int=10) -> ([pd.DataFrame], [pd.DataFrame]):
     dd = data_distribution(data)['expected_triggered_percent']
     isAcceptableDistribution = True
     upper_bound = 1.10
@@ -38,7 +39,7 @@ def train_test_split_data(data, split_per=10):
     return train_data, test_data
 
 
-def format_dataset(data, channel=0):
+def format_dataset(data: [pd.DataFrame], channel=0) -> ([], []):
     # takes in list of dataframes on the usual format [target_value, pd.DataFrame] and returns these are seperate vectors for downstream prediction
     y = []
     x = []
