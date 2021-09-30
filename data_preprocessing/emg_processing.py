@@ -2,10 +2,8 @@ import biosppy.signals
 import biosppy.plotting
 
 
-def find_emg_peaks(dataset, channel=12, window=2.15, type=None):
+def find_emg_peaks(dataset, channel=12, window=2.15):
 
-    if type is None:
-        type = 'first'
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
     freq = dataset.sample_rate
@@ -26,19 +24,14 @@ def find_emg_peaks(dataset, channel=12, window=2.15, type=None):
             onset_clusters_array.append(temp)
             temp = []
 
-    if type == 'highest':
-        for onset_cluster in onset_clusters_array:
-            highest = 0
-            index = 0
-            for onset in onset_cluster:
-                if abs(emg_data[onset]) > highest:
-                    highest = abs(emg_data[onset])
-                    index = onset
-            all_peaks.append(index)
-
-    elif type == 'first':
-        for onset_cluster in onset_clusters_array:
-            all_peaks.append(onset_cluster[0])
+    for onset_cluster in onset_clusters_array:
+        highest = 0
+        index = 0
+        for onset in onset_cluster:
+            if abs(emg_data[onset]) > highest:
+                highest = abs(emg_data[onset])
+                index = onset
+        all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     #biosppy.plotting.plot_emg(ts=ts,sampling_rate=1200,raw=emg_data,filtered=filtered,onsets=all_peaks,show=True)
     return all_peaks

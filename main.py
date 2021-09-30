@@ -7,12 +7,15 @@ from data_preprocessing.data_distribution import aggregate_data, create_uniform_
     max_absolute_scaling, min_max_scaling, aggregate_trigger_points_for_emg_peak, slice_and_label_idle_frames
 from data_preprocessing.emg_processing import find_emg_peaks
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
+from data_training.LGBM.lgbm_prediction import lgbm_classifier
+from data_training.SVM.svm_prediction import svm_classifier
+from data_visualization.timestamp_visualization import visualize_frame
 from definitions import DATASET_PATH
 from classes import Dataset
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
-from data_training.KNN.knn_prediction import knn_classifier_all_channels
+from data_training.KNN.knn_prediction import knn_classifier
 
 # Logging imports
 import logging
@@ -55,18 +58,20 @@ def init(selected_cue_set=0):
     return dataset
 
 
-def init_emg(data):
-    emg_peaks = find_emg_peaks(data, type='highest')
+def init_emg(data: Dataset, trigger_table):
+    emg_peaks = find_emg_peaks(data)
 
     for i in range(0, len(emg_peaks)):
-        emg_peaks[i] = convert_freq_to_datetime(emg_peaks[i], data.sample_rate)
+        for j in range(0, len(emg_peaks[i])):
+            emg_peaks[i][j] = convert_freq_to_datetime(emg_peaks[i][j], data.sample_rate)
 
-    trigger_table['emg_peaks'] = emg_peaks
+    colums = ['emg_start', 'emg_peak', 'emg_end']
+    trigger_table[colums] = emg_peaks
 
-    emg_frames, data = aggregate_trigger_points_for_emg_peak(trigger_table, 'emg_peaks', data, frame_size=2)
+    emg_frames, data = aggregate_trigger_points_for_emg_peak(trigger_table, 'emg_peak', data, frame_size=2)
 
     emg_frames.extend(slice_and_label_idle_frames(data.data_device1))
-    return emg_frames
+    return emg_frames, trigger_table
 
 
 if __name__ == '__main__':
@@ -79,16 +84,18 @@ if __name__ == '__main__':
     # data.data_device1 = z_score_normalization(data.data_device1)
     # data.data_device1 = max_absolute_scaling(data.data_device1)
     # data.data_device1 = min_max_scaling(data.data_device1)
-    emg_frames = init_emg(data)
+    emg_frames, trigger_table = init_emg(data, trigger_table)
 
-    # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
+    visualize_frame(emg_frames[23], data.sample_rate, channel=12)
+
+    labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
     uniform_data = create_uniform_distribution(emg_frames)
 
-    # uniform_data = fourier_transform_listof_dataframes(uniform_data)
+    uniform_data = fourier_transform_listof_dataframes(uniform_data)
     train_data, test_data = train_test_split_data(uniform_data, split_per=20)
     save_train_test_split(train_data, test_data, 'emg_uniform_four_shuffled')
 
     train_data, test_data = load_train_test_split('emg_uniform_four_shuffled')
 
-    score = knn_classifier_all_channels(train_data, test_data)
+    score = knn_classifier(train_data, test_data, channels=[2, 3, 4])
     print(score)
