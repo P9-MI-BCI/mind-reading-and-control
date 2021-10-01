@@ -4,7 +4,7 @@ from scipy.fft import fft, fft2, fftfreq, fftshift
 from utility.logger import get_logger
 
 
-def fourier_transform_single_dataframe(dataframe):
+def fourier_transform_single_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
     transformed = []
     columns = len(dataframe.columns)
@@ -26,10 +26,9 @@ def fourier_transform_single_dataframe(dataframe):
 
 
 # Add logger, Christoffer help
-def fourier_transform_listof_dataframes(lst_dataframe):
+def fourier_transform_listof_dataframes(lst_dataframe: [pd.DataFrame]) -> [pd.DataFrame]:
 
     lst_transformed = []
-
 
     for frame in lst_dataframe:
         columns = len(frame.data.columns)

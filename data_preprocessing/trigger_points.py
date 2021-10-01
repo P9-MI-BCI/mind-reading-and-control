@@ -5,12 +5,12 @@ from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_d
 SAMPLE_RATE = 1200
 
 
-def covert_trigger_points_to_pd(trigger_point_inp):
+def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
     trigger_point_lst = []
 
     for t_p in trigger_point_inp:
         temp = []
-        for x in t_p[1:-1]:
+        for x in t_p[1:-1]:  # first item is the label / rest is the timestamp
             temp.append(int(x))
 
         # hacky fix using string split
@@ -24,16 +24,16 @@ def covert_trigger_points_to_pd(trigger_point_inp):
     return pd.DataFrame(columns=['Trigger', 'Date'], data=trigger_point_lst)
 
 
-def is_triggered(freq, is_triggered_table, sample_rate=1200):
+def is_triggered(freq: int, tp_table: pd.DataFrame, sample_rate=1200) -> int:
     freq_in_sec = convert_freq_to_datetime(freq, sample_rate)
 
-    for i, row in is_triggered_table.iterrows():
+    for i, row in tp_table.iterrows():
         if row['tp_start'] < freq_in_sec < row['tp_end']:
             return 1
     return 0
 
 
-def trigger_time_table(trigger_points_pd: pd.DataFrame, time_start):
+def trigger_time_table(trigger_points_pd: pd.DataFrame, time_start: datetime.datetime) -> pd.DataFrame:
     is_trigger_time_table = []
 
     tp_iter = trigger_points_pd.iterrows()

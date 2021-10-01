@@ -24,9 +24,10 @@ from utility.save_and_load import save_train_test_split, load_train_test_split
 
 get_logger().setLevel(logging.INFO)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
+EMG_CHANNEL = 12
 
 
-def init(selected_cue_set=0):
+def init(selected_cue_set: int = 0):
     cue_sets = []
 
     for file in glob.glob(DATASET_PATH, recursive=True):
@@ -52,26 +53,26 @@ def init(selected_cue_set=0):
     dataset.time_after_first_window = convert_mat_date_to_python_date(cue_set['time_after_first_window'])
     dataset.time_after_last_window = convert_mat_date_to_python_date(cue_set['time_after_last_window'])
     dataset.time_stop_device1 = convert_mat_date_to_python_date(cue_set['time_stop_device1'])
-    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][7:])
+    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][7:])  # removes the startup values 7 freq is considered insignificant
     dataset.time_axis_all_device1 = pd.DataFrame(cue_set['time_axis_all_device1'])
 
     return dataset
 
 
-def init_emg(data: Dataset, trigger_table):
-    emg_peaks = find_emg_peaks(data)
+def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
+    emg_peaks = find_emg_peaks(dataset, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
-            emg_peaks[i][j] = convert_freq_to_datetime(emg_peaks[i][j], data.sample_rate)
+            emg_peaks[i][j] = convert_freq_to_datetime(emg_peaks[i][j], dataset.sample_rate)
 
-    colums = ['emg_start', 'emg_peak', 'emg_end']
-    trigger_table[colums] = emg_peaks
+    columns = ['emg_start', 'emg_peak', 'emg_end']
+    tp_table[columns] = emg_peaks
 
-    emg_frames, data = aggregate_trigger_points_for_emg_peak(trigger_table, 'emg_peak', data, frame_size=2)
+    emg_frame, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_start', dataset, frame_size=2)
 
-    emg_frames.extend(slice_and_label_idle_frames(data.data_device1))
-    return emg_frames, trigger_table
+    emg_frame.extend(slice_and_label_idle_frames(dataset.data_device1))
+    return emg_frame, tp_table
 
 
 if __name__ == '__main__':
@@ -86,16 +87,16 @@ if __name__ == '__main__':
     # data.data_device1 = min_max_scaling(data.data_device1)
     emg_frames, trigger_table = init_emg(data, trigger_table)
 
-    visualize_frame(emg_frames[23], data.sample_rate, channel=12)
+    visualize_frame(emg_frames[7], data.sample_rate, channel=EMG_CHANNEL)
 
-    labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
-    uniform_data = create_uniform_distribution(emg_frames)
+    # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
+    # uniform_data = create_uniform_distribution(emg_frames)
 
-    uniform_data = fourier_transform_listof_dataframes(uniform_data)
-    train_data, test_data = train_test_split_data(uniform_data, split_per=20)
-    save_train_test_split(train_data, test_data, 'emg_uniform_four_shuffled')
+    # uniform_data = fourier_transform_listof_dataframes(uniform_data)
+    # train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+    # save_train_test_split(train_data, test_data, 'emg_uniform')
 
-    train_data, test_data = load_train_test_split('emg_uniform_four_shuffled')
+    # train_data, test_data = load_train_test_split('emg_uniform')
 
-    score = knn_classifier(train_data, test_data, channels=[2, 3, 4])
-    print(score)
+    # score = lgbm_classifier(train_data, test_data, channels=[3, 4, 5])
+    # print(score)
