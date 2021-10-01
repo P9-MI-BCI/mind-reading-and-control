@@ -2,7 +2,7 @@ import biosppy.signals
 import biosppy.plotting
 
 
-def find_emg_peaks(dataset, channel=12, window=2.15):
+def find_emg_peaks(dataset, channel=12, window=2.2):
 
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
