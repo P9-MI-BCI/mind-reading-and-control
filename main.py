@@ -1,3 +1,4 @@
+import biosppy
 import pandas as pd
 import glob
 import os
@@ -6,6 +7,7 @@ import matplotlib.pyplot as plt
 from data_preprocessing.data_distribution import aggregate_data, create_uniform_distribution, z_score_normalization, \
     max_absolute_scaling, min_max_scaling, aggregate_trigger_points_for_emg_peak, slice_and_label_idle_frames
 from data_preprocessing.emg_processing import find_emg_peaks
+from data_preprocessing.filters import butter_filter
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
@@ -60,7 +62,11 @@ def init(selected_cue_set: int = 0):
 
 
 def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
-    emg_peaks, filtered = find_emg_peaks(dataset, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
+    all_filtered_data = butter_filter(dataset.data_device1[EMG_CHANNEL])
+
+    onsets, = biosppy.signals.emg.find_onsets(signal=all_filtered_data, sampling_rate=dataset.sample_rate)
+
+    emg_peaks = find_emg_peaks(dataset, onsets[1:], peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
@@ -69,10 +75,16 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks
 
-    emg_frame, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_start', dataset, filtered, frame_size=2)
+    frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset, frame_size=2)
 
-    emg_frame.extend(slice_and_label_idle_frames(dataset.data_device1))
-    return emg_frame, tp_table
+    eeg_channels = list(range(0, 9))
+
+    frames.extend(slice_and_label_idle_frames(dataset.data_device1))
+
+    for frame in frames:
+        frame.filter(butter_filter, eeg_channels, order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200)
+
+    return frames, tp_table
 
 
 if __name__ == '__main__':
@@ -87,7 +99,9 @@ if __name__ == '__main__':
     # data.data_device1 = min_max_scaling(data.data_device1)
     emg_frames, trigger_table = init_emg(data, trigger_table)
 
-    visualize_frame(emg_frames[7], data.sample_rate, channel=EMG_CHANNEL)
+    for i in range(0, len(emg_frames)):
+        if emg_frames[i].label == 1:
+            visualize_frame(emg_frames[i], data.sample_rate, channel=5)
 
     # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
     # uniform_data = create_uniform_distribution(emg_frames)

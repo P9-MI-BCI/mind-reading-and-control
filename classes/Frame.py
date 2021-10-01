@@ -10,5 +10,5 @@ class Frame:
         self.timestamp = timestamp
         self.filtered_data = filtered_data
 
-    def filter(self, filter_in):
-        self.filtered_data = filter_in(self.data)
+    def filter(self, filter_in, channel: int, **kwargs):
+        self.filtered_data = pd.DataFrame(filter_in(self.data[channel], **kwargs))

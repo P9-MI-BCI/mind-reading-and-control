@@ -13,10 +13,13 @@ def visualize_frame(frame: Frame, freq: int, channel: int):
     y_t = ['TP'] * len(tp_timestamp)
     y_t2 = ['EMG'] * len(emg_timestamp)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    fig, (ax0, ax1, ax2, ax3) = plt.subplots(4, 1, sharex=True)
 
-    ax1.set_title(f'Channel: {channel} - Frame')
-    ax1.plot(x_seconds, frame.data[channel], color='tomato')
+    ax0.set_title(f'Channel: {channel} - Frame Raw Data')
+    ax0.plot(x_seconds, frame.data[channel], color='tomato')
+
+    ax1.set_title(f'Filtered')
+    ax1.plot(x_seconds, frame.filtered_data[channel], color='tomato')
 
     ax2.set_title('EMG Detection')
     ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')

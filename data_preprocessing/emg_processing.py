@@ -4,7 +4,7 @@ from classes import Dataset
 from utility.logger import get_logger
 
 
-def find_emg_peaks(dataset: Dataset, peaks_to_find: int, channel: int = 12) -> []:
+def find_emg_peaks(dataset: Dataset, onsets, peaks_to_find: int, channel: int = 12) -> []:
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
     freq = dataset.sample_rate
@@ -14,7 +14,7 @@ def find_emg_peaks(dataset: Dataset, peaks_to_find: int, channel: int = 12) -> [
     cluster_range = 0.05
 
     while len(onset_clusters_array) != peaks_to_find:
-        ts, filtered, onsets = biosppy.signals.emg.emg(emg_data, sampling_rate=freq, show=False)
+        # ts, filtered, onsets = biosppy.signals.emg.emg(emg_data, sampling_rate=freq, show=False)
 
         temp = []
         onset_clusters_array = []
@@ -30,9 +30,9 @@ def find_emg_peaks(dataset: Dataset, peaks_to_find: int, channel: int = 12) -> [
                 temp = []
 
         get_logger().debug(f'Found {len(onset_clusters_array)} clusters if this is more than {peaks_to_find} then increment.')
-        cluster_range += 0.05
+        cluster_range += 0.02
         if len(onset_clusters_array) == 1:
-            get_logger().error('CLUSTERS COULD NOT BE CREATED PROPERLY CHANGE PARAMETERS.')
+            get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
             break
 
     for onset_cluster in onset_clusters_array:
@@ -45,6 +45,6 @@ def find_emg_peaks(dataset: Dataset, peaks_to_find: int, channel: int = 12) -> [
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     # biosppy.plotting.plot_emg(ts=ts,sampling_rate=1200,raw=emg_data,filtered=filtered,onsets=all_peaks,show=True)
-    return all_peaks, filtered
+    return all_peaks
 
 # peaks = find_emg_peaks(window=2.15,type='first')
