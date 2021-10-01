@@ -60,7 +60,7 @@ def init(selected_cue_set: int = 0):
 
 
 def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
-    emg_peaks = find_emg_peaks(dataset, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
+    emg_peaks, filtered = find_emg_peaks(dataset, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
@@ -69,7 +69,7 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks
 
-    emg_frame, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_start', dataset, frame_size=2)
+    emg_frame, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_start', dataset, filtered, frame_size=2)
 
     emg_frame.extend(slice_and_label_idle_frames(dataset.data_device1))
     return emg_frame, tp_table

@@ -45,6 +45,6 @@ def find_emg_peaks(dataset: Dataset, peaks_to_find: int, channel: int = 12) -> [
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     # biosppy.plotting.plot_emg(ts=ts,sampling_rate=1200,raw=emg_data,filtered=filtered,onsets=all_peaks,show=True)
-    return all_peaks
+    return all_peaks, filtered
 
 # peaks = find_emg_peaks(window=2.15,type='first')
