@@ -21,9 +21,9 @@ def butter_helper(order, cutoff, btype, freq):
     return sos
 
 
-def butter_filter(data: pd.DataFrame, order: int = 4, cutoff=None, btype: str = 'highpass', freq: int = 1200):
+def butter_filter(data: pd.DataFrame, order: int = 5, cutoff=None, btype: str = 'highpass', freq: int = 1200):
     if cutoff is None:
-        cutoff = [100]
+        cutoff = [80]
     sos = butter_helper(order, cutoff, btype, freq)
     y = sosfilt(sos, data)
     return y

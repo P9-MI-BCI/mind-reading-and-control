@@ -28,7 +28,7 @@ def aggregate_data(device_data_pd: pd.DataFrame, freq_size: int, tp_table: pd.Da
 # finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
 # side into a dataframe.
 # this is used to find peaks locally in EMG data.
-def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, data: Dataset, frame_size: int = 2) -> ([Frame], Dataset):
+def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, data: Dataset, frame_size: float = 2.) -> ([Frame], Dataset):
     list_of_trigger_frames = []
     indices_to_delete = []
 

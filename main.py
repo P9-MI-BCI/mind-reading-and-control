@@ -11,6 +11,7 @@ from data_preprocessing.filters import butter_filter
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
+from data_visualization.average_channels import average_channel, plot_average_channels
 from data_visualization.timestamp_visualization import visualize_frame
 from definitions import DATASET_PATH
 from classes import Dataset
@@ -18,13 +19,13 @@ from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_d
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 from data_training.KNN.knn_prediction import knn_classifier
-
+import copy
 # Logging imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 
-get_logger().setLevel(logging.INFO)
+get_logger().setLevel(logging.DEBUG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 EMG_CHANNEL = 12
 
@@ -66,7 +67,7 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
     onsets, = biosppy.signals.emg.find_onsets(signal=all_filtered_data, sampling_rate=dataset.sample_rate)
 
-    emg_peaks = find_emg_peaks(dataset, onsets[1:], peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
+    emg_peaks = find_emg_peaks(dataset, onsets[3:], peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
@@ -74,15 +75,20 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks
-
-    frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset, frame_size=2)
-
+    print(tp_table)
     eeg_channels = list(range(0, 9))
+    # data_cop = copy.deepcopy(dataset)
+    # data_cop.data_device1 = pd.DataFrame(butter_filter(data_cop.data_device1[eeg_channels], order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200))
 
-    frames.extend(slice_and_label_idle_frames(dataset.data_device1))
+    frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset, frame_size=3)
+
+    # frames.extend(slice_and_label_idle_frames(dataset.data_device1))
 
     for frame in frames:
-        frame.filter(butter_filter, eeg_channels, order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200)
+        frame.filter(butter_filter, eeg_channels, order=2, cutoff=[0.05, 5], btype='bandpass', freq=1200)
+
+    for frame in frames:
+        frame.filter(butter_filter, eeg_channels)
 
     return frames, tp_table
 
@@ -99,9 +105,12 @@ if __name__ == '__main__':
     # data.data_device1 = min_max_scaling(data.data_device1)
     emg_frames, trigger_table = init_emg(data, trigger_table)
 
-    for i in range(0, len(emg_frames)):
-        if emg_frames[i].label == 1:
-            visualize_frame(emg_frames[i], data.sample_rate, channel=5)
+    avg = average_channel(emg_frames)
+    plot_average_channels(avg)
+
+    # for i in range(0, len(emg_frames)):
+    #     if emg_frames[i].label == 1:
+    #         visualize_frame(emg_frames[i], data.sample_rate, channel=4, num=i)
 
     # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
     # uniform_data = create_uniform_distribution(emg_frames)
