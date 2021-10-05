@@ -25,7 +25,7 @@ import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 
-get_logger().setLevel(logging.DEBUG)
+get_logger().setLevel(logging.INFO)
 pd.set_option("display.max_rows", None, "display.max_columns", None)
 EMG_CHANNEL = 12
 
@@ -67,7 +67,10 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
     onsets, = biosppy.signals.emg.find_onsets(signal=all_filtered_data, sampling_rate=dataset.sample_rate)
 
-    emg_peaks = find_emg_peaks(dataset, onsets[3:], peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
+    eeg_channels = list(range(0, 9))
+
+    # dataset.data_device1[eeg_channels] = z_score_normalization(data.data_device1[eeg_channels])
+    emg_peaks = find_emg_peaks(dataset, onsets, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
@@ -76,7 +79,6 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks
     print(tp_table)
-    eeg_channels = list(range(0, 9))
     # data_cop = copy.deepcopy(dataset)
     # data_cop.data_device1 = pd.DataFrame(butter_filter(data_cop.data_device1[eeg_channels], order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200))
 
@@ -84,11 +86,11 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
     # frames.extend(slice_and_label_idle_frames(dataset.data_device1))
 
-    for frame in frames:
-        frame.filter(butter_filter, eeg_channels, order=2, cutoff=[0.05, 5], btype='bandpass', freq=1200)
+    # for frame in frames:
+    #     frame.filter(butter_filter, eeg_channels, order=4, cutoff=[0.05], btype='lowpass', freq=1200)
 
     for frame in frames:
-        frame.filter(butter_filter, eeg_channels)
+        frame.filter(butter_filter, eeg_channels, btype='sos_highpass', order=5, cutoff=[80])
 
     return frames, tp_table
 
@@ -109,8 +111,8 @@ if __name__ == '__main__':
     plot_average_channels(avg)
 
     # for i in range(0, len(emg_frames)):
-    #     if emg_frames[i].label == 1:
-    #         visualize_frame(emg_frames[i], data.sample_rate, channel=4, num=i)
+    #    if emg_frames[i].label == 1:
+    #        visualize_frame(emg_frames[i], data.sample_rate, channel=3, num=i)
 
     # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
     # uniform_data = create_uniform_distribution(emg_frames)

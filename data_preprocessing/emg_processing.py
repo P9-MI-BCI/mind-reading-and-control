@@ -30,7 +30,7 @@ def find_emg_peaks(dataset: Dataset, onsets, peaks_to_find: int, channel: int = 
                 temp = []
 
         get_logger().debug(f'Found {len(onset_clusters_array)} clusters if this is more than {peaks_to_find} then increment.')
-        cluster_range += 0.02
+        cluster_range += 0.01
         if len(onset_clusters_array) == 1:
             get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
             break
