@@ -1,0 +1,13 @@
+{
+  "cue_set1": {
+    "id": 1,
+    "EMG_CHANNEL": 12,
+    "all_butter_order": 4,
+    "all_butter_cutoff": [100],
+
+    "frame_size": 3,
+    "frame_butter_order": 5,
+    "frame_butter_cutoff": [80],
+    "frame_btype": "sos_highpass"
+  }
+}

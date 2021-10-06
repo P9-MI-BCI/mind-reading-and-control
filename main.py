@@ -14,20 +14,23 @@ from data_training.SVM.svm_prediction import svm_classifier
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
 from data_visualization.timestamp_visualization import visualize_frame
 from definitions import DATASET_PATH
-from classes import Dataset
+from classes import Dataset, Frame
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 from data_training.KNN.knn_prediction import knn_classifier
 import copy
+import json
 # Logging imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 
-get_logger().setLevel(logging.INFO)
-pd.set_option("display.max_rows", None, "display.max_columns", None)
-EMG_CHANNEL = 12
+'''CONFIGURATION'''
+get_logger().setLevel(logging.INFO)  # Set logging level
+pd.set_option("display.max_rows", None, "display.max_columns", None)  # Dataframe print settings
+with open('config.json') as config_file:
+    config = json.load(config_file)['cue_set1']  # Choose config
 
 
 def init(selected_cue_set: int = 0):
@@ -56,21 +59,23 @@ def init(selected_cue_set: int = 0):
     dataset.time_after_first_window = convert_mat_date_to_python_date(cue_set['time_after_first_window'])
     dataset.time_after_last_window = convert_mat_date_to_python_date(cue_set['time_after_last_window'])
     dataset.time_stop_device1 = convert_mat_date_to_python_date(cue_set['time_stop_device1'])
-    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][7:])  # removes the startup values 7 freq is considered insignificant
+    dataset.data_device1 = pd.DataFrame(
+        cue_set['data_device1'][7:])  # removes the startup values 7 freq is considered insignificant
     dataset.time_axis_all_device1 = pd.DataFrame(cue_set['time_axis_all_device1'])
 
     return dataset
 
 
 def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
-    all_filtered_data = butter_filter(dataset.data_device1[EMG_CHANNEL], order=4, cutoff=[100])
+    all_filtered_data = butter_filter(dataset.data_device1[config['EMG_CHANNEL']], order=config['all_butter_order'],
+                                      cutoff=config['all_butter_cutoff'])
 
     onsets, = biosppy.signals.emg.find_onsets(signal=all_filtered_data, sampling_rate=dataset.sample_rate)
 
     eeg_channels = list(range(0, 9))
 
     # dataset.data_device1[eeg_channels] = z_score_normalization(data.data_device1[eeg_channels])
-    emg_peaks = find_emg_peaks(dataset, onsets, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
+    emg_peaks = find_emg_peaks(dataset, onsets, peaks_to_find=len(tp_table), channel=config['EMG_CHANNEL'])
 
     for i in range(0, len(emg_peaks)):
         for j in range(0, len(emg_peaks[i])):
@@ -82,7 +87,8 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
     # data_cop = copy.deepcopy(dataset)
     # data_cop.data_device1 = pd.DataFrame(butter_filter(data_cop.data_device1[eeg_channels], order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200))
 
-    frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset, frame_size=3)
+    frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset,
+                                                            frame_size=config['frame_size'])
 
     frames.extend(slice_and_label_idle_frames(dataset.data_device1))
 
@@ -90,7 +96,8 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
     #     frame.filter(butter_filter, eeg_channels, order=4, cutoff=[0.05], btype='lowpass', freq=1200)
 
     for frame in frames:
-        frame.filter(butter_filter, eeg_channels, btype='sos_highpass', order=5, cutoff=[80])
+        frame.filter(butter_filter, eeg_channels, btype=config['frame_btype'], order=config['frame_butter_order'],
+                     cutoff=config['frame_butter_cutoff'])
 
     return frames, tp_table
 
