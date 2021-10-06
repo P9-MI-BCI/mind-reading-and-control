@@ -11,7 +11,7 @@ from data_preprocessing.filters import butter_filter
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
-from data_visualization.average_channels import average_channel, plot_average_channels
+from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
 from data_visualization.timestamp_visualization import visualize_frame
 from definitions import DATASET_PATH
 from classes import Dataset
@@ -63,7 +63,7 @@ def init(selected_cue_set: int = 0):
 
 
 def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
-    all_filtered_data = butter_filter(dataset.data_device1[EMG_CHANNEL])
+    all_filtered_data = butter_filter(dataset.data_device1[EMG_CHANNEL], order=4, cutoff=[100])
 
     onsets, = biosppy.signals.emg.find_onsets(signal=all_filtered_data, sampling_rate=dataset.sample_rate)
 
@@ -78,13 +78,13 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks
-    print(tp_table)
+
     # data_cop = copy.deepcopy(dataset)
     # data_cop.data_device1 = pd.DataFrame(butter_filter(data_cop.data_device1[eeg_channels], order=2, cutoff=[0.05, 3], btype='bandpass', freq=1200))
 
     frames, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_peak', dataset, frame_size=3)
 
-    # frames.extend(slice_and_label_idle_frames(dataset.data_device1))
+    frames.extend(slice_and_label_idle_frames(dataset.data_device1))
 
     # for frame in frames:
     #     frame.filter(butter_filter, eeg_channels, order=4, cutoff=[0.05], btype='lowpass', freq=1200)
@@ -96,18 +96,19 @@ def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.Da
 
 
 if __name__ == '__main__':
-    data = init(selected_cue_set=0)
+    data = init(selected_cue_set=1)
 
     trigger_table = trigger_time_table(data.TriggerPoint, data.time_start_device1)
 
-    # normalization / scaling techniques
+    '''normalization / scaling techniques'''
     # data.data_device1 = fourier_transform_single_dataframe(data.data_device1)
     # data.data_device1 = z_score_normalization(data.data_device1)
     # data.data_device1 = max_absolute_scaling(data.data_device1)
     # data.data_device1 = min_max_scaling(data.data_device1)
-    emg_frames, trigger_table = init_emg(data, trigger_table)
 
-    avg = average_channel(emg_frames)
+    emg_frames, trigger_table = init_emg(data, trigger_table)
+    valid_emg = find_usable_emg(trigger_table)
+    avg = average_channel(emg_frames, valid_emg)
     plot_average_channels(avg)
 
     # for i in range(0, len(emg_frames)):
@@ -116,12 +117,12 @@ if __name__ == '__main__':
 
     # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
     # uniform_data = create_uniform_distribution(emg_frames)
-
-    # uniform_data = fourier_transform_listof_dataframes(uniform_data)
+    #
+    # # uniform_data = fourier_transform_listof_dataframes(uniform_data)
     # train_data, test_data = train_test_split_data(uniform_data, split_per=20)
     # save_train_test_split(train_data, test_data, 'emg_uniform')
-
+    #
     # train_data, test_data = load_train_test_split('emg_uniform')
-
-    # score = lgbm_classifier(train_data, test_data, channels=[3, 4, 5])
+    #
+    # score = knn_classifier(train_data, test_data, channels=[3, 4, 5])
     # print(score)
