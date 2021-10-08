@@ -4,7 +4,7 @@ from classes import Dataset
 from utility.logger import get_logger
 
 
-def find_emg_peaks(dataset: Dataset, onsets, peaks_to_find: int, channel: int = 12) -> []:
+def find_emg_peaks(dataset: Dataset, onsets, filtered, peaks_to_find: int, channel: int = 12) -> []:
     data_pd = dataset.data_device1
     emg_data = data_pd[channel]
     freq = dataset.sample_rate
@@ -12,9 +12,9 @@ def find_emg_peaks(dataset: Dataset, onsets, peaks_to_find: int, channel: int = 
     all_peaks = []
 
     cluster_range = 0.05
-
+    ts, lol, lol2 = biosppy.signals.emg.emg(emg_data, sampling_rate=freq, show=False)
     while len(onset_clusters_array) != peaks_to_find:
-        # ts, filtered, onsets = biosppy.signals.emg.emg(emg_data, sampling_rate=freq, show=False)
+
 
         temp = []
         onset_clusters_array = []
@@ -44,7 +44,7 @@ def find_emg_peaks(dataset: Dataset, onsets, peaks_to_find: int, channel: int = 
                 index = onset
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
-    # biosppy.plotting.plot_emg(ts=ts,sampling_rate=1200,raw=emg_data,filtered=filtered,onsets=all_peaks,show=True)
+    # biosppy.plotting.plot_emg(ts=ts,sampling_rate=1200,raw=emg_data,filtered=filtered,onsets=onsets,show=True)
     return all_peaks
 
 # peaks = find_emg_peaks(window=2.15,type='first')

@@ -28,7 +28,8 @@ def aggregate_data(device_data_pd: pd.DataFrame, freq_size: int, tp_table: pd.Da
 # finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
 # side into a dataframe.
 # this is used to find peaks locally in EMG data.
-def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, data: Dataset, frame_size: float = 2.) -> ([Frame], Dataset):
+def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, data: Dataset,
+                                          frame_size: float = 2.) -> ([Frame], Dataset):
     list_of_trigger_frames = []
     indices_to_delete = []
 
@@ -39,7 +40,9 @@ def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, d
         frame.data = data.data_device1.iloc[start:end]
         frame.label = 1  # indicates EMG peak
         frame.timestamp = row
-        # frame.filtered_data = pd.DataFrame(columns=['12'], data=filtered)
+
+        # frame.filtered_data = data.data_device1.iloc[start:end]
+        # frame.filtered_data = frame.filtered_data.reset_index()
         indices_to_delete.append([start, end])
         list_of_trigger_frames.append(frame)
 
@@ -51,7 +54,7 @@ def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, d
     return list_of_trigger_frames, data
 
 
-def slice_and_label_idle_frames(data: pd.DataFrame, frame_size: int=4800) -> [Frame]:
+def slice_and_label_idle_frames(data: pd.DataFrame, frame_size: int = 4800) -> [Frame]:
     list_of_frames = []
     i = 0
     while i < len(data) and i + frame_size < len(data):

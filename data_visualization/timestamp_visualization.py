@@ -4,8 +4,9 @@ from classes import Frame
 
 def visualize_frame(frame: Frame, freq: int, channel: int, num: int):
     x_seconds = []
-    for i in frame.data.index:  # converts the frame.data freqs to seconds
-        x_seconds.append(i / freq)
+    center = (len(frame.data) / 2) / freq
+    for i, row in frame.filtered_data[channel].items():  # converts the frame.data freqs to seconds
+        x_seconds.append(i / freq - center)
 
     tp_timestamp = [frame.timestamp['tp_start'].total_seconds(), frame.timestamp['tp_end'].total_seconds()]
     emg_timestamp = [frame.timestamp['emg_start'].total_seconds(), frame.timestamp['emg_peak'].total_seconds(),
@@ -13,22 +14,24 @@ def visualize_frame(frame: Frame, freq: int, channel: int, num: int):
     y_t = ['TP'] * len(tp_timestamp)
     y_t2 = ['EMG'] * len(emg_timestamp)
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+    # fig, ax1 = plt.figure() #2, 1, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
 
    #  ax0.set_title(f'Channel: {channel} - Frame - Raw Data')
    #  ax0.plot(x_seconds, frame.data[channel], color='tomato')
 
-    ax1.set_title(f'Filtered {num}')
-    ax1.plot(x_seconds, frame.filtered_data[channel], color='tomato')
+    plt.title(f'Filtered {num}')
+    plt.plot(x_seconds, frame.filtered_data[channel], color='tomato')
 
-    ax2.set_title('EMG Detection')
-    ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
-    ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
+    # ax2.set_title('EMG Detection')
+    # ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
+    # ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
     # ax3.set_title('Trigger Point Duration')
     # ax3.plot(tp_timestamp, y_t, marker='o', color='royalblue')
     # ax3.annotate('Trigger Point', xy=[tp_timestamp[0], y_t[0]])
 
-    ax2.set_xlabel('seconds')
+    # ax2.set_xlabel('seconds')
+
+    plt.axvline(x=0, color='black', ls='--')
     plt.tight_layout()
     plt.show()

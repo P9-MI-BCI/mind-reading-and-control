@@ -39,14 +39,15 @@ def average_channel(frames: [Frame], emg_detections: [int]) -> [Frame]:
     return avg_channel
 
 
-def plot_average_channels(avg_channels: [Frame], save_fig: bool = False):
+def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: bool = False):
     # linspace: Returns evenly spaced numbers over a specified interval.
 
     for channel in range(0, len(avg_channels)):
         x = []
         y = []
+        center = (len(avg_channels[channel].data) / 2) / freq
         for i, row in avg_channels[channel].data.items():
-            x.append(i)
+            x.append(i / freq - center)
             y.append(row)
 
         y = np.array(y)
@@ -55,12 +56,13 @@ def plot_average_channels(avg_channels: [Frame], save_fig: bool = False):
         x_new = np.linspace(0, size, size)
         y_hat = savgol_filter(y, int(size / 10) + 1, 1)
 
-        plt.plot(avg_channels[channel].data)
-        plt.plot(x_new, y_hat)
+        plt.plot(x, y)
+        plt.axvline(x=0, color='black', ls='--')
+        plt.plot(x, y_hat)
         plt.title(f'Channel: {channel + 1}')
 
         if save_fig:
-            plt.savefig(f'{OUTPUT_PATH}/avg2_channel{channel + 1}.png')
+            plt.savefig(f'{OUTPUT_PATH}/highpass/frames/{channel + 1}.png')
 
         plt.show()
 
