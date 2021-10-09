@@ -8,8 +8,8 @@ def plot_eeg(raw_data, filtered_data, label: str, all: bool = True):
         plt.plot(filtered_data[i], label=label)
         plt.title(f'Channel: {i + 1}')
         plt.legend()
-        if all:
-            plt.savefig(f'{OUTPUT_PATH}/{label}/all/all_{label}_channel{i + 1}.png')
-        else:
-            plt.savefig(f'{OUTPUT_PATH}/{label}/frames/frame_{label}_channel{i + 1}.png')
+        # if all:
+        #     plt.savefig(f'{OUTPUT_PATH}/{label}/all/all_{label}_channel{i + 1}.png')
+        # else:
+        #     plt.savefig(f'{OUTPUT_PATH}/{label}/frames/frame_{label}_channel{i + 1}.png')
         plt.show()

@@ -16,7 +16,7 @@ def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
         # hacky fix using string split
         time_str = str(t_p[-1]).split('.')
         temp.append(int(time_str[0]))
-        temp.append(int(time_str[1][:3])*1000)
+        temp.append(int(time_str[1][:3]) * 1000)
 
         timestamp = datetime.datetime(*temp)
         trigger_point_lst.append([int(t_p[0]), timestamp])

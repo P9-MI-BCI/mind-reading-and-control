@@ -26,4 +26,8 @@ def convert_freq_to_datetime(input_freq: int, sample_freq: int) -> datetime.time
     time_in_seconds = (input_freq / sample_freq)
     time_str = str(time_in_seconds).split('.')
 
+    # there might be unresolved edge-cases
+    while len(time_str[1]) < 3:
+        time_str[1] += '0'
+
     return datetime.timedelta(seconds=int(time_str[0]), microseconds=int(time_str[1][:3]) * 1000)

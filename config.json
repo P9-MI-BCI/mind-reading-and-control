@@ -1,12 +1,14 @@
 {
-  "cue_set1": {
+  "cue_set0": {
     "id": 0,
-    "EMG_CHANNEL": 12,
-    "all_butter_order": 5,
-    "all_butter_cutoff": [80],
 
-    "frame_btype": "sos_bandpass",
-    "frame_butter_order": 2,
-    "frame_butter_cutoff": [0.05, 5]
+    "emg_order": 5,
+    "emg_cutoff": 80,
+    "emg_btype": "highpass",
+
+    "eeg_order": 2,
+    "eeg_cutoff": [0.05, 5],
+    "eeg_btype": "bandpass",
+    "aggregate_strategy": "emg_start"
   }
 }
