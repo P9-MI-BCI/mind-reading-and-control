@@ -1,15 +1,16 @@
 import matplotlib.pyplot as plt
 from definitions import OUTPUT_PATH
+from classes import Dataset
 
 
-def plot_eeg(raw_data, filtered_data, label: str, all: bool = True):
+def plot_eeg(data: Dataset, label: str, savefig: bool = False):
     for i in range(0, 9):
-        plt.plot(raw_data[i], label='raw data')
-        plt.plot(filtered_data[i], label=label)
+        plt.plot(data.data_device1[i], label='raw data')
+        plt.plot(data.filtered_data[i], label=label)
         plt.title(f'Channel: {i + 1}')
         plt.legend()
-        # if all:
-        #     plt.savefig(f'{OUTPUT_PATH}/{label}/all/all_{label}_channel{i + 1}.png')
-        # else:
-        #     plt.savefig(f'{OUTPUT_PATH}/{label}/frames/frame_{label}_channel{i + 1}.png')
+
+        if savefig:
+            plt.savefig(f'{OUTPUT_PATH}/{label}/{label}_channel{i + 1}.png')
+
         plt.show()

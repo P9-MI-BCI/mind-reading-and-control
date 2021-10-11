@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 from definitions import OUTPUT_PATH
-from utility.file_util import create_dir
 
 logger = None
 
@@ -45,13 +44,13 @@ def create_logger(name: str, log_path: str = "none", level: int = logging.WARNIN
     custom_logger.addHandler(console_handler)
 
     # Create file handler
-    if log_path != "none":
-        create_dir(os.path.split(log_path)[0])
-
-        file_handler = logging.FileHandler(log_path)
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        custom_logger.addHandler(file_handler)
+    # if log_path != "none":
+    #     create_dir(os.path.split(log_path)[0])
+    #
+    #     file_handler = logging.FileHandler(log_path)
+    #     file_handler.setLevel(level)
+    #     file_handler.setFormatter(formatter)
+    #     custom_logger.addHandler(file_handler)
 
     # if catch_output:
     #     catch_output_stream_to_logger(custom_logger)

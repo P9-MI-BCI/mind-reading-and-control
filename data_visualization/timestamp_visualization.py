@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
+import os
 from classes import Frame
 from definitions import OUTPUT_PATH
+from utility.save_figure import save_figure
+from utility.logger import get_logger
 
 
 def visualize_frame(frame: Frame, config, freq: int, channel: int, num: int, save_fig: bool = False):
@@ -8,6 +12,9 @@ def visualize_frame(frame: Frame, config, freq: int, channel: int, num: int, sav
     center = (len(frame.data) / 2) / freq
     for i, row in frame.filtered_data[channel].items():  # converts the frame.data freqs to seconds
         x_seconds.append(i / freq - center)
+
+    fig = plt.figure()
+    # fig, axs = plt.subplots(3, 1, gridspec_kw={'height_ratios': [4, 1, 1]}, sharex=True)
 
     if frame.label == 1:
         if config['aggregate_strategy'] == 'emg_start':
@@ -29,16 +36,18 @@ def visualize_frame(frame: Frame, config, freq: int, channel: int, num: int, sav
         y_t = ['TP'] * len(tp_timestamp)
         y_t2 = ['EMG'] * len(emg_timestamp)
 
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [4, 1, 1]}, sharex=True)
-
+        gs = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
+        ax1 = fig.add_subplot(gs[:2,0])
         ax1.set_title(f' Channel: {channel} - EEG {num+1} - Filter: {frame.filter_type[channel].iloc[0]}')
         ax1.plot(x_seconds, frame.filtered_data[channel], color='tomato')
         ax1.axvline(x=0, color='black', ls='--')
 
+        ax2 = fig.add_subplot(gs[2,0], sharex=ax1)
         ax2.set_title('EMG Detection')
         ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
         ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
+        ax3 = fig.add_subplot(gs[3,0], sharex=ax1)
         ax3.set_title('Trigger Point Duration')
         ax3.plot(tp_timestamp, y_t, marker='o', color='royalblue')
         ax3.annotate('Trigger Point', xy=[tp_timestamp[0], y_t[0]])
@@ -53,6 +62,12 @@ def visualize_frame(frame: Frame, config, freq: int, channel: int, num: int, sav
     plt.tight_layout()
 
     if save_fig:
-        plt.savefig(f'{OUTPUT_PATH}/bandpass/all_average_emg_start/frames/{num + 1}.png')
+        path = f'{OUTPUT_PATH}/plots/frame_plots/channel{channel}_{num + 1}.png'
+        file = os.path.split(path)[1]
+        try:
+            save_figure(path, fig, overwrite=True)
+        except FileExistsError:
+            get_logger().debug(get_logger().debug(f'Found file already exists: {file} you can '
+                                                  f'overwrite the file by setting overwrite=True'))
 
     plt.show()

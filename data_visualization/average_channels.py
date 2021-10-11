@@ -1,11 +1,12 @@
-from scipy.interpolate import make_interp_spline
-from scipy.signal import savgol_filter
-from classes import Frame
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 from definitions import OUTPUT_PATH
 from utility.logger import get_logger
+from utility.file_util import create_dir, file_exist
+from utility.save_figure import save_figure
+from classes import Frame
 
 
 # Finds the emg_peaks within its corresponding tp interval
@@ -36,7 +37,7 @@ def average_channel(frames: [Frame], emg_detections: [int]) -> [Frame]:
     return avg_channel
 
 
-def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: bool = False):
+def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
     for channel in range(0, len(avg_channels)):
         x = []
         y = []
@@ -47,13 +48,18 @@ def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: boo
 
         y = np.array(y)
 
+        fig = plt.figure()
         plt.plot(x, y)
         plt.axvline(x=0, color='black', ls='--')
         plt.title(f'Channel: {channel + 1}')
 
         if save_fig:
-            plt.savefig(f'{OUTPUT_PATH}/bandpass/all_average_emg_start/{channel + 1}.png')
+            path = f'{OUTPUT_PATH}/plots/average_emg_start/{channel + 1}.png'
+            file = os.path.split(path)[1]
+            try:
+                save_figure(path, fig, overwrite=False)
+            except FileExistsError:
+                get_logger().debug(get_logger().error(f'Found file already exists: {file} you can '
+                                                      f'overwrite the file by setting overwrite=True'))
 
         plt.show()
-
-

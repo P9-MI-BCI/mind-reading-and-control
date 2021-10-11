@@ -1,6 +1,9 @@
 import pandas as pd
 import glob
 import scipy.io
+import os
+import sys
+import json
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
@@ -9,23 +12,25 @@ from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
 from data_visualization.timestamp_visualization import visualize_frame
+from data_visualization.raw_and_filtered_data import plot_raw_filtered_data
 from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Frame
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 from data_training.KNN.knn_prediction import knn_classifier
-import json
+
 # Logging imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 
-'''CONFIGURATION'''
+"""CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # Dataframe print settings
-with open('config.json') as config_file:
+with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
+    script_params = json.load(script_parameters)  # Load script parameters
 
 
 def init(selected_cue_set: int = 0):
@@ -61,7 +66,7 @@ def init(selected_cue_set: int = 0):
 
 
 if __name__ == '__main__':
-    # Load Data
+
     data = init(selected_cue_set=config['id'])
 
     # Shift Data to remove startup
@@ -70,24 +75,27 @@ if __name__ == '__main__':
     # Create table containing information when trigger points were shown/removed
     trigger_table = trigger_time_table(data.TriggerPoint, data.time_start_device1)
 
-    # Perform MRCP Detection and update trigger_table with EMG timestamps
-    emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
+    if script_params['run_mrcp_detection']:
+        # Perform MRCP Detection and update trigger_table with EMG timestamps
+        emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
-    # Find valid emgs based on heuristic and calculate averages
-    valid_emg = find_usable_emg(trigger_table, config)
-    avg = average_channel(emg_frames, valid_emg)
-    plot_average_channels(avg, save_fig=False)
+        plot_raw_filtered_data(data=data, save_fig=True)
 
-    # plot individual frames
-    for i in range(0, len(emg_frames)):
-         visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
+        # Find valid emgs based on heuristic and calculate averages
+        valid_emg = find_usable_emg(trigger_table, config)
+        avg = average_channel(emg_frames, valid_emg)
+        # plot_average_channels(avg, save_fig=False)
 
+        # plot individual frames
+        # for i in range(0, len(emg_frames)):
+        #     visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
 
-    uniform_data = create_uniform_distribution(emg_frames)
-    train_data, test_data = train_test_split_data(uniform_data, split_per=20)
-    save_train_test_split(train_data, test_data, 'eeg')
+    if script_params['run_classification']:
+        uniform_data = create_uniform_distribution(emg_frames)
+        train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+        save_train_test_split(train_data, test_data, 'eeg')
 
-    train_data, test_data = load_train_test_split('eeg')
+        train_data, test_data = load_train_test_split('eeg')
 
-    score = knn_classifier(train_data, test_data)
-    print(score)
+        score = knn_classifier(train_data, test_data)
+        print(score)
