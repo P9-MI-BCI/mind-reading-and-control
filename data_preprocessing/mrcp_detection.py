@@ -3,29 +3,39 @@ import copy
 from classes import Dataset
 import pandas as pd
 import biosppy
-
+import matplotlib.pyplot as plt
 from data_preprocessing.data_distribution import cut_frames, slice_and_label_idle_frames
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import emg_clustering
 from data_preprocessing.filters import butter_filter
 
 
-def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config) -> ([pd.DataFrame], pd.DataFrame):
+def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> ([pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
-    FRAME_SIZE = 2
+    FRAME_SIZE = 2  # seconds
     dataset = copy.deepcopy(data)
 
     filtered_data = pd.DataFrame()
-    filtered_data[EMG_CHANNEL] = butter_filter(data=dataset.data_device1[EMG_CHANNEL],
-                                 order=config['emg_order'],
-                                 cutoff=config['emg_cutoff'],
-                                 btype=config['emg_btype'],
-                                 )
+    if bipolar_mode:
+        bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL+1])
+        filtered_data[EMG_CHANNEL] = butter_filter(data=bipolar_emg,
+                                                   order=config['emg_order'],
+                                                   cutoff=config['emg_cutoff'],
+                                                   btype=config['emg_btype'],
+                                                   )
+    else:
+        filtered_data[EMG_CHANNEL] = butter_filter(data=dataset.data_device1[EMG_CHANNEL],
+                                                   order=config['emg_order'],
+                                                   cutoff=config['emg_cutoff'],
+                                                   btype=config['emg_btype'],
+                                                   )
 
     onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
-                                              sampling_rate=dataset.sample_rate
+                                              sampling_rate=dataset.sample_rate,
                                               )
+
+
 
     emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
                                   onsets=onsets,

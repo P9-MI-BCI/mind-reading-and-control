@@ -12,12 +12,12 @@ def find_best_params(data, trigger_table, config):
     # with open('config.json', 'w') as config_file:
     #     json.dump(config, config_file)
 
-    emg_order_range = [5,4]
-    emg_cutoff_range = list(range(75,100))
+    emg_order_range = [4,5]
+    emg_cutoff_range = list(range(75,110))
     eeg_cutoff_range_min = [0.03, 0.04, 0.05]
     eeg_cutoff_range_max = [3, 4, 5]
 
-    channels = [0, 1, 3, 4, 6, 7, 8]
+    channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     minimize_cost = 99999999
     minimized_config = {}
@@ -34,23 +34,19 @@ def find_best_params(data, trigger_table, config):
                         emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
                         # Find valid emgs based on heuristic and calculate averages
-                        valid_emg = find_usable_emg(trigger_table, config)
+                        valid_emg = [3, 7, 8, 10, 12, 13, 14, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
                         frames = average_channel(emg_frames, valid_emg)
 
                         minimize_array = []
                         for i in range(0, len(frames)):
                             if i in channels:
-                                minimize_array.append(abs(frames[i].data.idxmin() - int(len(frames[i].data)/2)))
-                            # distance = frame.data.min().index - frame.data.
-                            # if int(len(frame.data)/2) in frame.data.nsmallest(250):
-                            #     minimize_array.append(1)
-                            # else:
-                            #     minimize_array.append(0)
+                                minimize_array.append(abs(frames[i].data.idxmin() - int(len(frames[i].data) / 2)))
 
                         if sum(minimize_array) <= minimize_cost:
                             minimized_config = config
                             minimize_cost = sum(minimize_array)
-                            print(minimize_array)
+                            print(f' Score: {sum(minimize_array)}')
+                            print(f'Config: {config}')
                     except ValueError:
                         get_logger().debug(f'During param search - Config : {config} did not work.')
     # for some reason always prints the last params ..
@@ -58,7 +54,7 @@ def find_best_params(data, trigger_table, config):
 
 
 def find_worst_sample(valid_emg, emg_frames, remove: int = 10):
-    channels = [0, 1, 3, 4, 6, 7, 8]
+    channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     base_frames = average_channel(emg_frames, valid_emg)
 
@@ -70,26 +66,29 @@ def find_worst_sample(valid_emg, emg_frames, remove: int = 10):
     minimize_cost = sum(base_score)
 
     get_logger().info(f'Base score is {minimize_cost}')
+    try:
+        for rem in range(0, remove):
+            get_logger().info(f'Current Valid EMGs {valid_emg}')
 
-    for rem in range(0, remove):
-        get_logger().info(f'Current Valid EMGs {valid_emg}')
+            for sample in range(0, len(valid_emg)):
+                minimize_array = []
 
-        for sample in range(0, len(valid_emg)):
-            minimize_array = []
+                b = [x for i, x in enumerate(valid_emg) if i != sample]
+                frames = average_channel(emg_frames, b)
 
-            b = [x for i, x in enumerate(valid_emg) if i != sample]
-            frames = average_channel(emg_frames, b)
+                for i in range(0, len(frames)):
+                    if i in channels:
+                        minimize_array.append(abs(frames[i].data.idxmin() - int(len(frames[i].data) / 2)))
 
-            for i in range(0, len(frames)):
-                if i in channels:
-                    minimize_array.append(abs(frames[i].data.idxmin() - int(len(frames[i].data) / 2)))
+                if sum(minimize_array) <= minimize_cost:
+                    worst_sample = sample
+                    minimize_cost = sum(minimize_array)
+                    get_logger().info(f'New shortest distance/cost {minimize_cost}')
+                    get_logger().info(f'Attained by removing sample with index {worst_sample}')
 
-            if sum(minimize_array) <= minimize_cost:
-                worst_sample = sample
-                minimize_cost = sum(minimize_array)
-                get_logger().info(f'New shortest distance/cost {minimize_cost}')
-                get_logger().info(f'Attained by removing sample with index {worst_sample}')
-
-        del valid_emg[worst_sample]
+            del valid_emg[worst_sample]
+    except ValueError:
+        get_logger().error(f'You are trying to remove more samples than there is valid emgs detected. There are '
+                           f'{len(valid_emg)} valid emgs you are trying to remove {rem} more.')
 
     return valid_emg

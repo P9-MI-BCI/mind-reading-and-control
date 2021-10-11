@@ -1,4 +1,5 @@
 import pandas as pd
+from utility.logger import get_logger
 
 
 class Frame:
@@ -16,8 +17,10 @@ class Frame:
             try:
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.filtered_data[channel], **kwargs))
             except KeyError:
+                get_logger().debug('Adding key to filtered data dataframe.')
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.data[channel], **kwargs))
         except AttributeError:
+            get_logger().debug('filtered data was not yet initialized, creating dataframe.')
             self.filtered_data = pd.DataFrame(filter_in(self.data[channel], **kwargs))
 
     def update_filter_type(self, filter_types: pd.DataFrame):
@@ -26,7 +29,9 @@ class Frame:
                 try:
                     self.filter_type[channel] = [filter_types[channel].iloc[0]]
                 except KeyError:
+                    get_logger().debug('Key did not yet exist in filter type, adding it.')
                     self.filter_type[channel] = [filter_types[channel].iloc[0]]
             except AttributeError:
+                get_logger().debug('Attribute not yet created in frame - initializing dataframe.')
                 self.filter_type = pd.DataFrame()
                 self.filter_type[channel] = [filter_types[channel].iloc[0]]
