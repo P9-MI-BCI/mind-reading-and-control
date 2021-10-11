@@ -84,11 +84,11 @@ if __name__ == '__main__':
         # Find valid emgs based on heuristic and calculate averages
         valid_emg = find_usable_emg(trigger_table, config)
         avg = average_channel(emg_frames, valid_emg)
-        # plot_average_channels(avg, save_fig=False)
+        plot_average_channels(avg, save_fig=False)
 
         # plot individual frames
-        # for i in range(0, len(emg_frames)):
-        #     visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
+        for i in range(0, len(emg_frames)):
+             visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
 
     if script_params['run_classification']:
         uniform_data = create_uniform_distribution(emg_frames)
