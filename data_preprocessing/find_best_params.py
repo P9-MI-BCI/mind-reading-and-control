@@ -92,3 +92,29 @@ def find_worst_sample(valid_emg, emg_frames, remove: int = 10):
                            f'{len(valid_emg)} valid emgs you are trying to remove {rem} more.')
 
     return valid_emg
+
+
+def remove_worst_frames(valid_emg, emg_frames, remove: int = 10) -> [int]:
+    channels = [3,4,5]
+
+    for rem in range(0, remove):
+
+        get_logger().info(f'Iteration {rem} - Amount of valid frames {len(valid_emg)}')
+        idx_ws = 0
+        worst_sample = 0
+        for sample in range(0, len(valid_emg)):
+            minimize_array = []
+            for chan in channels:
+                center = int(len(emg_frames[valid_emg[sample]].filtered_data[chan]) / 2)
+                minimize_array.append(abs(emg_frames[valid_emg[sample]].filtered_data[chan].idxmin() - center))
+
+            if sum(minimize_array) > worst_sample:
+                worst_sample = sum(minimize_array)
+                idx_ws = sample
+                get_logger().info(f'Worst sample: {valid_emg[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
+
+        del valid_emg[idx_ws]
+
+    get_logger().info(f'Resulting array: {valid_emg}')
+    return valid_emg
+
