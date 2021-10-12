@@ -3,14 +3,14 @@ import copy
 from classes import Dataset
 import pandas as pd
 import biosppy
-import matplotlib.pyplot as plt
 from data_preprocessing.data_distribution import cut_frames, slice_and_label_idle_frames
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import emg_clustering
 from data_preprocessing.filters import butter_filter
 
 
-def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> ([pd.DataFrame], pd.DataFrame):
+def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
+[pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
     FRAME_SIZE = 2  # seconds
@@ -18,7 +18,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
 
     filtered_data = pd.DataFrame()
     if bipolar_mode:
-        bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL+1])
+        bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL + 1])
         filtered_data[EMG_CHANNEL] = butter_filter(data=bipolar_emg,
                                                    order=config['emg_order'],
                                                    cutoff=config['emg_cutoff'],
@@ -34,8 +34,6 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
                                               sampling_rate=dataset.sample_rate,
                                               )
-
-
 
     emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
                                   onsets=onsets,
@@ -69,7 +67,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                               freq=dataset.sample_rate))
 
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
-    filter_type_df[EEG_CHANNELS] = [config['eeg_btype']]*len(EEG_CHANNELS)
+    filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
 
     for frame in frames:
         frame.update_filter_type(filter_type_df)
@@ -83,4 +81,3 @@ def emg_peaks_freq_to_datetime(emg_peaks, freq: int):
             emg_peaks[i][j] = convert_freq_to_datetime(emg_peaks[i][j], freq)
 
     return emg_peaks
-
