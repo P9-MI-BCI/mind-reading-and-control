@@ -27,7 +27,7 @@ def plot_raw_filtered_data(data: pd.DataFrame, save_fig: bool = False, overwrite
             try:
                 save_figure(path, fig, overwrite=overwrite)
             except FileExistsError:
-                get_logger().debug(get_logger().error(f'Found file already exists: {file} you can '
-                                                      f'overwrite the file by setting overwrite=True'))
+                get_logger().exception(f'Found file already exists: {file} you can '
+                                       f'overwrite the file by setting overwrite=True')
 
     plt.show()
