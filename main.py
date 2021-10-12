@@ -1,20 +1,28 @@
 import pandas as pd
 import glob
-import os
 import scipy.io
-import matplotlib.pyplot as plt
-from data_preprocessing.data_distribution import aggregate_data, create_uniform_distribution, z_score_normalization, \
-    max_absolute_scaling, min_max_scaling, aggregate_trigger_points_for_emg_peak, slice_and_label_idle_frames
-from data_preprocessing.emg_processing import find_emg_peaks
+import os
+import sys
+import json
+
+# Data preprocessing imports
+from data_preprocessing.data_distribution import create_uniform_distribution
+from data_preprocessing.data_shift import shift_data
+from data_preprocessing.find_best_params import optimize_average_minimum
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
-from data_training.LGBM.lgbm_prediction import lgbm_classifier
-from data_training.SVM.svm_prediction import svm_classifier
-from data_visualization.timestamp_visualization import visualize_frame
-from definitions import DATASET_PATH
-from classes import Dataset
+from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
+
+# Data visualization imports
+from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.timestamp_visualization import visualize_frame
+from data_visualization.raw_and_filtered_data import plot_raw_filtered_data
+
+# Training/Classification imports
+from data_training.LGBM.lgbm_prediction import lgbm_classifier
+from data_training.SVM.svm_prediction import svm_classifier
 from data_training.KNN.knn_prediction import knn_classifier
 
 # Logging imports
@@ -22,9 +30,15 @@ import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 
-get_logger().setLevel(logging.INFO)
-pd.set_option("display.max_rows", None, "display.max_columns", None)
-EMG_CHANNEL = 12
+from definitions import DATASET_PATH, OUTPUT_PATH
+from classes import Dataset, Frame
+
+"""CONFIGURATION"""
+get_logger().setLevel(logging.INFO)  # Set logging level
+# pd.set_option("display.max_rows", None, "display.max_columns", None)  # Dataframe print settings
+with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
+    config = json.load(config_file)['cue_set0']  # Choose config
+    script_params = json.load(script_parameters)  # Load script parameters
 
 
 def init(selected_cue_set: int = 0):
@@ -53,50 +67,45 @@ def init(selected_cue_set: int = 0):
     dataset.time_after_first_window = convert_mat_date_to_python_date(cue_set['time_after_first_window'])
     dataset.time_after_last_window = convert_mat_date_to_python_date(cue_set['time_after_last_window'])
     dataset.time_stop_device1 = convert_mat_date_to_python_date(cue_set['time_stop_device1'])
-    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'][7:])  # removes the startup values 7 freq is considered insignificant
+    dataset.data_device1 = pd.DataFrame(cue_set['data_device1'])
     dataset.time_axis_all_device1 = pd.DataFrame(cue_set['time_axis_all_device1'])
 
     return dataset
 
 
-def init_emg(dataset: Dataset, tp_table: pd.DataFrame) -> ([pd.DataFrame], pd.DataFrame):
-    emg_peaks, filtered = find_emg_peaks(dataset, peaks_to_find=len(tp_table), channel=EMG_CHANNEL)
-
-    for i in range(0, len(emg_peaks)):
-        for j in range(0, len(emg_peaks[i])):
-            emg_peaks[i][j] = convert_freq_to_datetime(emg_peaks[i][j], dataset.sample_rate)
-
-    columns = ['emg_start', 'emg_peak', 'emg_end']
-    tp_table[columns] = emg_peaks
-
-    emg_frame, dataset = aggregate_trigger_points_for_emg_peak(tp_table, 'emg_start', dataset, filtered, frame_size=2)
-
-    emg_frame.extend(slice_and_label_idle_frames(dataset.data_device1))
-    return emg_frame, tp_table
-
-
 if __name__ == '__main__':
-    data = init(selected_cue_set=0)
 
+    data = init(selected_cue_set=config['id'])
+
+    # Shift Data to remove startup
+    data = shift_data(freq=80000, dataset=data)
+
+    # Create table containing information when trigger points were shown/removed
     trigger_table = trigger_time_table(data.TriggerPoint, data.time_start_device1)
 
-    # normalization / scaling techniques
-    # data.data_device1 = fourier_transform_single_dataframe(data.data_device1)
-    # data.data_device1 = z_score_normalization(data.data_device1)
-    # data.data_device1 = max_absolute_scaling(data.data_device1)
-    # data.data_device1 = min_max_scaling(data.data_device1)
-    emg_frames, trigger_table = init_emg(data, trigger_table)
+    if script_params['run_mrcp_detection']:
+        # Perform MRCP Detection and update trigger_table with EMG timestamps
+        emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
-    visualize_frame(emg_frames[7], data.sample_rate, channel=EMG_CHANNEL)
+        # Plot all filtered channels (0-8 and 12) together with the raw data
+        plot_raw_filtered_data(data=data, save_fig=False, overwrite=True)
 
-    # labelled_data = aggregate_data(data.data_device1, 100, trigger_table, sample_rate=data.sample_rate)
-    # uniform_data = create_uniform_distribution(emg_frames)
+        # Find valid emgs based on heuristic and calculate averages
+        valid_emg = find_usable_emg(trigger_table, config)
+        valid_emg = optimize_average_minimum(valid_emg, emg_frames)
+        avg = average_channel(emg_frames, valid_emg)
+        plot_average_channels(avg, save_fig=False, overwrite=True)
 
-    # uniform_data = fourier_transform_listof_dataframes(uniform_data)
-    # train_data, test_data = train_test_split_data(uniform_data, split_per=20)
-    # save_train_test_split(train_data, test_data, 'emg_uniform')
+        # Plot individual frames
+        for i in range(0, len(emg_frames)):
+            visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False, overwrite=True)
 
-    # train_data, test_data = load_train_test_split('emg_uniform')
+    if script_params['run_classification']:
+        uniform_data = create_uniform_distribution(emg_frames)
+        train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+        save_train_test_split(train_data, test_data, 'eeg')
 
-    # score = lgbm_classifier(train_data, test_data, channels=[3, 4, 5])
-    # print(score)
+        train_data, test_data = load_train_test_split('eeg')
+
+        score = knn_classifier(train_data, test_data)
+        print(score)

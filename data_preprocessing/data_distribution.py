@@ -28,54 +28,60 @@ def aggregate_data(device_data_pd: pd.DataFrame, freq_size: int, tp_table: pd.Da
 # finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
 # side into a dataframe.
 # this is used to find peaks locally in EMG data.
-def aggregate_trigger_points_for_emg_peak(tp_table: pd.DataFrame, column: str, data: Dataset, filtered: np.ndarray, frame_size: int = 2) -> ([Frame], Dataset):
+def cut_frames(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
+               dataset: Dataset, frame_size: float = 2.) -> ([Frame], Dataset):
     list_of_trigger_frames = []
     indices_to_delete = []
 
     for i, row in tp_table.iterrows():
-        start = int(row[column].total_seconds() * data.sample_rate - frame_size * data.sample_rate)
-        end = int(row[column].total_seconds() * data.sample_rate + frame_size * data.sample_rate)
+        start = int(row[tt_column].total_seconds() * dataset.sample_rate - frame_size * dataset.sample_rate)
+        end = int(row[tt_column].total_seconds() * dataset.sample_rate + frame_size * dataset.sample_rate)
         frame = Frame.Frame()
-        frame.data = data.data_device1.iloc[start:end]
-        frame.label = 1  # indicates EMG peak
+        frame.data = dataset.data_device1.iloc[start:end]
+        frame.label = 1  # indicates EMG
         frame.timestamp = row
-        frame.filtered_data = pd.DataFrame(columns=['12'], data=filtered)
+
+        frame.filtered_data = data.iloc[start:end]
+        frame.filtered_data = frame.filtered_data.reset_index(drop=True)
         indices_to_delete.append([start, end])
         list_of_trigger_frames.append(frame)
 
     indices_to_delete.reverse()
 
     for indices in indices_to_delete:
-        data.data_device1 = data.data_device1.drop(data.data_device1.index[indices[0]:indices[1]])
+        dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
+        data = data.drop(data.index[indices[0]:indices[1]])
 
-    return list_of_trigger_frames, data
+    return list_of_trigger_frames, data, dataset
 
 
-def slice_and_label_idle_frames(data: pd.DataFrame, frame_size: int=4800) -> [Frame]:
+def slice_and_label_idle_frames(data: pd.DataFrame, filtered_data: pd.DataFrame, frame_size: int = 2, freq: int = 1200) -> [Frame]:
     list_of_frames = []
+    frame_sz = frame_size * freq
     i = 0
-    while i < len(data) and i + frame_size < len(data):
-        cutout = abs(data.index[i] - data.index[i + frame_size]) == frame_size
+    while i < len(data) and i + frame_sz < len(data):
+        cutout = abs(data.index[i] - data.index[i + frame_sz]) == frame_sz
         if cutout:
             frame = Frame.Frame()
-            frame.data = data.iloc[i:i + frame_size]
+            frame.data = data.iloc[i:i + frame_sz]
             frame.label = 0  # indicates no EMG peak / no MRCP should be present
+            frame.filtered_data = filtered_data.iloc[i:i + frame_sz]
+            frame.filtered_data = frame.filtered_data.reset_index(drop=True)
             list_of_frames.append(frame)
-            i += frame_size
+            i += frame_sz
         else:
             i += 1
 
     return list_of_frames
 
 
-# todo generalize for x features
 def data_distribution(labelled_data_lst: [Frame]) -> {}:
     triggered = 0
 
     for frame in labelled_data_lst:
         if frame.label == 1:
             triggered += 1
-    # todo  counter = collections.Counter(features)
+    #  counter = collections.Counter(features)
 
     idle = len(labelled_data_lst) - triggered
     return {
