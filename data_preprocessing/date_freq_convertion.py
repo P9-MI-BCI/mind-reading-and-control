@@ -13,7 +13,11 @@ def convert_mat_date_to_python_date(date_arr: [list]) -> pd.DataFrame:
 
         time_str = str(date[-1]).split('.')
         temp.append(int(time_str[0]))
-        temp.append(int(time_str[1][:3]) * 1000)
+
+        deci_temp = time_str[1][:3]
+        while len(deci_temp) < 3:
+            deci_temp += '0'
+        temp.append(int(deci_temp)*1000)
 
         timestamp = datetime.datetime(*temp)
         p_date_lst.append(timestamp)
