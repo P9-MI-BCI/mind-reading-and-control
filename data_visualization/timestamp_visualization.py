@@ -73,7 +73,7 @@ def visualize_frame(frame: Frame, config, freq: int, channel: int, num: int, sav
         try:
             save_figure(path, fig, overwrite=overwrite)
         except FileExistsError:
-            get_logger().debug(get_logger().debug(f'Found file already exists: {file} you can '
-                                                  f'overwrite the file by setting overwrite=True'))
+            get_logger().debug(f'Found file already exists: {file} you can '
+                                                  f'overwrite the file by setting overwrite=True')
 
     plt.show()

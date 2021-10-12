@@ -6,14 +6,13 @@ from data_visualization.average_channels import find_usable_emg, average_channel
 from utility.logger import get_logger
 from tqdm import tqdm
 
+
 # test distance from minimum to middle
 # what sample has the biggest negative influence on the average
-def find_best_params(data, trigger_table, config):
-    # with open('config.json', 'w') as config_file:
-    #     json.dump(config, config_file)
 
-    emg_order_range = [4,5]
-    emg_cutoff_range = list(range(75,110))
+def find_best_config_params(data, trigger_table, config):
+    emg_order_range = [4, 5]
+    emg_cutoff_range = list(range(75, 110))
     eeg_cutoff_range_min = [0.03, 0.04, 0.05]
     eeg_cutoff_range_max = [3, 4, 5]
 
@@ -53,8 +52,9 @@ def find_best_params(data, trigger_table, config):
     print(minimized_config)
 
 
-def find_worst_sample(valid_emg, emg_frames, remove: int = 10):
-    channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+def optimize_average_minimum(valid_emg, emg_frames, channels=None, remove: int = 10):
+    if channels is None:
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     base_frames = average_channel(emg_frames, valid_emg)
 
@@ -94,8 +94,9 @@ def find_worst_sample(valid_emg, emg_frames, remove: int = 10):
     return valid_emg
 
 
-def remove_worst_frames(valid_emg, emg_frames, remove: int = 10) -> [int]:
-    channels = [3,4,5]
+def remove_worst_frames(valid_emg: list, emg_frames: list, channels=None, remove: int = 10) -> [int]:
+    if channels is None:
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     for rem in range(0, remove):
 
@@ -111,10 +112,10 @@ def remove_worst_frames(valid_emg, emg_frames, remove: int = 10) -> [int]:
             if sum(minimize_array) > worst_sample:
                 worst_sample = sum(minimize_array)
                 idx_ws = sample
-                get_logger().info(f'Worst sample: {valid_emg[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
+                get_logger().info(
+                    f'Worst sample: {valid_emg[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
 
         del valid_emg[idx_ws]
 
     get_logger().info(f'Resulting array: {valid_emg}')
     return valid_emg
-

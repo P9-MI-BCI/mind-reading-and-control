@@ -8,6 +8,7 @@ import json
 # Data preprocessing imports
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
+from data_preprocessing.find_best_params import optimize_average_minimum
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
 from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
@@ -34,7 +35,7 @@ from classes import Dataset, Frame
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level
-pd.set_option("display.max_rows", None, "display.max_columns", None)  # Dataframe print settings
+# pd.set_option("display.max_rows", None, "display.max_columns", None)  # Dataframe print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
     script_params = json.load(script_parameters)  # Load script parameters
@@ -87,16 +88,17 @@ if __name__ == '__main__':
         emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
         # Plot all filtered channels (0-8 and 12) together with the raw data
-        plot_raw_filtered_data(data=data, save_fig=True)
+        plot_raw_filtered_data(data=data, save_fig=False, overwrite=True)
 
         # Find valid emgs based on heuristic and calculate averages
         valid_emg = find_usable_emg(trigger_table, config)
+        valid_emg = optimize_average_minimum(valid_emg, emg_frames)
         avg = average_channel(emg_frames, valid_emg)
-        plot_average_channels(avg, save_fig=False)
+        plot_average_channels(avg, save_fig=False, overwrite=True)
 
         # Plot individual frames
         for i in range(0, len(emg_frames)):
-            visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
+            visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False, overwrite=True)
 
     if script_params['run_classification']:
         uniform_data = create_uniform_distribution(emg_frames)
