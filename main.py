@@ -4,26 +4,33 @@ import scipy.io
 import os
 import sys
 import json
+
+# Data preprocessing imports
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.fourier_transform import fourier_transform_listof_dataframes, fourier_transform_single_dataframe
 from data_preprocessing.mrcp_detection import mrcp_detection
-from data_training.LGBM.lgbm_prediction import lgbm_classifier
-from data_training.SVM.svm_prediction import svm_classifier
-from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
-from data_visualization.timestamp_visualization import visualize_frame
-from data_visualization.raw_and_filtered_data import plot_raw_filtered_data
-from definitions import DATASET_PATH, OUTPUT_PATH
-from classes import Dataset, Frame
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
+
+# Data visualization imports
+from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.timestamp_visualization import visualize_frame
+from data_visualization.raw_and_filtered_data import plot_raw_filtered_data
+
+# Training/Classification imports
+from data_training.LGBM.lgbm_prediction import lgbm_classifier
+from data_training.SVM.svm_prediction import svm_classifier
 from data_training.KNN.knn_prediction import knn_classifier
 
 # Logging imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
+
+from definitions import DATASET_PATH, OUTPUT_PATH
+from classes import Dataset, Frame
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level
@@ -79,6 +86,7 @@ if __name__ == '__main__':
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         emg_frames, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
+        # Plot all filtered channels (0-8 and 12) together with the raw data
         plot_raw_filtered_data(data=data, save_fig=True)
 
         # Find valid emgs based on heuristic and calculate averages
@@ -86,7 +94,7 @@ if __name__ == '__main__':
         avg = average_channel(emg_frames, valid_emg)
         plot_average_channels(avg, save_fig=False)
 
-        # plot individual frames
+        # Plot individual frames
         for i in range(0, len(emg_frames)):
             visualize_frame(emg_frames[i], config=config, freq=data.sample_rate, channel=4, num=i, save_fig=False)
 

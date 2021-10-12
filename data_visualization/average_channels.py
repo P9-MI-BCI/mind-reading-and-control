@@ -57,7 +57,7 @@ def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: boo
             path = f'{OUTPUT_PATH}/plots/average_emg_start/{channel + 1}.png'
             file = os.path.split(path)[1]
             try:
-                save_figure(path, fig, overwrite=False)
+                save_figure(path, fig, overwrite=overwrite)
             except FileExistsError:
                 get_logger().debug(get_logger().error(f'Found file already exists: {file} you can '
                                                       f'overwrite the file by setting overwrite=True'))
