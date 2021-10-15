@@ -87,13 +87,13 @@ if __name__ == '__main__':
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         emg_windows, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
-        # Plot all filtered channels (0-8 and 12) together with the raw data
+        # Plot all filtered channels (0-9 and 12) together with the raw data
         plot_raw_filtered_data(data=data, save_fig=False, overwrite=True)
 
         # Find valid emgs based on heuristic and calculate averages
         valid_emg = find_usable_emg(trigger_table, config)
-        valid_emg = optimize_average_minimum(valid_emg, emg_windows, remove=8, weights=[0.2, 0.2, 1, 0.2, 0.2, 1, 0.2, 0.2, 0.2])
-        # valid_emg = remove_worst_windows(valid_emg, emg_windows, remove=8, weights=[0.2, 0.2, 1, 0.2, 0.2, 1, 0.2, 0.2, 0.2])
+        valid_emg = optimize_average_minimum(valid_emg, emg_windows, remove=8)
+        # valid_emg = remove_worst_windows(valid_emg, emg_windows, remove=8)
         avg = average_channel(emg_windows, valid_emg)
         plot_average_channels(avg, save_fig=False, overwrite=True)
 

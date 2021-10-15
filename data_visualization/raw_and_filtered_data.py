@@ -8,14 +8,14 @@ from definitions import OUTPUT_PATH
 
 
 def plot_raw_filtered_data(data: pd.DataFrame, save_fig: bool = False, overwrite: bool = False):
-    # Selecting eeg channel 0-8 and emg channel 13
+    # Selecting eeg channel 0-9 and emg channel 13
     channels = data.filtered_data.columns
 
     for channel in channels:
         fig = plt.figure()
         plt.plot(data.data_device1[channel], label='Raw data')
         plt.plot(data.filtered_data[channel], label='Filtered data')
-        if channel < 9:
+        if channel < 10:
             plt.title(f'EEG Channel {channel + 1} - bandpass')
         elif channel == 12:
             plt.title(f'EMG Channel {channel + 1} - highpass')

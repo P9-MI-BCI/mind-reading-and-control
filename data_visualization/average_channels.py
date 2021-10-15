@@ -23,7 +23,7 @@ def find_usable_emg(tp_table: pd.DataFrame, config) -> [int]:
 
 # takes in list of all windows with MRCP and returns a window containing the average of them.
 def average_channel(windows: [Window], emg_detections: [int]) -> [Window]:
-    EEG_CHANNELS = list(range(0, 9))
+    EEG_CHANNELS = list(range(0, 10))
     avg_channel = []
     for col in EEG_CHANNELS:
         df_temp = pd.DataFrame()

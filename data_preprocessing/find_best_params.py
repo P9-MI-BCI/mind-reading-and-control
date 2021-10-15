@@ -17,7 +17,7 @@ def find_best_config_params(data, trigger_table, config):
     eeg_cutoff_range_max = [4, 5, 6, 7, 8, 9, 10]
     eeg_order = [2,3]
 
-    channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     minimize_cost = 99999999
     minimized_config = {}
@@ -58,7 +58,7 @@ def find_best_config_params(data, trigger_table, config):
 
 def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None, remove: int = 10):
     if channels is None:
-        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
     base_windows = average_channel(emg_windows, valid_emg)
 
@@ -106,7 +106,7 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
 
 def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weights=None, remove: int = 10) -> [int]:
     if channels is None:
-        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     for rem in range(0, remove):

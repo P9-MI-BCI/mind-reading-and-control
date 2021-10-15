@@ -10,7 +10,7 @@ from utility.logger import get_logger
 def visualize_window(window: Window, config, freq: int, channel: int, num: int, save_fig: bool = False,
                     overwrite: bool = False):
     x_seconds = []
-    fig = plt.figure()
+    fig = plt.figure(figsize=(5, 7))
     center = (len(window.data) / 2) / freq
     for i, row in window.filtered_data[channel].items():  # converts the window.data freqs to seconds
         x_seconds.append(i / freq - center)
@@ -44,24 +44,30 @@ def visualize_window(window: Window, config, freq: int, channel: int, num: int, 
         y_t = ['TP'] * len(tp_timestamp)
         y_t2 = ['EMG'] * len(emg_timestamp)
 
-        gs = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
+        gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
         ax1 = fig.add_subplot(gs[:2, 0])
-        ax1.set_title(f' Channel: {channel} - EEG {num + 1} - Filter: {window.filter_type[channel].iloc[0]}')
-        ax1.plot(x_seconds, window.filtered_data[channel], color='tomato')
+        ax1.set_title(f' Channel: {channel + 1} - EEG {num + 1} - Filter: No Filter')
+        ax1.plot(x_seconds, window.data[channel], color='tomato')
         ax1.axvline(x=0, color='black', ls='--')
 
-        ax2 = fig.add_subplot(gs[2, 0], sharex=ax1)
+        ax4 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
+        ax4.set_title(f'Filter: {window.filter_type[channel].iloc[0]}')
+        ax4.plot(x_seconds, window.filtered_data[channel], color='tomato')
+        ax4.axvline(x=0, color='black', ls='--')
+
+        ax2 = fig.add_subplot(gs[4, 0], sharex=ax1)
         ax2.set_title('EMG Detection')
         ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
         ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
-        ax3 = fig.add_subplot(gs[3, 0], sharex=ax1)
+        ax3 = fig.add_subplot(gs[5, 0], sharex=ax1)
         ax3.set_title('Trigger Point Duration')
         ax3.plot(tp_timestamp, y_t, marker='o', color='royalblue')
         ax3.annotate('Trigger Point', xy=[tp_timestamp[0], y_t[0]])
 
+
     else:
-        plt.title(f' Channel: {channel} - EEG Window: {num + 1} - Filter: {window.filter_type[channel].iloc[0]}')
+        plt.title(f' Channel: {channel + 1} - EEG Window: {num + 1} - Filter: {window.filter_type[channel].iloc[0]}')
         plt.plot(x_seconds, window.filtered_data[channel], color='tomato')
         plt.axvline(x=0, color='black', ls='--')
 

@@ -11,7 +11,7 @@ from data_preprocessing.filters import butter_filter
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
 [pd.DataFrame], pd.DataFrame):
-    EEG_CHANNELS = list(range(0, 9))
+    EEG_CHANNELS = list(range(0, 10))
     EMG_CHANNEL = 12
     FRAME_SIZE = 2  # seconds
     dataset = copy.deepcopy(data)
@@ -55,16 +55,16 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     data.filtered_data = filtered_data
 
     windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
-                                                tt_column=config['aggregate_strategy'],
-                                                data=filtered_data,
-                                                dataset=dataset,
-                                                window_size=FRAME_SIZE
-                                                )
+                                                 tt_column=config['aggregate_strategy'],
+                                                 data=filtered_data,
+                                                 dataset=dataset,
+                                                 window_size=FRAME_SIZE
+                                                 )
 
     windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
-                                              filtered_data=filtered_data,
-                                              window_size=FRAME_SIZE,
-                                              freq=dataset.sample_rate))
+                                               filtered_data=filtered_data,
+                                               window_size=FRAME_SIZE,
+                                               freq=dataset.sample_rate))
 
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
