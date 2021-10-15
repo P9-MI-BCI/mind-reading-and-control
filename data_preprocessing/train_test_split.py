@@ -40,15 +40,15 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int=10) -> ([pd.DataF
 
 
 def format_dataset(data: [pd.DataFrame], channel=0) -> ([], []):
-    # takes in list of dataframes on the usual format [target_value, pd.DataFrame] and returns these are seperate vectors for downstream prediction
+    # takes in list of datawindows on the usual format [target_value, pd.DataFrame] and returns these are seperate vectors for downstream prediction
     y = []
     x = []
 
     if len(data) < 1:
         get_logger().warning('List of Frames was empty while attempting to format data and target variables.')
-    for frame in data:
-        y.append(frame.label)
-        x.append(frame.data.iloc[channel])
+    for window in data:
+        y.append(window.label)
+        x.append(window.data.iloc[channel])
 
     # data, target
     return x, y

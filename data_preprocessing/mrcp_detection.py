@@ -3,7 +3,7 @@ import copy
 from classes import Dataset
 import pandas as pd
 import biosppy
-from data_preprocessing.data_distribution import cut_frames, slice_and_label_idle_frames
+from data_preprocessing.data_distribution import cut_windows, slice_and_label_idle_windows
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import emg_clustering
 from data_preprocessing.filters import butter_filter
@@ -54,25 +54,25 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset.sample_rate)
     data.filtered_data = filtered_data
 
-    frames, filtered_data, dataset = cut_frames(tp_table=tp_table,
+    windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
                                                 tt_column=config['aggregate_strategy'],
                                                 data=filtered_data,
                                                 dataset=dataset,
-                                                frame_size=FRAME_SIZE
+                                                window_size=FRAME_SIZE
                                                 )
 
-    frames.extend(slice_and_label_idle_frames(data=dataset.data_device1,
+    windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
                                               filtered_data=filtered_data,
-                                              frame_size=FRAME_SIZE,
+                                              window_size=FRAME_SIZE,
                                               freq=dataset.sample_rate))
 
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
 
-    for frame in frames:
-        frame.update_filter_type(filter_type_df)
+    for window in windows:
+        window.update_filter_type(filter_type_df)
 
-    return frames, tp_table
+    return windows, tp_table
 
 
 def emg_peaks_freq_to_datetime(emg_peaks, freq: int):

@@ -2,49 +2,49 @@ import collections
 import random
 import pandas as pd
 from data_preprocessing.trigger_points import is_triggered
-from classes import Frame
+from classes import Window
 from classes import Dataset
 import numpy as np
 
 
 def aggregate_data(device_data_pd: pd.DataFrame, freq_size: int, tp_table: pd.DataFrame, sample_rate: int = 1200) -> [
     pd.DataFrame]:
-    list_of_dataframes = []
+    list_of_datawindows = []
 
     for i in range(0, device_data_pd.shape[0], freq_size):
-        # the label for the frame is attached first. we base being 'triggered' whether the middle frequency is
-        # recorded during the triggered timeframe.
-        frame = Frame.Frame()
+        # the label for the window is attached first. we base being 'triggered' whether the middle frequency is
+        # recorded during the triggered timewindow.
+        window = Window.Window()
 
-        frame.label = is_triggered(i + freq_size / 2, tp_table, sample_rate)
-        frame.data = device_data_pd.iloc[i:i + freq_size]
+        window.label = is_triggered(i + freq_size / 2, tp_table, sample_rate)
+        window.data = device_data_pd.iloc[i:i + freq_size]
 
-        list_of_dataframes.append(frame)
+        list_of_datawindows.append(window)
 
-    # return all but the last frame, because it is not complete
-    return list_of_dataframes[:-1]
+    # return all but the last window, because it is not complete
+    return list_of_datawindows[:-1]
 
 
-# finds the start of trigger point and converts it to frequency and takes the frame_size (in seconds) and cuts each
-# side into a dataframe.
+# finds the start of trigger point and converts it to frequency and takes the window_size (in seconds) and cuts each
+# side into a datawindow.
 # this is used to find peaks locally in EMG data.
-def cut_frames(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
-               dataset: Dataset, frame_size: float = 2.) -> ([Frame], Dataset):
-    list_of_trigger_frames = []
+def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
+               dataset: Dataset, window_size: float = 2.) -> ([Window], Dataset):
+    list_of_trigger_windows = []
     indices_to_delete = []
 
     for i, row in tp_table.iterrows():
-        start = int(row[tt_column].total_seconds() * dataset.sample_rate - frame_size * dataset.sample_rate)
-        end = int(row[tt_column].total_seconds() * dataset.sample_rate + frame_size * dataset.sample_rate)
-        frame = Frame.Frame()
-        frame.data = dataset.data_device1.iloc[start:end]
-        frame.label = 1  # indicates EMG
-        frame.timestamp = row
+        start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_size * dataset.sample_rate)
+        end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_size * dataset.sample_rate)
+        window = Window.Window()
+        window.data = dataset.data_device1.iloc[start:end]
+        window.label = 1  # indicates EMG
+        window.timestamp = row
 
-        frame.filtered_data = data.iloc[start:end]
-        frame.filtered_data = frame.filtered_data.reset_index(drop=True)
+        window.filtered_data = data.iloc[start:end]
+        window.filtered_data = window.filtered_data.reset_index(drop=True)
         indices_to_delete.append([start, end])
-        list_of_trigger_frames.append(frame)
+        list_of_trigger_windows.append(window)
 
     indices_to_delete.reverse()
 
@@ -52,34 +52,34 @@ def cut_frames(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
         dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
         data = data.drop(data.index[indices[0]:indices[1]])
 
-    return list_of_trigger_frames, data, dataset
+    return list_of_trigger_windows, data, dataset
 
 
-def slice_and_label_idle_frames(data: pd.DataFrame, filtered_data: pd.DataFrame, frame_size: int = 2, freq: int = 1200) -> [Frame]:
-    list_of_frames = []
-    frame_sz = frame_size * freq
+def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
+    list_of_windows = []
+    window_sz = window_size * freq
     i = 0
-    while i < len(data) and i + frame_sz < len(data):
-        cutout = abs(data.index[i] - data.index[i + frame_sz]) == frame_sz
+    while i < len(data) and i + window_sz < len(data):
+        cutout = abs(data.index[i] - data.index[i + window_sz]) == window_sz
         if cutout:
-            frame = Frame.Frame()
-            frame.data = data.iloc[i:i + frame_sz]
-            frame.label = 0  # indicates no EMG peak / no MRCP should be present
-            frame.filtered_data = filtered_data.iloc[i:i + frame_sz]
-            frame.filtered_data = frame.filtered_data.reset_index(drop=True)
-            list_of_frames.append(frame)
-            i += frame_sz
+            window = Window.Window()
+            window.data = data.iloc[i:i + window_sz]
+            window.label = 0  # indicates no EMG peak / no MRCP should be present
+            window.filtered_data = filtered_data.iloc[i:i + window_sz]
+            window.filtered_data = window.filtered_data.reset_index(drop=True)
+            list_of_windows.append(window)
+            i += window_sz
         else:
             i += 1
 
-    return list_of_frames
+    return list_of_windows
 
 
-def data_distribution(labelled_data_lst: [Frame]) -> {}:
+def data_distribution(labelled_data_lst: [Window]) -> {}:
     triggered = 0
 
-    for frame in labelled_data_lst:
-        if frame.label == 1:
+    for window in labelled_data_lst:
+        if window.label == 1:
             triggered += 1
     #  counter = collections.Counter(features)
 
@@ -91,12 +91,12 @@ def data_distribution(labelled_data_lst: [Frame]) -> {}:
     }
 
 
-def create_uniform_distribution(data_list: [Frame]) -> [Frame]:
+def create_uniform_distribution(data_list: [Window]) -> [Window]:
     # returns the dataset with equal amount of samples, chosen by the least represented feature.
     features = []
 
-    for frame in data_list:
-        features.append(frame.label)
+    for window in data_list:
+        features.append(window.label)
 
     counter = collections.Counter(features)
     least_represented_feature = 99999999999
@@ -109,21 +109,21 @@ def create_uniform_distribution(data_list: [Frame]) -> [Frame]:
     random.shuffle(data_list)
 
     uniform_data_list = []
-    for frame in data_list:
-        if feat_counter[frame.label] < least_represented_feature:
-            uniform_data_list.append(frame)
-            feat_counter[frame.label] += 1
+    for window in data_list:
+        if feat_counter[window.label] < least_represented_feature:
+            uniform_data_list.append(window)
+            feat_counter[window.label] += 1
 
     return uniform_data_list
 
 
-def z_score_normalization(frame: pd.DataFrame) -> pd.DataFrame:
-    return (frame - frame.mean()) / frame.std()
+def z_score_normalization(window: pd.DataFrame) -> pd.DataFrame:
+    return (window - window.mean()) / window.std()
 
 
-def max_absolute_scaling(frame: pd.DataFrame) -> pd.DataFrame:
-    return frame / frame.abs().max()
+def max_absolute_scaling(window: pd.DataFrame) -> pd.DataFrame:
+    return window / window.abs().max()
 
 
-def min_max_scaling(frame: pd.DataFrame) -> pd.DataFrame:
-    return (frame - frame.min()) / (frame.max() - frame.min())
+def min_max_scaling(window: pd.DataFrame) -> pd.DataFrame:
+    return (window - window.min()) / (window.max() - window.min())
