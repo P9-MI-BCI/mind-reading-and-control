@@ -68,6 +68,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
 
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
+    filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
 
     for window in windows:
         window.update_filter_type(filter_type_df)

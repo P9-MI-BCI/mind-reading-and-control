@@ -59,7 +59,7 @@ def find_best_config_params(data, trigger_table, config):
 def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None, remove: int = 10):
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     base_windows = average_channel(emg_windows, valid_emg)
 
     base_score = []
@@ -107,7 +107,7 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
 def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weights=None, remove: int = 10) -> [int]:
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     for rem in range(0, remove):
 
@@ -117,8 +117,8 @@ def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weig
         for sample in range(0, len(valid_emg)):
             minimize_array = []
             for chan in range(0, len(channels)):
-                center = int(len(emg_windows[valid_emg[sample]].filtered_data[channels[chan]]) / 2)
-                minimize_array.append(abs(emg_windows[valid_emg[sample]].filtered_data[channels[chan]].idxmin() - center) * weights[channels[chan]])
+                center = int(len(emg_windows[valid_emg[sample]].filtered_data[chan]) / 2)
+                minimize_array.append(abs(emg_windows[valid_emg[sample]].filtered_data[chan].idxmin() - center) * weights[chan])
 
             if sum(minimize_array) > worst_sample:
                 worst_sample = sum(minimize_array)
