@@ -97,6 +97,10 @@ if __name__ == '__main__':
         avg = average_channel(emg_windows, valid_emg)
         plot_average_channels(avg, save_fig=False, overwrite=True)
 
+        # feature extraction
+        for window in emg_windows:
+            window.extract_features()
+
         # Plot individual windows
         for i in range(0, len(valid_emg)):
             visualize_window(emg_windows[valid_emg[i]], config=config, freq=data.sample_rate, channel=4, num=valid_emg[i], save_fig=False, overwrite=True)

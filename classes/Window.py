@@ -8,7 +8,7 @@ class Window:
     negative_slope = pd.DataFrame()
     variability = pd.DataFrame()
     mean_amplitude = pd.DataFrame()
-    signal_negativity = None
+    signal_negativity = pd.DataFrame()
     filter_type = pd.DataFrame()
 
     def __int__(self, label: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
@@ -61,7 +61,20 @@ class Window:
                 self.mean_amplitude[channel] = [self.filtered_data[channel].mean()]
 
     def _calc_signal_negativity(self):
-        pass
+        if isinstance(self.filtered_data, pd.DataFrame):
+            for channel in self.filtered_data.columns:
+                prev = self.filtered_data[channel].iloc[0]
+                sum_negativity = 0
+
+                for i, value in self.filtered_data[channel].items():
+                    diff = prev - value
+                    if diff < 0:
+                        sum_negativity += diff
+                        prev = value
+                    else:
+                        prev = value
+
+                self.signal_negativity[channel] = sum_negativity
 
     def extract_features(self):
         self._calc_negative_slope()
