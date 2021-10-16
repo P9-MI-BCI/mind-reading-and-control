@@ -15,10 +15,10 @@ def lightGBM_classifier_params(SEED: int):
     }
 
 
-def lgbm_classifier(train_data, test_data, channels=None):
+def lgbm_classifier(train_data, test_data, channels=None, features='raw'):
 
     model = lgb.LGBMClassifier(**lightGBM_classifier_params(SEED=1337))
 
-    result = scikit_classifier(model, train_data, test_data, channels)
+    result = scikit_classifier(model, train_data, test_data, channels, features)
 
     return result

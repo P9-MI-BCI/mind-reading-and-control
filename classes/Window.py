@@ -5,6 +5,7 @@ from scipy.stats import linregress
 
 class Window:
 
+    num_id = None
     negative_slope = pd.DataFrame()
     variability = pd.DataFrame()
     mean_amplitude = pd.DataFrame()
@@ -49,16 +50,22 @@ class Window:
 
                 slope, intercept, r_value, p_value, std_err = linregress(x, y)
                 self.negative_slope[channel] = [slope]
+        else:
+            get_logger().error("Cannot feature extract negative slope without filtered data.")
 
     def _calc_variability(self):
         if isinstance(self.filtered_data, pd.DataFrame):
             for channel in self.filtered_data.columns:
                 self.variability[channel] = [self.filtered_data[channel].var()]
+        else:
+            get_logger().error("Cannot feature extract variability without filtered data.")
 
     def _calc_mean_amplitude(self):
         if isinstance(self.filtered_data, pd.DataFrame):
             for channel in self.filtered_data.columns:
                 self.mean_amplitude[channel] = [self.filtered_data[channel].mean()]
+        else:
+            get_logger().error("Cannot feature extract mean amplitude without filtered data.")
 
     def _calc_signal_negativity(self):
         if isinstance(self.filtered_data, pd.DataFrame):
@@ -74,11 +81,26 @@ class Window:
                     else:
                         prev = value
 
-                self.signal_negativity[channel] = sum_negativity
+                self.signal_negativity[channel] = [sum_negativity]
+        else:
+            get_logger().error("Cannot feature extract signal negativity without filtered data.")
 
     def extract_features(self):
         self._calc_negative_slope()
         self._calc_variability()
         self._calc_mean_amplitude()
         self._calc_signal_negativity()
+
+    def get_features(self):
+        existing_features = []
+        if len(self.negative_slope) > 0:
+            existing_features.append("negative_slope")
+        if len(self.mean_amplitude) > 0:
+            existing_features.append("mean_amplitude")
+        if len(self.variability) > 0:
+            existing_features.append("variability")
+        if len(self.signal_negativity) > 0:
+            existing_features.append("signal_negativity")
+
+        return existing_features
 

@@ -5,6 +5,7 @@ import uuid
 import glob
 import pandas as pd
 from classes import Window
+import pickle
 
 
 def save_train_test_split(train_data, test_data, dir_name):
@@ -27,15 +28,19 @@ def save_train_test_split(train_data, test_data, dir_name):
 
     for window in train_data:
         unique_filename = str(uuid.uuid4())
-        labels = [window.label for i in range(window.data.shape[0])]
-        window.data['label'] = labels
-        window.data.to_csv(f'{os.path.join(train_path, unique_filename)}.csv', sep=',', encoding='utf-8', index=False)
+        with open(os.path.join(train_path, unique_filename), 'wb') as handle:
+            pickle.dump(window, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # labels = [window.label for i in range(window.data.shape[0])]
+        # window.data['label'] = labels
+        # window.data.to_csv(f'{os.path.join(train_path, unique_filename)}.csv', sep=',', encoding='utf-8', index=False)
 
     for window in test_data:
         unique_filename = str(uuid.uuid4())
-        labels = [window.label for i in range(window.data.shape[0])]
-        window.data['label'] = labels
-        window.data.to_csv(f'{os.path.join(test_path, unique_filename)}.csv', sep=',', encoding='utf-8', index=False)
+        with open(os.path.join(test_path, unique_filename), 'wb') as handle:
+            pickle.dump(window, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # labels = [window.label for i in range(window.data.shape[0])]
+        # window.data['label'] = labels
+        # window.data.to_csv(f'{os.path.join(test_path, unique_filename)}.csv', sep=',', encoding='utf-8', index=False)
 
     get_logger().info(f'Saved training set of size {len(train_data)} and test set of size {len(test_data)} to disc.')
 
@@ -58,16 +63,21 @@ def load_train_test_split(dataset):
 
     train_windows = []
     for file in train_names:
-        train_windows.append(file_to_window(file))
+        with open(file, 'rb') as handle:
+            unserialized_data = pickle.load(handle)
+            train_windows.append(unserialized_data)
 
     test_windows = []
     for file in test_names:
-        test_windows.append(file_to_window(file))
+        with open(file, 'rb') as handle:
+            unserialized_data = pickle.load(handle)
+            test_windows.append(unserialized_data)
 
     get_logger().info(f'Loaded {len(train_names)+len(test_names)} windows with shape: {train_windows[0].data.shape}')
     return train_windows, test_windows
 
 
+# old style of loading
 def file_to_window(file):
     window = Window.Window()
 

@@ -9,7 +9,8 @@ import json
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.find_best_params import optimize_average_minimum, remove_worst_windows, find_best_config_params
-from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, fourier_transform_single_datawindow
+from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
+    fourier_transform_single_datawindow
 from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
@@ -85,32 +86,43 @@ if __name__ == '__main__':
 
     if script_params['run_mrcp_detection']:
         # Perform MRCP Detection and update trigger_table with EMG timestamps
-        emg_windows, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
+        windows, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
 
         # Plot all filtered channels (0-9 and 12) together with the raw data
         plot_raw_filtered_data(data=data, save_fig=False, overwrite=True)
 
         # Find valid emgs based on heuristic and calculate averages
         valid_emg = find_usable_emg(trigger_table, config)
-        valid_emg = optimize_average_minimum(valid_emg, emg_windows, remove=8)
-        # valid_emg = remove_worst_windows(valid_emg, emg_windows, remove=8)
-        avg = average_channel(emg_windows, valid_emg)
+        # valid_emg = optimize_average_minimum(valid_emg, emg_windows, remove=8)
+        valid_emg = remove_worst_windows(valid_emg, windows, remove=8)
+
+        avg = average_channel(windows, valid_emg)
         plot_average_channels(avg, save_fig=False, overwrite=True)
 
-        # feature extraction
-        for window in emg_windows:
-            window.extract_features()
+        mrcp_windows = 0
+        for window in windows:
+            if window.label == 1:
+                mrcp_windows += 1
+
+        for i in range(mrcp_windows, 0, -1):
+            if i not in valid_emg:
+                del windows[i]
 
         # Plot individual windows
         for i in range(0, len(valid_emg)):
-            visualize_window(emg_windows[valid_emg[i]], config=config, freq=data.sample_rate, channel=4, num=valid_emg[i], save_fig=False, overwrite=True)
+            visualize_window(windows[i], config=config, freq=data.sample_rate, channel=4,
+                             save_fig=False, overwrite=True)
 
-    if script_params['run_classification']:
-        uniform_data = create_uniform_distribution(emg_windows)
+        # if script_params['run_classification']:
+        # feature extraction
+        for window in windows:
+            window.extract_features()
+
+        uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
-        save_train_test_split(train_data, test_data, 'eeg')
 
+        save_train_test_split(train_data, test_data, 'eeg')
         train_data, test_data = load_train_test_split('eeg')
 
-        score = knn_classifier(train_data, test_data)
+        score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         print(score)

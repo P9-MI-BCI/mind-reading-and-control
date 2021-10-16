@@ -9,7 +9,7 @@ from data_training.measurements import get_accuracy
 import pandas as pd
 
 
-def scikit_classifier(model, train_data, test_data, channels=None):
+def scikit_classifier(model, train_data, test_data, channels=None, features='raw'):
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 

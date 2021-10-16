@@ -7,7 +7,7 @@ from utility.save_figure import save_figure
 from utility.logger import get_logger
 
 
-def visualize_window(window: Window, config, freq: int, channel: int, num: int, save_fig: bool = False,
+def visualize_window(window: Window, config, freq: int, channel: int, save_fig: bool = False,
                     overwrite: bool = False):
     x_seconds = []
     fig = plt.figure(figsize=(5, 7))
@@ -46,7 +46,7 @@ def visualize_window(window: Window, config, freq: int, channel: int, num: int, 
 
         gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
         ax1 = fig.add_subplot(gs[:2, 0])
-        ax1.set_title(f' Channel: {channel + 1} - EEG {num + 1} - Filter: No Filter')
+        ax1.set_title(f' Channel: {channel + 1} - EEG {window.num_id + 1} - Raw')
         ax1.plot(x_seconds, window.data[channel], color='tomato')
         ax1.axvline(x=0, color='black', ls='--')
 
@@ -67,14 +67,14 @@ def visualize_window(window: Window, config, freq: int, channel: int, num: int, 
 
 
     else:
-        plt.title(f' Channel: {channel + 1} - EEG Window: {num + 1} - Filter: {window.filter_type[channel].iloc[0]}')
+        plt.title(f' Channel: {channel + 1} - EEG Window: {window.num_id + 1} - Filter: {window.filter_type[channel].iloc[0]}')
         plt.plot(x_seconds, window.filtered_data[channel], color='tomato')
         plt.axvline(x=0, color='black', ls='--')
 
     plt.tight_layout()
 
     if save_fig:
-        path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{num + 1}.png'
+        path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{window.num_id + 1}.png'
         file = os.path.split(path)[1]
         try:
             save_figure(path, fig, overwrite=overwrite)
