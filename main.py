@@ -113,7 +113,6 @@ if __name__ == '__main__':
             visualize_window(windows[i], config=config, freq=data.sample_rate, channel=4,
                              save_fig=False, overwrite=True)
 
-        # if script_params['run_classification']:
         # feature extraction
         for window in windows:
             window.extract_features()
@@ -122,7 +121,10 @@ if __name__ == '__main__':
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
         save_train_test_split(train_data, test_data, 'eeg')
+
+    if script_params['run_classification']:
+
         train_data, test_data = load_train_test_split('eeg')
 
-        score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
+        score = svm_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         print(score)
