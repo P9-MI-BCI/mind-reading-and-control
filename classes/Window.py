@@ -4,13 +4,11 @@ from scipy.stats import linregress
 
 
 class Window:
-
     num_id = None
     negative_slope = pd.DataFrame()
     variability = pd.DataFrame()
     mean_amplitude = pd.DataFrame()
     signal_negativity = pd.DataFrame()
-    filter_type = pd.DataFrame()
 
     def __int__(self, label: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0):
@@ -18,6 +16,11 @@ class Window:
         self.data = data
         self.timestamp = timestamp
         self.filtered_data = filtered_data
+        self.negative_slope = pd.DataFrame()
+        self.variability = pd.DataFrame()
+        self.mean_amplitude = pd.DataFrame()
+        self.signal_negativity = pd.DataFrame()
+        self.filter_type = pd.DataFrame()
 
     def filter(self, filter_in, channel: int, **kwargs):
         try:
@@ -40,10 +43,12 @@ class Window:
                     self.filter_type[channel] = [filter_types[channel].iloc[0]]
             except AttributeError:
                 get_logger().debug('Attribute not yet created in a window - initializing data window.')
+                self.filter_type = pd.DataFrame()
                 self.filter_type[channel] = [filter_types[channel].iloc[0]]
 
     def _calc_negative_slope(self):
         if isinstance(self.filtered_data, pd.DataFrame):
+            self.negative_slope = pd.DataFrame()
             for channel in self.filtered_data.columns:
                 x = self.filtered_data[channel].idxmin(), self.filtered_data[channel].idxmax()
                 y = self.filtered_data[channel].min(), self.filtered_data[channel].max()
@@ -55,6 +60,7 @@ class Window:
 
     def _calc_variability(self):
         if isinstance(self.filtered_data, pd.DataFrame):
+            self.variability = pd.DataFrame()
             for channel in self.filtered_data.columns:
                 self.variability[channel] = [self.filtered_data[channel].var()]
         else:
@@ -62,6 +68,7 @@ class Window:
 
     def _calc_mean_amplitude(self):
         if isinstance(self.filtered_data, pd.DataFrame):
+            self.mean_amplitude = pd.DataFrame()
             for channel in self.filtered_data.columns:
                 self.mean_amplitude[channel] = [self.filtered_data[channel].mean()]
         else:
@@ -69,6 +76,7 @@ class Window:
 
     def _calc_signal_negativity(self):
         if isinstance(self.filtered_data, pd.DataFrame):
+            self.signal_negativity = pd.DataFrame()
             for channel in self.filtered_data.columns:
                 prev = self.filtered_data[channel].iloc[0]
                 sum_negativity = 0
@@ -103,4 +111,3 @@ class Window:
             existing_features.append("signal_negativity")
 
         return existing_features
-

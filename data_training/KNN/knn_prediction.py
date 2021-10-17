@@ -7,7 +7,7 @@ pd.options.mode.chained_assignment = None
 
 
 def knn_classifier(train_data, test_data, channels=None, features='raw'):
-    model = KNeighborsClassifier(n_neighbors=2)
+    model = KNeighborsClassifier(n_neighbors=3)
 
     result = scikit_classifier(model, train_data, test_data, channels, features)
 

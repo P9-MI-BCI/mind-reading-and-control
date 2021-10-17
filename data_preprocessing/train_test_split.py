@@ -62,7 +62,7 @@ def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
             temp_features = []
             for feat in feats:
                 df = getattr(window, feat)
-                temp_features.append(df[channel])
+                temp_features.append(df[channel].item())
             x.append(temp_features)
 
     # data, target

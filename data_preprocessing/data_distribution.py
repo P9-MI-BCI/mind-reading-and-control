@@ -57,7 +57,7 @@ def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
 
 def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
     list_of_windows = []
-    window_sz = window_size * freq
+    window_sz = window_size * freq * 2
     i = 0
     while i < len(data) and i + window_sz < len(data):
         cutout = abs(data.index[i] - data.index[i + window_sz]) == window_sz

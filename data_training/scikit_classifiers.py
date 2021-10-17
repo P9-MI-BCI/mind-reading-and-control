@@ -17,12 +17,12 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     ensemble_predictions_train = []
     ensemble_predictions_test = []
 
-    _, y_train = format_dataset(train_data, channel=0)
-    _, y_test = format_dataset(test_data, channel=0)
+    _, y_train = format_dataset(train_data, channel=0, features=features)
+    _, y_test = format_dataset(test_data, channel=0, features=features)
 
     for channel in channels:
-        x_train, _ = format_dataset(train_data, channel=channel)
-        x_test, _ = format_dataset(test_data, channel=channel)
+        x_train, _ = format_dataset(train_data, channel=channel, features=features)
+        x_test, _ = format_dataset(test_data, channel=channel, features=features)
 
         model.fit(x_train, y_train)
 

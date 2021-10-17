@@ -73,6 +73,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     for i in range(0, len(windows)):
         windows[i].update_filter_type(filter_type_df)
         windows[i].num_id = i
+        windows[i].extract_features()
 
     return windows, tp_table
 

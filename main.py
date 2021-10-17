@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
         # Find valid emgs based on heuristic and calculate averages
         valid_emg = find_usable_emg(trigger_table, config)
-        # valid_emg = optimize_average_minimum(valid_emg, emg_windows, remove=8)
+        # valid_emg = optimize_average_minimum(valid_emg, windows, remove=8)
         valid_emg = remove_worst_windows(valid_emg, windows, remove=8)
 
         avg = average_channel(windows, valid_emg)
@@ -113,10 +113,6 @@ if __name__ == '__main__':
             visualize_window(windows[i], config=config, freq=data.sample_rate, channel=4,
                              save_fig=False, overwrite=True)
 
-        # feature extraction
-        for window in windows:
-            window.extract_features()
-
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
@@ -126,5 +122,5 @@ if __name__ == '__main__':
 
         train_data, test_data = load_train_test_split('eeg')
 
-        score = svm_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
+        score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         print(score)
