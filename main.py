@@ -1,14 +1,13 @@
 import pandas as pd
 import glob
 import scipy.io
-import os
-import sys
 import json
 
 # Data preprocessing imports
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
-from data_preprocessing.find_best_params import optimize_average_minimum, remove_worst_windows, find_best_config_params
+from data_preprocessing.optimize_windows import optimize_average_minimum, remove_worst_windows, find_best_config_params, \
+    prune_poor_quality_samples
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
 from data_preprocessing.mrcp_detection import mrcp_detection
@@ -18,8 +17,6 @@ from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
-from data_visualization.timestamp_visualization import visualize_window
-from data_visualization.raw_and_filtered_data import plot_raw_filtered_data
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
@@ -76,51 +73,40 @@ def init(selected_cue_set: int = 0):
 
 if __name__ == '__main__':
 
-    data = init(selected_cue_set=config['id'])
+    dataset = init(selected_cue_set=config['id'])
 
     # Shift Data to remove startup
-    data = shift_data(freq=80000, dataset=data)
+    dataset = shift_data(freq=80000, dataset=dataset)
 
     # Create table containing information when trigger points were shown/removed
-    trigger_table = trigger_time_table(data.TriggerPoint, data.time_start_device1)
+    trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
 
     if script_params['run_mrcp_detection']:
         # Perform MRCP Detection and update trigger_table with EMG timestamps
-        windows, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
+        windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
         # Plot all filtered channels (0-9 and 12) together with the raw data
-        plot_raw_filtered_data(data=data, save_fig=False, overwrite=True)
+        dataset.plot()
 
-        # Find valid emgs based on heuristic and calculate averages
-        valid_emg = find_usable_emg(trigger_table, config)
-        # valid_emg = optimize_average_minimum(valid_emg, windows, remove=8)
-        valid_emg = remove_worst_windows(valid_emg, windows, remove=8)
+        # Remove poor quality samples based on heuristic and score
+        prune_poor_quality_samples(windows, trigger_table, config, remove=8, method=remove_worst_windows)
 
-        avg = average_channel(windows, valid_emg)
-        plot_average_channels(avg, save_fig=False, overwrite=True)
+        # Plot Average and Individual Frames
+        avg_windows = average_channel(windows)
+        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        mrcp_windows = 0
         for window in windows:
-            if window.label == 1:
-                mrcp_windows += 1
+            window.plot()
 
-        for i in range(mrcp_windows, 0, -1):
-            if i not in valid_emg:
-                del windows[i]
-
-        # Plot individual windows
-        for i in range(0, len(valid_emg)):
-            visualize_window(windows[i], config=config, freq=data.sample_rate, channel=4,
-                             save_fig=False, overwrite=True)
-
+        # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-        save_train_test_split(train_data, test_data, 'eeg')
+        save_train_test_split(train_data, test_data, dir_name='eeg')
 
     if script_params['run_classification']:
 
-        train_data, test_data = load_train_test_split('eeg')
+        train_data, test_data = load_train_test_split(dir_name='eeg')
 
         score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         print(score)

@@ -13,9 +13,10 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
 [pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 10))
     EMG_CHANNEL = 12
-    FRAME_SIZE = 1  # seconds
+    WINDOW_SIZE = 1  # seconds
     dataset = copy.deepcopy(data)
 
+    # Filter EMG Data
     filtered_data = pd.DataFrame()
     if bipolar_mode:
         bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL + 1])
@@ -31,16 +32,19 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    btype=config['emg_btype'],
                                                    )
 
+    # Find onsets based on the filtered data
     onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
                                               sampling_rate=dataset.sample_rate,
                                               )
 
+    # Group onsets based on time
     emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
                                   onsets=onsets,
                                   freq=dataset.sample_rate,
                                   peaks_to_find=len(tp_table),
                                   )
 
+    # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
         filtered_data[i] = butter_filter(data=dataset.data_device1[i],
                                          order=config['eeg_order'],
@@ -48,24 +52,28 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                          btype=config['eeg_btype']
                                          )
 
+    # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
+    # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset.sample_rate)
     data.filtered_data = filtered_data
 
+    # Cut windows based on aggregation strategy and window size
     windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
                                                   tt_column=config['aggregate_strategy'],
                                                   data=filtered_data,
                                                   dataset=dataset,
-                                                  window_size=FRAME_SIZE
+                                                  window_size=WINDOW_SIZE
                                                   )
-
+    # Cut the the remaining data
     windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
                                                 filtered_data=filtered_data,
-                                                window_size=FRAME_SIZE,
+                                                window_size=WINDOW_SIZE,
                                                 freq=dataset.sample_rate))
 
+    # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
     filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
@@ -73,6 +81,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     for i in range(0, len(windows)):
         windows[i].update_filter_type(filter_type_df)
         windows[i].num_id = i
+        windows[i].aggregate_strategy = config['aggregate_strategy']
         windows[i].extract_features()
 
     return windows, tp_table

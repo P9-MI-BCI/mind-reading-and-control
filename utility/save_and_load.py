@@ -45,10 +45,10 @@ def save_train_test_split(train_data, test_data, dir_name):
     get_logger().info(f'Saved training set of size {len(train_data)} and test set of size {len(test_data)} to disc.')
 
 
-def load_train_test_split(dataset):
+def load_train_test_split(dir_name):
 
-    path_train = os.path.join(OUTPUT_PATH, dataset, 'train/*')
-    path_test = os.path.join(OUTPUT_PATH, dataset, 'test/*')
+    path_train = os.path.join(OUTPUT_PATH, dir_name, 'train/*')
+    path_test = os.path.join(OUTPUT_PATH, dir_name, 'test/*')
 
     train_names = []
     test_names = []
@@ -58,8 +58,8 @@ def load_train_test_split(dataset):
     for file in glob.glob(path_test, recursive=True):
         test_names.append(file)
 
-    get_logger().info(f'Found {len(train_names)} in train dir: {dataset}')
-    get_logger().info(f'Found {len(test_names)} in test dir: {dataset}')
+    get_logger().info(f'Found {len(train_names)} in train dir: {dir_name}')
+    get_logger().info(f'Found {len(test_names)} in test dir: {dir_name}')
 
     train_windows = []
     for file in train_names:

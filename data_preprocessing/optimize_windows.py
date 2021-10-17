@@ -135,3 +135,22 @@ def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weig
 
     get_logger().info(f'Resulting array: {valid_emg}')
     return valid_emg
+
+
+def prune_poor_quality_samples(windows, trigger_table, config, remove=8, method=None):
+    # Find valid emgs based on heuristic and calculate averages
+    valid_emg = find_usable_emg(trigger_table, config)
+
+    if method:
+        valid_emg = method(valid_emg, windows, remove=remove)
+    # valid_emg = optimize_average_minimum(valid_emg, windows, remove=8)
+    # valid_emg = remove_worst_windows(valid_emg, windows, remove=remove)
+
+    mrcp_windows = 0
+    for window in windows:
+        if window.label == 1:
+            mrcp_windows += 1
+
+    for i in range(mrcp_windows, 0, -1):
+        if i not in valid_emg:
+            del windows[i]
