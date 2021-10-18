@@ -22,6 +22,7 @@ from data_visualization.average_channels import find_usable_emg, average_channel
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
 from data_training.KNN.knn_prediction import knn_classifier
+from data_training.LDA.lda_prediction import lda_classifier
 
 # Logging imports
 import logging
@@ -108,5 +109,6 @@ if __name__ == '__main__':
 
         train_data, test_data = load_train_test_split(dir_name='eeg')
 
-        score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
+        # score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
+        score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         print(score)
