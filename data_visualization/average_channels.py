@@ -6,7 +6,7 @@ from definitions import OUTPUT_PATH
 from utility.logger import get_logger
 from utility.file_util import create_dir, file_exist
 from utility.save_figure import save_figure
-from classes import Frame
+from classes import Window
 
 
 # Finds the emg_peaks within its corresponding tp interval
@@ -21,23 +21,28 @@ def find_usable_emg(tp_table: pd.DataFrame, config) -> [int]:
     return emg
 
 
-# takes in list of all frames with MRCP and returns a frame containing the average of them.
-def average_channel(frames: [Frame], emg_detections: [int]) -> [Frame]:
-    EEG_CHANNELS = list(range(0, 9))
+# takes in list of all windows with MRCP and returns a window containing the average of them.
+def average_channel(windows: [Window]) -> [Window]:
+    mrcp_windows = 0
+    for window in windows:
+        if window.label == 1:
+            mrcp_windows += 1
+
+    EEG_CHANNELS = list(range(0, 10))
     avg_channel = []
     for col in EEG_CHANNELS:
         df_temp = pd.DataFrame()
-        for i in emg_detections:
-            df_temp[i] = frames[i].filtered_data[col]
+        for i in range(0, mrcp_windows):
+            df_temp[i] = windows[i].filtered_data[col]
 
-        frame = Frame.Frame()
-        frame.data = df_temp.mean(axis=1)
-        avg_channel.append(frame)
+        window = Window.Window()
+        window.data = df_temp.mean(axis=1)
+        avg_channel.append(window)
 
     return avg_channel
 
 
-def plot_average_channels(avg_channels: [Frame], freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
+def plot_average_channels(avg_channels: [Window], freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
     for channel in range(0, len(avg_channels)):
         x = []
         y = []

@@ -1,4 +1,4 @@
 {
   "run_mrcp_detection": true,
-  "run_classification": false
+  "run_classification": true
 }

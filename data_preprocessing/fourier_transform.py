@@ -4,14 +4,14 @@ from scipy.fft import fft, fft2, fftfreq, fftshift
 from utility.logger import get_logger
 
 
-def fourier_transform_single_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+def fourier_transform_single_datawindow(datawindow: pd.DataFrame) -> pd.DataFrame:
 
     transformed = []
-    columns = len(dataframe.columns)
+    columns = len(datawindow.columns)
 
-    for channel in dataframe:
+    for channel in datawindow:
         get_logger().info("Fourier transforming channel: " + str(channel))
-        fourier = fft(dataframe[channel].values)
+        fourier = fft(datawindow[channel].values)
         transformed.append(np.abs(fourier))
 
     transformed = pd.DataFrame(transformed)
@@ -20,33 +20,33 @@ def fourier_transform_single_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
     if len(transformed.columns) != columns:
         get_logger().warning("Failed to fourier transform all channels. Transformed " +
                              str(len(transformed.columns)) + ", expected: " + str(columns))
-    get_logger().info("Fourier transformed " + str(len(dataframe.columns)) + " channels, returning")
+    get_logger().info("Fourier transformed " + str(len(datawindow.columns)) + " channels, returning")
 
     return transformed
 
 
 # Add logger, Christoffer help
-def fourier_transform_listof_dataframes(lst_dataframe: [pd.DataFrame]) -> [pd.DataFrame]:
+def fourier_transform_listof_datawindows(lst_data_window: [pd.DataFrame]) -> [pd.DataFrame]:
 
     lst_transformed = []
 
-    for frame in lst_dataframe:
-        columns = len(frame.data.columns)
+    for window in lst_data_window:
+        columns = len(window.data.columns)
 
         transformed = []
-        for channel in frame.data:
+        for channel in window.data:
             # get_logger().info("Fourier transforming channel: " + str(channel))
-            fourier = fft(frame.data[channel].values)
+            fourier = fft(window.data[channel].values)
             transformed.append(np.abs(fourier))
 
         transformed = pd.DataFrame(transformed)
         transformed = transformed.transpose()
-        frame.data = transformed
-        lst_transformed.append(frame)
-        if len(frame.data.columns) != columns:
+        window.data = transformed
+        lst_transformed.append(window)
+        if len(window.data.columns) != columns:
             get_logger().warning("Failed to fourier transform all channels. Transformed " +
-                                 str(len(frame.data.columns)) + ", expected: " + str(columns))
-        # get_logger().info("Fourier transformed " + str(len(frame.data.columns)) + " channels, returning")
+                                 str(len(window.data.columns)) + ", expected: " + str(columns))
+        # get_logger().info("Fourier transformed " + str(len(window.data.columns)) + " channels, returning")
 
     return lst_transformed
 
