@@ -33,7 +33,7 @@ from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
 
 """CONFIGURATION"""
-get_logger().setLevel(logging.INFO)  # Set logging level
+get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
@@ -103,11 +103,11 @@ if __name__ == '__main__':
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-        save_train_test_split(train_data, test_data, dir_name='eeg')
+        save_train_test_split(train_data, test_data, dir_name='EEG')
 
     if script_params['run_classification']:
 
-        train_data, test_data = load_train_test_split(dir_name='eeg')
+        train_data, test_data = load_train_test_split(dir_name='EEG')
 
         # score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
         score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features='features')

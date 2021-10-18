@@ -5,7 +5,7 @@ from utility.logger import get_logger
 import pandas as pd
 
 
-def train_test_split_data(data: [pd.DataFrame], split_per: int=10) -> ([pd.DataFrame], [pd.DataFrame]):
+def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.DataFrame], [pd.DataFrame]):
     dd = data_distribution(data)['expected_triggered_percent']
     isAcceptableDistribution = True
     upper_bound = 1.10
@@ -40,7 +40,8 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int=10) -> ([pd.DataF
 
 
 def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
-    # takes in list of datawindows on the usual format [target_value, pd.DataFrame] and returns these are seperate vectors for downstream prediction
+    # takes in list of datawindows on the usual format [target_value, pd.DataFrame] and returns these are separate
+    # vectors for downstream prediction
     y = []
     x = []
 
@@ -67,5 +68,3 @@ def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
 
     # data, target
     return x, y
-
-
