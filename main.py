@@ -33,7 +33,7 @@ from classes import Dataset, Window
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level
-# pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
+pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
     script_params = json.load(script_parameters)  # Load script parameters
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         dataset.plot()
 
         # Remove poor quality samples based on heuristic and score
-        prune_poor_quality_samples(windows, trigger_table, config, remove=8, method=remove_worst_windows)
+        prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
 
         # Plot Average and Individual Frames
         avg_windows = average_channel(windows)
