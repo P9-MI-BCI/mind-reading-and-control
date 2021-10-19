@@ -119,7 +119,7 @@ class Window:
         return existing_features
 
 
-    def plot(self, channel=4, freq=1200, show=True, save_fig=False, overwrite=False) -> plt.figure():
+    def plot(self, channel=4, freq=1200, show=True, plot_features=False, save_fig=False, overwrite=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
