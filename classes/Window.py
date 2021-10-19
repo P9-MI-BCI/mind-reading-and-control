@@ -140,16 +140,17 @@ class Window:
 
             ax4 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
             ax4.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
-            ax4.plot(x_seconds, self.filtered_data[channel], color='tomato')
+            ax4.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
             if plot_features:
-                x, y = self._plot_features(center, freq, channel)
-                ax4.plot(x, y, label='slope', alpha=0.7)
-                y_mean = [self.filtered_data[channel].mean()] * len(self.filtered_data)
-                ax4.plot(x_seconds, y_mean, label='mean', alpha=0.7)
+                x, y, slope = self._plot_features(center, freq, channel)
+                ax4.plot(x, y, label=f'slope {round(slope,9)}', alpha=0.7)
+                mean = self.filtered_data[channel].mean()
+                y_mean = [mean] * len(self.filtered_data)
+                ax4.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
 
                 x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-                ax4.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=0.7)
+                ax4.plot(x_arr[0], y_arr[0], color='black', label=f'negative {round(sum_negative, 7)}', alpha=0.7)
                 for xi, yi in zip(x_arr, y_arr):
                     ax4.plot(xi, yi, color='black', alpha=0.7)
 
@@ -178,7 +179,7 @@ class Window:
             ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
             ax2.plot(x_seconds, self.filtered_data[channel], color='tomato')
             if plot_features:
-                x, y = self._plot_features(center, freq, channel)
+                x, y, slope = self._plot_features(center, freq, channel)
                 ax2.plot(x, y, label='slope', alpha=0.7)
 
                 y_mean = [self.filtered_data[channel].mean()] * len(self.filtered_data)
@@ -239,8 +240,8 @@ class Window:
         x1, x2 = self.filtered_data[channel].idxmin(), self.filtered_data[channel].idxmax()
         y = self.filtered_data[channel].min(), self.filtered_data[channel].max()
 
-        # slope, intercept, r_value, p_value, std_err = linregress(x, y)
-        return [x1 / freq - center, x2 / freq - center], y
+        slope, intercept, r_value, p_value, std_err = linregress([x1, x2], y)
+        return [x1 / freq - center, x2 / freq - center], y, slope
 
     def _plot_signal_negativity(self, center, freq, channel):
             prev = self.filtered_data[channel].iloc[0]
@@ -253,7 +254,7 @@ class Window:
                 diff = prev - value
 
                 if diff > 0:
-                    sum_negativity += diff
+                    sum_negativity -= diff
                     prev = value
                     consecutive_negative_x.append(i / freq - center)
                     consecutive_negative_y.append(value)

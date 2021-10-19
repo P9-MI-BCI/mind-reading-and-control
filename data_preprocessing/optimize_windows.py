@@ -55,7 +55,7 @@ def find_best_config_params(data, trigger_table, config):
         # for some reason always prints the last params ..
     print(minimized_config)
 
-
+# todo fix
 def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None, remove: int = 10):
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
