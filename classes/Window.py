@@ -118,6 +118,7 @@ class Window:
 
         return existing_features
 
+
     def plot(self, channel=4, freq=1200, show=True, save_fig=False, overwrite=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
@@ -128,7 +129,7 @@ class Window:
         agg_strat = self.aggregate_strategy
 
         if self.label == 1:
-            tp_timestamp, emg_timestamp = self._timestamp_order(agg_strat)
+            emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
             y_t = ['TP'] * len(tp_timestamp)
             y_t2 = ['EMG'] * len(emg_timestamp)
 
@@ -140,7 +141,21 @@ class Window:
 
             ax4 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
             ax4.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
-            ax4.plot(x_seconds, self.filtered_data[channel], color='tomato')
+            ax4.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+            if plot_features:
+                x, y, slope = self._plot_features(center, freq, channel)
+                ax4.plot(x, y, label=f'slope {round(slope,9)}', alpha=0.7)
+                mean = self.filtered_data[channel].mean()
+                y_mean = [mean] * len(self.filtered_data)
+                ax4.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
+
+                x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
+
+                ax4.plot(x_arr[0], y_arr[0], color='black', label=f'negative {round(sum_negative, 7)}', alpha=0.7)
+                for xi, yi in zip(x_arr, y_arr):
+                    ax4.plot(xi, yi, color='black', alpha=0.7)
+
+                ax4.legend()
             ax4.axvline(x=0, color='black', ls='--')
 
             ax2 = fig.add_subplot(gs[4, 0], sharex=ax1)
@@ -164,6 +179,19 @@ class Window:
             ax2 = fig.add_subplot(gs[1, 0])
             ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
             ax2.plot(x_seconds, self.filtered_data[channel], color='tomato')
+            if plot_features:
+                x, y, slope = self._plot_features(center, freq, channel)
+                ax2.plot(x, y, label='slope', alpha=0.7)
+
+                y_mean = [self.filtered_data[channel].mean()] * len(self.filtered_data)
+                ax2.plot(x_seconds, y_mean, label='mean', alpha=0.7)
+
+                x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
+
+                ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=0.7)
+                for xi, yi in zip(x_arr, y_arr):
+                    ax2.plot(xi, yi, color='black', alpha=0.7)
+                ax2.legend()
             ax2.axvline(x=0, color='black', ls='--')
 
         plt.tight_layout()
@@ -212,5 +240,35 @@ class Window:
 
         return emg_timestamp, tp_timestamp
 
-    def _plot_features(self):
-        pass
+    def _plot_features(self, center, freq, channel):
+        x1, x2 = self.filtered_data[channel].idxmin(), self.filtered_data[channel].idxmax()
+        y = self.filtered_data[channel].min(), self.filtered_data[channel].max()
+
+        slope, intercept, r_value, p_value, std_err = linregress([x1, x2], y)
+        return [x1 / freq - center, x2 / freq - center], y, slope
+
+    def _plot_signal_negativity(self, center, freq, channel):
+            prev = self.filtered_data[channel].iloc[0]
+            sum_negativity = 0
+            res_x, res_y = [], []
+            consecutive_negative_x = []
+            consecutive_negative_y = []
+
+            for i, value in self.filtered_data[channel].items():
+                diff = prev - value
+
+                if diff > 0:
+                    sum_negativity -= diff
+                    prev = value
+                    consecutive_negative_x.append(i / freq - center)
+                    consecutive_negative_y.append(value)
+
+                else:
+                    res_x.append(consecutive_negative_x)
+                    res_y.append(consecutive_negative_y)
+                    prev = value
+
+                    consecutive_negative_x = []
+                    consecutive_negative_y = []
+
+            return res_x, res_y, sum_negativity

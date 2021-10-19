@@ -13,7 +13,15 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-    score_dict = {}
+    score_dict = pd.DataFrame()
+    score_dict.index = ['accuracy_train',
+                        'accuracy_test',
+                        'precision_train',
+                        'precision_test',
+                        'recall_train',
+                        'recall_test',
+                        'f1_train',
+                        'f1_test']
     ensemble_predictions_train = []
     ensemble_predictions_test = []
 
@@ -32,27 +40,29 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
         ensemble_predictions_train.append(train_preds)
         ensemble_predictions_test.append(test_preds)
 
-        score_dict[channel] = {'accuracy_train': get_accuracy(train_preds, y_train),
-                               'accuracy_test': get_accuracy(test_preds, y_test),
-                               'precision_train': get_precision(train_preds, y_train),
-                               'precision_test': get_precision(test_preds, y_test),
-                               'recall_train': get_recall(train_preds, y_train),
-                               'recall_test': get_recall(test_preds, y_test),
-                               'f1_train': get_f1_score(train_preds, y_train),
-                               'f1_test': get_f1_score(test_preds, y_test),
-                               }
+        score_dict[channel] = [get_accuracy(train_preds, y_train),
+                               get_accuracy(test_preds, y_test),
+                               get_precision(train_preds, y_train),
+                               get_precision(test_preds, y_test),
+                               get_recall(train_preds, y_train),
+                               get_recall(test_preds, y_test),
+                               get_f1_score(train_preds, y_train),
+                               get_f1_score(test_preds, y_test),
+                               ]
+
+    score_dict['average'] = score_dict.mean(numeric_only=True, axis=1)
 
     ensemble_preds_train = combine_predictions(ensemble_predictions_train).astype(int)
     ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
 
-    score_dict['ensemble'] = {'accuracy_train': get_accuracy(ensemble_preds_train, y_train),
-                              'accuracy_test': get_accuracy(ensemble_preds_test, y_test),
-                              'precision_train': get_precision(ensemble_preds_train, y_train),
-                              'precision_test': get_precision(ensemble_preds_test, y_test),
-                              'recall_train': get_recall(ensemble_preds_train, y_train),
-                              'recall_test': get_recall(ensemble_preds_test, y_test),
-                              'f1_train': get_f1_score(ensemble_preds_train, y_train),
-                              'f1_test': get_f1_score(ensemble_preds_test, y_test),
-                              }
+    score_dict['ensemble'] = [get_accuracy(ensemble_preds_train, y_train),
+                              get_accuracy(ensemble_preds_test, y_test),
+                              get_precision(ensemble_preds_train, y_train),
+                              get_precision(ensemble_preds_test, y_test),
+                              get_recall(ensemble_preds_train, y_train),
+                              get_recall(ensemble_preds_test, y_test),
+                              get_f1_score(ensemble_preds_train, y_train),
+                              get_f1_score(ensemble_preds_test, y_test),
+                              ]
 
-    return pd.DataFrame(score_dict)
+    return score_dict
