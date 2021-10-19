@@ -106,7 +106,7 @@ if __name__ == '__main__':
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-        # save_train_test_split(train_data, test_data, dir_name='EEG')
+        save_train_test_split(train_data, test_data, dir_name='EEG')
 
     if script_params['run_classification']:
 
