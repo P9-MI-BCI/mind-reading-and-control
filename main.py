@@ -90,18 +90,17 @@ if __name__ == '__main__':
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
         # Plot all filtered channels (0-9 and 12) together with the raw data
-        # dataset.plot()
+        dataset.plot()
 
         # Remove poor quality samples based on heuristic and score
         prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
 
         # Plot Average and Individual Frames
         avg_windows = average_channel(windows)
-        # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        # for window in windows:
-        #     print(type(window))
-        #     window.plot()
+        for window in windows:
+            window.plot()
 
         # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
@@ -124,7 +123,7 @@ if __name__ == '__main__':
             'LDA_results': lda_score
         }
 
-        # Writes the classifier score tables to pdf file
+        # Writes the test and train window plots + classifier score tables to pdf file
         save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
 
