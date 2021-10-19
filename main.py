@@ -100,22 +100,23 @@ if __name__ == '__main__':
         # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
         # for window in windows:
+        #     print(type(window))
         #     window.plot()
 
         # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-        save_train_test_split(train_data, test_data, dir_name='EEG')
+        # save_train_test_split(train_data, test_data, dir_name='EEG')
 
     if script_params['run_classification']:
 
         train_data, test_data = load_train_test_split(dir_name='EEG')
 
         feature = 'features'
-        knn_score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
-        svm_score = svm_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
-        lda_score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
+        knn_score = knn_classifier(train_data, test_data, features=feature)
+        svm_score = svm_classifier(train_data, test_data, features=feature)
+        lda_score = lda_classifier(train_data, test_data, features=feature)
 
         results = {
             'KNN_results': knn_score,
@@ -124,4 +125,6 @@ if __name__ == '__main__':
         }
 
         # Writes the classifier score tables to pdf file
-        save_results_to_pdf(results, name='result_overview.pdf')
+        save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+
+
