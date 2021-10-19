@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 import scipy.io
 import json
+import os
 
 # Data preprocessing imports
 from data_preprocessing.data_distribution import create_uniform_distribution
@@ -28,6 +29,8 @@ from data_training.LDA.lda_prediction import lda_classifier
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
+from utility.pdf_creation import save_results_to_pdf
+
 
 from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
@@ -87,17 +90,17 @@ if __name__ == '__main__':
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
         # Plot all filtered channels (0-9 and 12) together with the raw data
-        dataset.plot()
+        # dataset.plot()
 
         # Remove poor quality samples based on heuristic and score
         prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
 
         # Plot Average and Individual Frames
         avg_windows = average_channel(windows)
-        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+        # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        for window in windows:
-            window.plot()
+        # for window in windows:
+        #     window.plot()
 
         # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
@@ -109,6 +112,16 @@ if __name__ == '__main__':
 
         train_data, test_data = load_train_test_split(dir_name='EEG')
 
-        # score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
-        score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
-        print(score)
+        feature = 'features'
+        knn_score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
+        svm_score = svm_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
+        lda_score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features=feature)
+
+        results = {
+            'KNN_results': knn_score,
+            'SVM_results': svm_score,
+            'LDA_results': lda_score
+        }
+
+        # Writes the classifier score tables to pdf file
+        save_results_to_pdf(results, name='result_overview.pdf')
