@@ -118,7 +118,8 @@ class Window:
 
         return existing_features
 
-    def plot(self, channel=4, freq=1200, save_fig=False, overwrite=False, plot_features=False):
+
+    def plot(self, channel=4, freq=1200, show=True, save_fig=False, overwrite=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
@@ -204,7 +205,10 @@ class Window:
                 get_logger().exception(f'Found file already exists: {file} you can '
                                        f'overwrite the file by setting overwrite=True')
 
-        plt.show()
+        if show:
+            plt.show()
+
+        return fig
 
     def _timestamp_order(self, agg_strat):
         emg_timestamp = []

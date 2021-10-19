@@ -28,6 +28,8 @@ from data_training.LDA.lda_prediction import lda_classifier
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
+from utility.pdf_creation import save_results_to_pdf
+
 
 from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
@@ -109,6 +111,18 @@ if __name__ == '__main__':
 
         train_data, test_data = load_train_test_split(dir_name='EEG')
 
-        # score = knn_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
-        score = lda_classifier(train_data, test_data, channels=[3, 4, 5], features='features')
-        print(score)
+        feature = 'features'
+        knn_score = knn_classifier(train_data, test_data, features=feature)
+        svm_score = svm_classifier(train_data, test_data, features=feature)
+        lda_score = lda_classifier(train_data, test_data, features=feature)
+
+        results = {
+            'KNN_results': knn_score,
+            'SVM_results': svm_score,
+            'LDA_results': lda_score
+        }
+
+        # Writes the test and train window plots + classifier score tables to pdf file
+        save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+
+
