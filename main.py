@@ -2,7 +2,6 @@ import pandas as pd
 import glob
 import scipy.io
 import json
-import os
 
 # Data preprocessing imports
 from data_preprocessing.data_distribution import create_uniform_distribution
