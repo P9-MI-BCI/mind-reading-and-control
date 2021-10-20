@@ -14,11 +14,12 @@ class Window:
     mean_amplitude = pd.DataFrame()
     signal_negativity = pd.DataFrame()
 
-    def __int__(self, label: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
+    def __int__(self, label: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0, frequency_range=0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
         self.label = label
         self.data = data
         self.timestamp = timestamp
+        self.frequency_range = frequency_range
         self.filtered_data = filtered_data
         self.num_id = num_id
         self.aggregate_strategy = aggregate_strategy
@@ -164,9 +165,9 @@ class Window:
             ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
             ax3 = fig.add_subplot(gs[5, 0], sharex=ax1)
-            ax3.set_title('Trigger Point Duration')
+            ax3.set_title('Execution Cue Interval')
             ax3.plot(tp_timestamp, y_t, marker='o', color='royalblue')
-            ax3.annotate('Trigger Point', xy=[tp_timestamp[0], y_t[0]])
+            ax3.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
 
         else:
             gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)

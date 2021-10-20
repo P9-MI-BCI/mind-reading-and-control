@@ -11,6 +11,7 @@ from data_preprocessing.optimize_windows import optimize_average_minimum, remove
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
 from data_preprocessing.mrcp_detection import mrcp_detection
+from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     dataset = init(selected_cue_set=config['id'])
 
     # Shift Data to remove startup
-    dataset = shift_data(freq=80000, dataset=dataset)
+    dataset = shift_data(freq=70000, dataset=dataset)
 
     # Create table containing information when trigger points were shown/removed
     trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
@@ -87,6 +88,15 @@ if __name__ == '__main__':
     if script_params['run_mrcp_detection']:
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
+
+        blinks = blink_detection(data=dataset)
+
+        # Perform blink detection on EOG channel
+        for window in windows:
+            temp_freq_range = list(range(window.frequency_range[0], window.frequency_range[1]))
+            for blink in blinks:
+                if blink in temp_freq_range:
+                    get_logger().debug(f'Blink detected in {window.num_id}, window has label {window.label}')
 
         # Plot all filtered channels (0-9 and 12) together with the raw data
         dataset.plot()
