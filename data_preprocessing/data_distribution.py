@@ -40,6 +40,7 @@ def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
         window.data = dataset.data_device1.iloc[start:end]
         window.label = 1  # indicates EMG
         window.timestamp = row
+        window.frequency_range = [start, end]
 
         window.filtered_data = data.iloc[start:end]
         window.filtered_data = window.filtered_data.reset_index(drop=True)
@@ -65,6 +66,7 @@ def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame
             window = Window.Window()
             window.data = data.iloc[i:i + window_sz]
             window.label = 0  # indicates no EMG peak / no MRCP should be present
+            window.frequency_range = [i, i+window_sz]
             window.filtered_data = filtered_data.iloc[i:i + window_sz]
             window.filtered_data = window.filtered_data.reset_index(drop=True)
             list_of_windows.append(window)

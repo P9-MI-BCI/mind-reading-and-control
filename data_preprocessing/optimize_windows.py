@@ -48,8 +48,8 @@ def find_best_config_params(data, trigger_table, config):
                             if sum(minimize_array) < minimize_cost:
                                 minimized_config = config
                                 minimize_cost = sum(minimize_array)
-                                get_logger().info(f'New shortest distance/cost {minimize_cost}')
-                                get_logger().info(f'config: {config}')
+                                get_logger().debug(f'New shortest distance/cost {minimize_cost}')
+                                get_logger().debug(f'config: {config}')
                         except:
                             get_logger().debug(f'During param search - Config : {config} did not work.')
         # for some reason always prints the last params ..
@@ -69,11 +69,11 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
 
     minimize_cost = sum(base_score)
 
-    get_logger().info(f'Base score is {minimize_cost}')
+    get_logger().debug(f'Base score is {minimize_cost}')
     try:
         for rem in range(0, remove):
             worst_sample = None
-            get_logger().info(f'Current Valid EMGs {valid_emg}')
+            get_logger().debug(f'Current Valid EMGs {valid_emg}')
 
             for sample in range(0, len(valid_emg)):
                 minimize_array = []
@@ -88,13 +88,13 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
                 if sum(minimize_array) <= minimize_cost:
                     worst_sample = sample
                     minimize_cost = sum(minimize_array)
-                    get_logger().info(f'New shortest distance/cost {minimize_cost}')
-                    get_logger().info(f'Attained by removing sample with index {worst_sample}')
+                    get_logger().debug(f'New shortest distance/cost {minimize_cost}')
+                    get_logger().debug(f'Attained by removing sample with index {worst_sample}')
 
             try:
                 del valid_emg[worst_sample]
             except TypeError:
-                get_logger().info(f'It was not possible to create a better subset of values. {rem} '
+                get_logger().exception(f'It was not possible to create a better subset of values. {rem} '
                                   f'values were removed from the array')
                 return valid_emg
     except ValueError:
@@ -111,7 +111,7 @@ def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weig
 
     for rem in range(0, remove):
 
-        get_logger().info(f'Iteration {rem} - Amount of valid windows {len(valid_emg)}')
+        get_logger().debug(f'Iteration {rem} - Amount of valid windows {len(valid_emg)}')
         idx_ws = 0
         worst_sample = 0
         for sample in range(0, len(valid_emg)):
@@ -123,17 +123,17 @@ def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weig
             if sum(minimize_array) > worst_sample:
                 worst_sample = sum(minimize_array)
                 idx_ws = sample
-                get_logger().info(
+                get_logger().debug(
                     f'Worst sample: {valid_emg[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
 
         try:
             del valid_emg[idx_ws]
         except:
-            get_logger().info(f'It was not possible to create a better subset of values. {rem} '
+            get_logger().exception(f'It was not possible to create a better subset of values. {rem} '
                               f'values were removed from the array')
             return valid_emg
 
-    get_logger().info(f'Resulting array: {valid_emg}')
+    get_logger().debug(f'Resulting array: {valid_emg}')
     return valid_emg
 
 
