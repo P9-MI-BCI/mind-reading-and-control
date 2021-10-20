@@ -80,7 +80,7 @@ if __name__ == '__main__':
     dataset = init(selected_cue_set=config['id'])
 
     # Shift Data to remove startup
-    dataset = shift_data(freq=70000, dataset=dataset)
+    dataset = shift_data(freq=80000, dataset=dataset)
 
     # Create table containing information when trigger points were shown/removed
     trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
