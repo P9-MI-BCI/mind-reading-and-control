@@ -16,7 +16,7 @@ def find_usable_emg(tp_table: pd.DataFrame, config) -> [int]:
         if tp_table['tp_start'][i] < tp_table[config['aggregate_strategy']][i] < tp_table['tp_end'][i]:
             emg.append(i)
         else:
-            get_logger().debug('EMG detected outside tp_start-tp_end', tp_table.iloc[i])
+            get_logger().debug('EMG detected outside tp_start-tp_end')
 
     return emg
 

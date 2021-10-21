@@ -7,7 +7,7 @@ import json
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.optimize_windows import optimize_average_minimum, remove_worst_windows, find_best_config_params, \
-    prune_poor_quality_samples
+    prune_poor_quality_samples, remove_windows_with_blink
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
 from data_preprocessing.mrcp_detection import mrcp_detection
@@ -31,12 +31,11 @@ from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 from utility.pdf_creation import save_results_to_pdf
 
-
 from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
 
 """CONFIGURATION"""
-get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
+get_logger().setLevel(logging.DEBUG)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
@@ -89,27 +88,19 @@ if __name__ == '__main__':
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
-        blinks = blink_detection(data=dataset)
-
-        # Perform blink detection on EOG channel
-        for window in windows:
-            temp_freq_range = list(range(window.frequency_range[0], window.frequency_range[1]))
-            for blink in blinks:
-                if blink in temp_freq_range:
-                    get_logger().debug(f'Blink detected in {window.num_id}, window has label {window.label}')
-
         # Plot all filtered channels (0-9 and 12) together with the raw data
-        dataset.plot()
+        # dataset.plot()
 
         # Remove poor quality samples based on heuristic and score
-        prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+        prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
+        remove_windows_with_blink(dataset, windows)
 
         # Plot Average and Individual Frames
         avg_windows = average_channel(windows)
-        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+        # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        for window in windows:
-            window.plot()
+        # for window in windows:
+        #     window.plot()
 
         # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
