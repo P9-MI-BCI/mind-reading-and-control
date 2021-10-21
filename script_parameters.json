@@ -1,4 +1,8 @@
 {
-  "run_mrcp_detection": true,
-  "run_classification": true
+  "online_mode": true,
+  "offline_mode": false,
+
+  "run_mrcp_detection": false,
+  "run_classification": true,
+  "run_online_emulation": true
 }

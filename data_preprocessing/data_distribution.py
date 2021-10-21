@@ -56,6 +56,47 @@ def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
     return list_of_trigger_windows, data, dataset
 
 
+def cut_windows_for_online(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
+               dataset: Dataset, window_size: float = 2.) -> ([Window], Dataset):
+    list_of_trigger_windows = []
+    indices_to_delete = []
+
+    window_sz = window_size * dataset.sample_rate
+    for i, row in tp_table.iterrows():
+        start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_sz)
+        end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_sz)
+
+        window0 = Window.Window()
+        window0.data = dataset.data_device1.iloc[start - int(window_sz/2): end - int(window_sz/2)]
+        window0.label = 1
+        window0.timestamp = row
+        window0.frequency_range = [start - int(window_sz/2), end - int(window_sz/2)]
+        list_of_trigger_windows.append(window0)
+
+        window1 = Window.Window()
+        window1.data = dataset.data_device1.iloc[start + int(window_sz/2): end + int(window_sz/2)]
+        window1.label = 1  # indicates EMG
+        window1.timestamp = row
+        window1.frequency_range = [start + int(window_sz/2), end + int(window_sz/2)]
+        list_of_trigger_windows.append(window1)
+
+        # window2 = Window.Window()
+        # window2.data = dataset.data_device1.iloc[start+window_sz: end+window_sz*2]
+        # window2.label = 1
+        # window2.timestamp = row
+        # window2.frequency_range = [start, end]
+        indices_to_delete.append([start - window_sz, end + window_sz])
+        # list_of_trigger_windows.append(window2)
+
+    indices_to_delete.reverse()
+
+    for indices in indices_to_delete:
+        dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
+        data = data.drop(data.index[indices[0]:indices[1]])
+
+    return list_of_trigger_windows, data, dataset
+
+
 def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
     list_of_windows = []
     window_sz = window_size * freq * 2

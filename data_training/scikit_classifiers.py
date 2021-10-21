@@ -1,5 +1,7 @@
 # this file functions as a default method that takes in a scikit model and runs training and prediction
 # the current working models are KNN and SVM
+import glob
+import pickle
 
 from sklearn.neighbors import KNeighborsClassifier
 from data_preprocessing.train_test_split import format_dataset
@@ -7,11 +9,14 @@ from data_training.measurements import combine_predictions, get_precision, get_r
     get_confusion_matrix
 from data_training.measurements import get_accuracy
 import pandas as pd
+from utility.file_util import create_dir
+import os
+from definitions import OUTPUT_PATH
 
 
-def scikit_classifier(model, train_data, test_data, channels=None, features='raw'):
+def scikit_classifier(model, train_data, test_data, channels=None, features='raw', save_model=True, dir_name='None'):
     if channels is None:
-        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     score_dict = pd.DataFrame()
     score_dict.index = ['accuracy_train',
@@ -50,6 +55,12 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
                                get_f1_score(test_preds, y_test),
                                ]
 
+        if save_model:
+            path = os.path.join(OUTPUT_PATH, 'models', dir_name)
+            create_dir(path, recursive=True)
+            filename = os.path.join(path, dir_name + str(channel))
+            pickle.dump(model, open(filename, 'wb'))
+
     score_dict['average'] = score_dict.mean(numeric_only=True, axis=1)
 
     ensemble_preds_train = combine_predictions(ensemble_predictions_train).astype(int)
@@ -66,3 +77,13 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
                               ]
 
     return score_dict
+
+
+def load_scikit_classifiers(dir_name):
+    path = os.path.join(OUTPUT_PATH, 'models', dir_name)
+
+    models = []
+    for file in glob.glob(path + '/*', recursive=True):
+        models.append(pickle.load(open(file, 'rb')))
+
+    return models
