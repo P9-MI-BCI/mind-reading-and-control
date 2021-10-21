@@ -4,7 +4,8 @@ import pickle
 from classes import Dataset
 import pandas as pd
 import biosppy
-from data_preprocessing.data_distribution import cut_windows, slice_and_label_idle_windows, cut_windows_for_online
+from data_preprocessing.data_distribution import cut_windows, slice_and_label_idle_windows, cut_windows_for_online, \
+    slice_and_label_idle_windows_for_online
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import emg_clustering
 from data_preprocessing.filters import butter_filter
@@ -168,17 +169,15 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
-    windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
-                                                  tt_column=config['aggregate_strategy'],
-                                                  data=filtered_data,
-                                                  dataset=dataset,
-                                                  window_size=WINDOW_SIZE
-                                                  )
+    windows, dataset = cut_windows_for_online(tp_table=tp_table,
+                                                      tt_column=config['aggregate_strategy'],
+                                                      dataset=dataset,
+                                                      window_size=WINDOW_SIZE
+                                                      )
     # Cut the the remaining data
-    windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
-                                                filtered_data=filtered_data,
-                                                window_size=WINDOW_SIZE,
-                                                freq=dataset.sample_rate))
+    windows.extend(slice_and_label_idle_windows_for_online(data=dataset.data_device1,
+                                                            window_size=WINDOW_SIZE,
+                                                            freq=dataset.sample_rate))
 
     # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])

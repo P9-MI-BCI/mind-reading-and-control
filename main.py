@@ -172,7 +172,7 @@ if __name__ == '__main__':
             save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
         if script_params['run_online_emulation']:
-            models = load_scikit_classifiers('lda')
+            models = load_scikit_classifiers('knn')
             index = load_index_list()
             pair_indexes = pair_index_list(index)
 
@@ -180,7 +180,7 @@ if __name__ == '__main__':
             windows_on, predictions = emulate_online(dataset, config, models)
             get_logger().info('Finished Online Predictions.')
 
-            score = evaluate_online_predictions(windows_on, predictions, pair_indexes)
+            score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[3, 4, 5])
 
             print(score)
 
