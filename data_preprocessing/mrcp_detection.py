@@ -14,7 +14,7 @@ from definitions import OUTPUT_PATH
 
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
-[pd.DataFrame], pd.DataFrame):
+        [pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
     WINDOW_SIZE = 1  # seconds
@@ -111,8 +111,24 @@ def load_index_list():
     return (pickle.load(open(path, 'rb'))).tolist()
 
 
+def pair_index_list(index):
+    pair_indexes = []
+    start, current, end = index[0], index[0], 0
+    for i in range(1, len(index) - 1):
+        if index[i] - 1 == current:
+            current = index[i]
+        else:
+            end = index[i - 1]
+            pair_indexes.append((start, end))
+
+            start = index[i]
+            current = index[i]
+
+    return pair_indexes
+
+
 def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
-[pd.DataFrame], pd.DataFrame):
+        [pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
     WINDOW_SIZE = 1  # seconds
@@ -152,12 +168,12 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
-    windows, filtered_data, dataset = cut_windows_for_online(tp_table=tp_table,
-                                                              tt_column=config['aggregate_strategy'],
-                                                              data=filtered_data,
-                                                              dataset=dataset,
-                                                              window_size=WINDOW_SIZE
-                                                              )
+    windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
+                                                  tt_column=config['aggregate_strategy'],
+                                                  data=filtered_data,
+                                                  dataset=dataset,
+                                                  window_size=WINDOW_SIZE
+                                                  )
     # Cut the the remaining data
     windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
                                                 filtered_data=filtered_data,

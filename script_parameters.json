@@ -3,6 +3,6 @@
   "offline_mode": false,
 
   "run_mrcp_detection": false,
-  "run_classification": true,
+  "run_classification": false,
   "run_online_emulation": true
 }
