@@ -26,6 +26,12 @@ def save_results_to_pdf(train_data: [Window], test_data: [Window], results: Dict
     path = os.path.join(OUTPUT_PATH, file_name)
 
     with PdfPages(path) as pdf:
+        for key, df in results.items():
+            df = df.round(3)
+            fig = convert_dataframe_to_fig(df)
+            plt.title(key)
+            pdf.savefig(fig, bbox_inches='tight', dpi=100)
+            plt.close()
 
         pdf.savefig(add_pdf_text_page('Train Windows'))
         for window in train_data:
@@ -35,13 +41,6 @@ def save_results_to_pdf(train_data: [Window], test_data: [Window], results: Dict
         pdf.savefig(add_pdf_text_page('Test Windows'))
         for window in test_data:
             pdf.savefig(window.plot(show=False))
-            plt.close()
-
-        for key, df in results.items():
-            df = df.round(3)
-            fig = convert_dataframe_to_fig(df)
-            plt.title(key)
-            pdf.savefig(fig, bbox_inches='tight', dpi=100)
             plt.close()
 
         get_logger().info(f'Pdf file written to {path}')

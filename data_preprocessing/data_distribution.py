@@ -56,6 +56,46 @@ def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
     return list_of_trigger_windows, data, dataset
 
 
+def cut_windows_for_online(tp_table: pd.DataFrame, tt_column: str,
+               dataset: Dataset, window_size: float = 2.) -> ([Window], Dataset):
+    list_of_trigger_windows = []
+    indices_to_delete = []
+
+    window_sz = window_size * dataset.sample_rate
+    for i, row in tp_table.iterrows():
+        start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_sz)
+        end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_sz)
+
+        # window0 = Window.Window()
+        # window0.data = dataset.data_device1.iloc[start - int(window_sz/2): end - int(window_sz/2)]
+        # window0.label = 1
+        # window0.timestamp = row
+        # window0.frequency_range = [start - int(window_sz/2), end - int(window_sz/2)]
+        # list_of_trigger_windows.append(window0)
+
+        window1 = Window.Window()
+        window1.data = dataset.data_device1.iloc[start: end]
+        window1.label = 1  # indicates EMG
+        window1.timestamp = row
+        window1.frequency_range = [start, end]
+        list_of_trigger_windows.append(window1)
+
+        # window2 = Window.Window()
+        # window2.data = dataset.data_device1.iloc[start+window_sz: end+window_sz*2]
+        # window2.label = 1
+        # window2.timestamp = row
+        # window2.frequency_range = [start, end]
+        indices_to_delete.append([start, end])
+        # list_of_trigger_windows.append(window2)
+
+    indices_to_delete.reverse()
+
+    for indices in indices_to_delete:
+        dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
+
+    return list_of_trigger_windows, dataset
+
+
 def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
     list_of_windows = []
     window_sz = window_size * freq * 2
@@ -69,6 +109,25 @@ def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame
             window.frequency_range = [i, i+window_sz]
             window.filtered_data = filtered_data.iloc[i:i + window_sz]
             window.filtered_data = window.filtered_data.reset_index(drop=True)
+            list_of_windows.append(window)
+            i += window_sz
+        else:
+            i += 1
+
+    return list_of_windows
+
+
+def slice_and_label_idle_windows_for_online(data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
+    list_of_windows = []
+    window_sz = window_size * freq * 2
+    i = 0
+    while i < len(data) and i + window_sz < len(data):
+        cutout = abs(data.index[i] - data.index[i + window_sz]) == window_sz
+        if cutout:
+            window = Window.Window()
+            window.data = data.iloc[i:i + window_sz]
+            window.label = 0  # indicates no EMG peak / no MRCP should be present
+            window.frequency_range = [data.index[i], data.index[i]+window_sz]
             list_of_windows.append(window)
             i += window_sz
         else:

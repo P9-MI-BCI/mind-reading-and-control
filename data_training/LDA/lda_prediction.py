@@ -9,7 +9,7 @@ pd.options.mode.chained_assignment = None
 def lda_classifier(train_data, test_data, channels=None, features='raw'):
     model = LinearDiscriminantAnalysis()
 
-    result = scikit_classifier(model, train_data, test_data, channels, features)
+    result = scikit_classifier(model, train_data, test_data, channels, features, dir_name='lda')
 
     return result
 

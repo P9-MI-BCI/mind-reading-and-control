@@ -10,13 +10,16 @@ from data_preprocessing.optimize_windows import optimize_average_minimum, remove
     prune_poor_quality_samples
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
-from data_preprocessing.mrcp_detection import mrcp_detection
+from data_preprocessing.mrcp_detection import mrcp_detection, load_index_list, mrcp_detection_for_online_use, \
+    pair_index_list
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
+from data_training.online_emulation import emulate_online, evaluate_online_predictions
+from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
 
 # Training/Classification imports
@@ -79,60 +82,105 @@ if __name__ == '__main__':
 
     dataset = init(selected_cue_set=config['id'])
 
-    # Shift Data to remove startup
-    dataset = shift_data(freq=80000, dataset=dataset)
+    if script_params['offline_mode']:
+        # Shift Data to remove startup
+        dataset = shift_data(freq=80000, dataset=dataset)
 
-    # Create table containing information when trigger points were shown/removed
-    trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
+        # Create table containing information when trigger points were shown/removed
+        trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
 
-    if script_params['run_mrcp_detection']:
-        # Perform MRCP Detection and update trigger_table with EMG timestamps
-        windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
+        if script_params['run_mrcp_detection']:
+            # Perform MRCP Detection and update trigger_table with EMG timestamps
+            windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
-        blinks = blink_detection(data=dataset)
+            blinks = blink_detection(data=dataset)
 
-        # Perform blink detection on EOG channel
-        for window in windows:
-            temp_freq_range = list(range(window.frequency_range[0], window.frequency_range[1]))
-            for blink in blinks:
-                if blink in temp_freq_range:
-                    get_logger().debug(f'Blink detected in {window.num_id}, window has label {window.label}')
+            # Perform blink detection on EOG channel
+            for window in windows:
+                temp_freq_range = list(range(window.frequency_range[0], window.frequency_range[1]))
+                for blink in blinks:
+                    if blink in temp_freq_range:
+                        get_logger().debug(f'Blink detected in {window.num_id}, window has label {window.label}')
 
-        # Plot all filtered channels (0-9 and 12) together with the raw data
-        dataset.plot()
+            # Plot all filtered channels (0-9 and 12) together with the raw data
+            dataset.plot()
 
-        # Remove poor quality samples based on heuristic and score
-        prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # Remove poor quality samples based on heuristic and score
+            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
 
-        # Plot Average and Individual Frames
-        avg_windows = average_channel(windows)
-        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            # Plot Average and Individual Frames
+            avg_windows = average_channel(windows)
+            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        for window in windows:
-            window.plot()
+            for window in windows:
+                window.plot()
 
-        # Create distribution for training and dividing into train and test set
-        uniform_data = create_uniform_distribution(windows)
-        train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+            # Create distribution for training and dividing into train and test set
+            uniform_data = create_uniform_distribution(windows)
+            train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-        save_train_test_split(train_data, test_data, dir_name='EEG')
+            save_train_test_split(train_data, test_data, dir_name='EEG')
 
-    if script_params['run_classification']:
+        if script_params['run_classification']:
 
-        train_data, test_data = load_train_test_split(dir_name='EEG')
+            train_data, test_data = load_train_test_split(dir_name='EEG')
 
-        feature = 'features'
-        knn_score = knn_classifier(train_data, test_data, features=feature)
-        svm_score = svm_classifier(train_data, test_data, features=feature)
-        lda_score = lda_classifier(train_data, test_data, features=feature)
+            feature = 'features'
+            knn_score = knn_classifier(train_data, test_data, features=feature)
+            svm_score = svm_classifier(train_data, test_data, features=feature)
+            lda_score = lda_classifier(train_data, test_data, features=feature)
 
-        results = {
-            'KNN_results': knn_score,
-            'SVM_results': svm_score,
-            'LDA_results': lda_score
-        }
+            results = {
+                'KNN_results': knn_score,
+                'SVM_results': svm_score,
+                'LDA_results': lda_score
+            }
 
-        # Writes the test and train window plots + classifier score tables to pdf file
-        save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+            # Writes the test and train window plots + classifier score tables to pdf file
+            save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+    if script_params['online_mode']:
+        dataset = shift_data(freq=80000, dataset=dataset)
 
+        # Create table containing information when trigger points were shown/removed
+        trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
+
+        if script_params['run_mrcp_detection']:
+            windows, trigger_table = mrcp_detection_for_online_use(data=dataset, tp_table=trigger_table, config=config)
+
+            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+
+            uniform_data = create_uniform_distribution(windows)
+            train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+
+            save_train_test_split(train_data, test_data, dir_name='online_EEG')
+
+        if script_params['run_classification']:
+            train_data, test_data = load_train_test_split(dir_name='online_EEG')
+
+            feature = 'features'
+            knn_score = knn_classifier(train_data, test_data, features=feature)
+            svm_score = svm_classifier(train_data, test_data, features=feature)
+            lda_score = lda_classifier(train_data, test_data, features=feature)
+
+            results = {
+                'KNN_results': knn_score,
+                'SVM_results': svm_score,
+                'LDA_results': lda_score
+            }
+
+            # Writes the test and train window plots + classifier score tables to pdf file
+            save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+
+        if script_params['run_online_emulation']:
+            models = load_scikit_classifiers('knn')
+            index = load_index_list()
+            pair_indexes = pair_index_list(index)
+
+            get_logger().info('Starting Online Predictions.')
+            windows_on, predictions = emulate_online(dataset, config, models)
+            get_logger().info('Finished Online Predictions.')
+
+            score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[3, 4, 5])
+
+            print(score)
 
