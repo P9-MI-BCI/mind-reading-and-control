@@ -28,7 +28,7 @@ def average_channel(windows: [Window]) -> [Window]:
         if window.label == 1:
             mrcp_windows += 1
 
-    EEG_CHANNELS = list(range(0, 10))
+    EEG_CHANNELS = list(range(0, 9))
     avg_channel = []
     for col in EEG_CHANNELS:
         df_temp = pd.DataFrame()

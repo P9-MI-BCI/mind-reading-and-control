@@ -34,7 +34,7 @@ class Window:
         try:
             try:
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.filtered_data[channel], **kwargs))
-            except KeyError:
+            except:
                 get_logger().debug('Adding key to filtered data window.')
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.data[channel], **kwargs))
         except AttributeError:
@@ -120,7 +120,6 @@ class Window:
 
         return existing_features
 
-
     def plot(self, channel=4, freq=1200, show=True, plot_features=False, save_fig=False, overwrite=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
@@ -128,9 +127,9 @@ class Window:
         for i, row in self.filtered_data[channel].items():  # converts the window.data freqs to seconds
             x_seconds.append(i / freq - center)
 
-        agg_strat = self.aggregate_strategy
-
         if self.label == 1:
+            agg_strat = self.aggregate_strategy
+
             emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
             y_t = ['TP'] * len(tp_timestamp)
             y_t2 = ['EMG'] * len(emg_timestamp)
@@ -174,7 +173,7 @@ class Window:
             gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
             ax1 = fig.add_subplot(gs[0, 0])
             ax1.set_title(
-                f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Filter: {self.filter_type[channel].iloc[0]}')
+                f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Filter: Raw')
             ax1.plot(x_seconds, self.data[channel], color='tomato')
             ax1.axvline(x=0, color='black', ls='--')
 

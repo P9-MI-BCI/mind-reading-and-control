@@ -8,3 +8,5 @@ lightgbm==3.2.1
 biosppy==0.7.3
 tensorflow==2.6.0
 tqdm==4.62.3
+neurokit2==0.1.4.1
+mne==0.23.4
