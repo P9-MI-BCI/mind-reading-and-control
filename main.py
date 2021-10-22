@@ -10,13 +10,16 @@ from data_preprocessing.optimize_windows import optimize_average_minimum, remove
     prune_poor_quality_samples, remove_windows_with_blink
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
-from data_preprocessing.mrcp_detection import mrcp_detection
+from data_preprocessing.mrcp_detection import mrcp_detection, load_index_list, pair_index_list, \
+    mrcp_detection_for_online_use
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
+from data_training.online_emulation import emulate_online, evaluate_online_predictions
+from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
 from data_visualization.visualize_windows import visualize_windows
 
@@ -151,7 +154,7 @@ def main():
         if script_params['run_classification']:
             train_data, test_data = load_train_test_split(dir_name='online_EEG')
 
-            feature = 'raw'
+            feature = 'features'
             knn_score = knn_classifier(train_data, test_data, features=feature)
             svm_score = svm_classifier(train_data, test_data, features=feature)
             lda_score = lda_classifier(train_data, test_data, features=feature)
@@ -171,7 +174,7 @@ def main():
             pair_indexes = pair_index_list(index)
 
             get_logger().info('Starting Online Predictions.')
-            windows_on, predictions = emulate_online(dataset, config, models, features='raw')
+            windows_on, predictions = emulate_online(dataset, config, models)
             get_logger().info('Finished Online Predictions.')
 
             score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[3, 4, 5])
