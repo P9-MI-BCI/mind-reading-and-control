@@ -14,9 +14,10 @@ class Window:
     mean_amplitude = pd.DataFrame()
     signal_negativity = pd.DataFrame()
 
-    def __int__(self, label: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0, frequency_range=0,
+    def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0, frequency_range=0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
         self.label = label
+        self.blink = blink
         self.data = data
         self.timestamp = timestamp
         self.frequency_range = frequency_range

@@ -1,6 +1,8 @@
 import collections
 import random
 import pandas as pd
+
+from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.trigger_points import is_triggered
 from classes import Window
 from classes import Dataset
@@ -33,14 +35,20 @@ def cut_windows(tp_table: pd.DataFrame, tt_column: str, data: pd.DataFrame,
     list_of_trigger_windows = []
     indices_to_delete = []
 
+    blinks = blink_detection(data=dataset.data_device1, sample_rate=dataset.sample_rate)
+
     for i, row in tp_table.iterrows():
         start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_size * dataset.sample_rate)
         end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_size * dataset.sample_rate)
         window = Window.Window()
         window.data = dataset.data_device1.iloc[start:end]
-        window.label = 1  # indicates EMG
+        window.label = 1  # indicates EMG onset within window
         window.timestamp = row
         window.frequency_range = [start, end]
+        window.blink = 0
+        for blink in blinks:
+            if blink in range(start, end):
+                window.blink = 1  # indicates blink within window
 
         window.filtered_data = data.iloc[start:end]
         window.filtered_data = window.filtered_data.reset_index(drop=True)
@@ -60,13 +68,24 @@ def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame
     list_of_windows = []
     window_sz = window_size * freq * 2
     i = 0
+
+    blinks = blink_detection(data=data, sample_rate=freq)
+
     while i < len(data) and i + window_sz < len(data):
         cutout = abs(data.index[i] - data.index[i + window_sz]) == window_sz
         if cutout:
             window = Window.Window()
             window.data = data.iloc[i:i + window_sz]
             window.label = 0  # indicates no EMG peak / no MRCP should be present
-            window.frequency_range = [i, i+window_sz]
+            window.frequency_range = [data.index[i], data.index[i]+window_sz]
+            window.blink = 0
+
+            start = window.frequency_range[0]
+            end = window.frequency_range[-1]
+            for blink in blinks:
+                if blink in range(start, end):
+                    window.blink = 1  # indicates blink within window
+
             window.filtered_data = filtered_data.iloc[i:i + window_sz]
             window.filtered_data = window.filtered_data.reset_index(drop=True)
             list_of_windows.append(window)

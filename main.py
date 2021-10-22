@@ -18,6 +18,7 @@ from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.visualize_windows import visualize_windows
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
@@ -35,7 +36,7 @@ from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
 
 """CONFIGURATION"""
-get_logger().setLevel(logging.DEBUG)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
+get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
     config = json.load(config_file)['cue_set0']  # Choose config
@@ -74,8 +75,7 @@ def init(selected_cue_set: int = 0):
     return dataset
 
 
-if __name__ == '__main__':
-
+def main():
     dataset = init(selected_cue_set=config['id'])
 
     # Shift Data to remove startup
@@ -88,19 +88,23 @@ if __name__ == '__main__':
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
+        # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
+        visualize_windows(data=dataset, windows=windows, channel=4)
+
         # Plot all filtered channels (0-9 and 12) together with the raw data
-        # dataset.plot()
+        dataset.plot()
 
-        # Remove poor quality samples based on heuristic and score
+        # Remove poor quality samples based on heuristic, score and blink detection
         prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
-        remove_windows_with_blink(dataset, windows)
+        remove_windows_with_blink(dataset=dataset, windows=windows)
 
-        # Plot Average and Individual Frames
+        # Create and plot the average windows
         avg_windows = average_channel(windows)
-        # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+        plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
-        # for window in windows:
-        #     window.plot()
+        # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
+        for window in windows:
+            window.plot()
 
         # Create distribution for training and dividing into train and test set
         uniform_data = create_uniform_distribution(windows)
@@ -127,3 +131,5 @@ if __name__ == '__main__':
         save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
 
+if __name__ == '__main__':
+    main()
