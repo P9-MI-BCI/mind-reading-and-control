@@ -9,19 +9,19 @@ from utility.save_figure import save_figure
 from classes import Window
 
 
-# Finds the emg_peaks within its corresponding tp interval
+# Finds the emg_peaks within its corresponding tp interval (our simple heuristic)
 def find_usable_emg(tp_table: pd.DataFrame, config) -> [int]:
     emg = []
     for i in range(0, len(tp_table)):
         if tp_table['tp_start'][i] < tp_table[config['aggregate_strategy']][i] < tp_table['tp_end'][i]:
             emg.append(i)
         else:
-            get_logger().debug('EMG detected outside tp_start-tp_end', tp_table.iloc[i])
+            get_logger().debug('EMG detected outside tp_start-tp_end')
 
     return emg
 
 
-# takes in list of all windows with MRCP and returns a window containing the average of them.
+# Takes all windows with MRCP within each EEG channel and calculates the mean of them.
 def average_channel(windows: [Window]) -> [Window]:
     mrcp_windows = 0
     for window in windows:

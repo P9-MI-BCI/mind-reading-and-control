@@ -7,20 +7,18 @@ import json
 from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.optimize_windows import optimize_average_minimum, remove_worst_windows, find_best_config_params, \
-    prune_poor_quality_samples
+    prune_poor_quality_samples, remove_windows_with_blink
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
-from data_preprocessing.mrcp_detection import mrcp_detection, load_index_list, mrcp_detection_for_online_use, \
-    pair_index_list
+from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
-from data_training.online_emulation import emulate_online, evaluate_online_predictions
-from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.visualize_windows import visualize_windows
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
@@ -33,7 +31,6 @@ import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 from utility.pdf_creation import save_results_to_pdf
-
 
 from definitions import DATASET_PATH, OUTPUT_PATH
 from classes import Dataset, Window
@@ -78,11 +75,11 @@ def init(selected_cue_set: int = 0):
     return dataset
 
 
-if __name__ == '__main__':
-
+def main():
     dataset = init(selected_cue_set=config['id'])
-
+    
     if script_params['offline_mode']:
+        
         # Shift Data to remove startup
         dataset = shift_data(freq=80000, dataset=dataset)
 
@@ -93,25 +90,21 @@ if __name__ == '__main__':
             # Perform MRCP Detection and update trigger_table with EMG timestamps
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
-            blinks = blink_detection(data=dataset)
-
-            # Perform blink detection on EOG channel
-            for window in windows:
-                temp_freq_range = list(range(window.frequency_range[0], window.frequency_range[1]))
-                for blink in blinks:
-                    if blink in temp_freq_range:
-                        get_logger().debug(f'Blink detected in {window.num_id}, window has label {window.label}')
+            # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
+            visualize_windows(data=dataset, windows=windows, channel=4)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
             dataset.plot()
 
-            # Remove poor quality samples based on heuristic and score
-            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # Remove poor quality samples based on heuristic, score and blink detection
+            prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
+            remove_windows_with_blink(dataset=dataset, windows=windows)
 
-            # Plot Average and Individual Frames
+            # Create and plot the average windows
             avg_windows = average_channel(windows)
             plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
+            # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
             for window in windows:
                 window.plot()
 
@@ -138,6 +131,7 @@ if __name__ == '__main__':
 
             # Writes the test and train window plots + classifier score tables to pdf file
             save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+
     if script_params['online_mode']:
         dataset = shift_data(freq=80000, dataset=dataset)
 
@@ -157,7 +151,7 @@ if __name__ == '__main__':
         if script_params['run_classification']:
             train_data, test_data = load_train_test_split(dir_name='online_EEG')
 
-            feature = 'features'
+            feature = 'raw'
             knn_score = knn_classifier(train_data, test_data, features=feature)
             svm_score = svm_classifier(train_data, test_data, features=feature)
             lda_score = lda_classifier(train_data, test_data, features=feature)
@@ -177,10 +171,12 @@ if __name__ == '__main__':
             pair_indexes = pair_index_list(index)
 
             get_logger().info('Starting Online Predictions.')
-            windows_on, predictions = emulate_online(dataset, config, models)
+            windows_on, predictions = emulate_online(dataset, config, models, features='raw')
             get_logger().info('Finished Online Predictions.')
 
             score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[3, 4, 5])
-
             print(score)
 
+
+if __name__ == '__main__':
+    main()
