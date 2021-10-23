@@ -1,4 +1,6 @@
 import pandas as pd
+
+from data_preprocessing.eog_detection import blink_detection
 from utility.logger import get_logger
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
@@ -16,6 +18,8 @@ class Window:
 
     def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0, frequency_range=0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
+        if frequency_range is None:
+            frequency_range = []
         self.label = label
         self.blink = blink
         self.data = data
@@ -54,6 +58,12 @@ class Window:
                 self.filter_type = pd.DataFrame()
                 self.filter_type[channel] = [filter_types[channel].iloc[0]]
 
+    def blink_detection(self, blinks):
+        self.blink = 0
+        for blink in blinks:
+            if blink in range(self.frequency_range[0], self.frequency_range[1]):
+                self.blink = 1  # indicates blink within window
+
     def _calc_negative_slope(self):
         if isinstance(self.filtered_data, pd.DataFrame):
             self.negative_slope = pd.DataFrame()
@@ -72,7 +82,7 @@ class Window:
             for channel in self.filtered_data.columns:
                 self.variability[channel] = [self.filtered_data[channel].var()]
         else:
-            get_logger().error("Cannot feature extract variability without filtered data.")
+            get_logger().error('Cannot feature extract variability without filtered data.')
 
     def _calc_mean_amplitude(self):
         if isinstance(self.filtered_data, pd.DataFrame):
@@ -80,7 +90,7 @@ class Window:
             for channel in self.filtered_data.columns:
                 self.mean_amplitude[channel] = [self.filtered_data[channel].mean()]
         else:
-            get_logger().error("Cannot feature extract mean amplitude without filtered data.")
+            get_logger().error('Cannot feature extract mean amplitude without filtered data.')
 
     def _calc_signal_negativity(self):
         if isinstance(self.filtered_data, pd.DataFrame):
@@ -99,7 +109,22 @@ class Window:
 
                 self.signal_negativity[channel] = [sum_negativity]
         else:
-            get_logger().error("Cannot feature extract signal negativity without filtered data.")
+            get_logger().error('Cannot feature extract signal negativity without filtered data.')
+
+    def _calc_front_slope(self):
+        if isinstance(self.filtered_data, pd.DataFrame):
+            self.negative_slope = pd.DataFrame()
+            for channel in self.filtered_data.columns:
+                middle = len(self.filtered_data[channel]) // 2
+                x1 = self.filtered_data[channel].iloc[:middle].idxmax()
+                x2 = self.filtered_data[channel].iloc[x1+1:].idxmin()
+                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1:].min(),
+                x = (x1, x2)
+                slope, intercept, r_value, p_value, std_err = linregress(x, y)
+                self.negative_slope[channel] = [slope]
+        else:
+            get_logger().error('Cannot feature extract negative slope without filtered data.')
+
 
     def extract_features(self):
         self._calc_negative_slope()
@@ -110,13 +135,13 @@ class Window:
     def get_features(self):
         existing_features = []
         if len(self.negative_slope) > 0:
-            existing_features.append("negative_slope")
+            existing_features.append('negative_slope')
         if len(self.mean_amplitude) > 0:
-            existing_features.append("mean_amplitude")
+            existing_features.append('mean_amplitude')
         if len(self.variability) > 0:
-            existing_features.append("variability")
+            existing_features.append('variability')
         if len(self.signal_negativity) > 0:
-            existing_features.append("signal_negativity")
+            existing_features.append('signal_negativity')
 
         return existing_features
 
@@ -148,26 +173,25 @@ class Window:
                 ax4.plot(x, y, label=f'slope {round(slope,9)}', alpha=0.7)
                 mean = self.filtered_data[channel].mean()
                 y_mean = [mean] * len(self.filtered_data)
-                ax4.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
+                ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
 
                 x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-                ax4.plot(x_arr[0], y_arr[0], color='black', label=f'negative {round(sum_negative, 7)}', alpha=0.7)
+                ax2.plot(x_arr[0], y_arr[0], color='black',  label=f'negative {round(sum_negative, 7)}', alpha=1)
                 for xi, yi in zip(x_arr, y_arr):
-                    ax4.plot(xi, yi, color='black', alpha=0.7)
+                    ax2.plot(xi, yi, color='black',  alpha=1)
 
-                ax4.legend()
-            ax4.axvline(x=0, color='black', ls='--')
+                ax2.legend()
 
-            ax2 = fig.add_subplot(gs[4, 0], sharex=ax1)
-            ax2.set_title('EMG Detection')
-            ax2.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
-            ax2.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
+            ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
+            ax3.set_title('EMG Detection')
+            ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
+            ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
-            ax3 = fig.add_subplot(gs[5, 0], sharex=ax1)
-            ax3.set_title('Execution Cue Interval')
-            ax3.plot(tp_timestamp, y_t, marker='o', color='royalblue')
-            ax3.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
+            ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
+            ax4.set_title('Execution Cue Interval')
+            ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
+            ax4.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
 
         else:
             gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
@@ -189,9 +213,9 @@ class Window:
 
                 x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-                ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=0.7)
+                ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=1)
                 for xi, yi in zip(x_arr, y_arr):
-                    ax2.plot(xi, yi, color='black', alpha=0.7)
+                    ax2.plot(xi, yi, color='black', alpha=1)
                 ax2.legend()
             ax2.axvline(x=0, color='black', ls='--')
 
@@ -241,7 +265,7 @@ class Window:
 
         return emg_timestamp, tp_timestamp
 
-    def _plot_features(self, center, freq, channel):
+    def _plot_features(self, center: int, freq: int, channel: int):
         x1, x2 = self.filtered_data[channel].idxmin(), self.filtered_data[channel].idxmax()
         y = self.filtered_data[channel].min(), self.filtered_data[channel].max()
 

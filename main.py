@@ -1,6 +1,4 @@
 import pandas as pd
-import glob
-import scipy.io
 import json
 
 # Data preprocessing imports
@@ -8,6 +6,7 @@ from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.optimize_windows import optimize_average_minimum, remove_worst_windows, find_best_config_params, \
     prune_poor_quality_samples, remove_windows_with_blink
+from data_preprocessing.init_dataset import init
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_datawindow
 from data_preprocessing.mrcp_detection import mrcp_detection, load_index_list, pair_index_list, \
@@ -34,9 +33,6 @@ import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
 from utility.pdf_creation import save_results_to_pdf
-
-from definitions import DATASET_PATH, OUTPUT_PATH
-from classes import Dataset, Window
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
@@ -94,22 +90,22 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            visualize_windows(data=dataset, windows=windows, channel=4)
+            # visualize_windows(data=dataset, windows=windows, channel=4)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            dataset.plot()
+            # dataset.plot()
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
-            remove_windows_with_blink(dataset=dataset, windows=windows)
+            # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # remove_windows_with_blink(dataset=dataset, windows=windows)
 
             # Create and plot the average windows
-            avg_windows = average_channel(windows)
-            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            # avg_windows = average_channel(windows)
+            # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
-            for window in windows:
-                window.plot()
+            # for window in windows:
+            #     window.plot(plot_features=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
@@ -136,7 +132,7 @@ def main():
             save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
     if script_params['online_mode']:
-        dataset = shift_data(freq=80000, dataset=dataset)
+        dataset = shift_data(freq=60000, dataset=dataset)
 
         # Create table containing information when trigger points were shown/removed
         trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
@@ -144,7 +140,9 @@ def main():
         if script_params['run_mrcp_detection']:
             windows, trigger_table = mrcp_detection_for_online_use(data=dataset, tp_table=trigger_table, config=config)
 
-            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=8, method=remove_worst_windows)
+            avg_windows = average_channel(windows)
+            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
             uniform_data = create_uniform_distribution(windows)
             train_data, test_data = train_test_split_data(uniform_data, split_per=20)
@@ -174,10 +172,10 @@ def main():
             pair_indexes = pair_index_list(index)
 
             get_logger().info('Starting Online Predictions.')
-            windows_on, predictions = emulate_online(dataset, config, models)
+            windows_on, predictions = emulate_online(dataset, config, models, features='features', continuous=True)
             get_logger().info('Finished Online Predictions.')
 
-            score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[3, 4, 5])
+            score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[1, 3, 5, 8])
             print(score)
 
 

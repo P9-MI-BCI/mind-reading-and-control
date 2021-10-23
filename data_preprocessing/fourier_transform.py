@@ -7,20 +7,19 @@ from utility.logger import get_logger
 def fourier_transform_single_datawindow(datawindow: pd.DataFrame) -> pd.DataFrame:
 
     transformed = []
-    columns = len(datawindow.columns)
 
-    for channel in datawindow:
-        get_logger().info("Fourier transforming channel: " + str(channel))
-        fourier = fft(datawindow[channel].values)
-        transformed.append(np.abs(fourier))
+    # for channel in datawindow:
+    #     get_logger().info("Fourier transforming channel: " + str(channel))
+    fourier = fft(datawindow.values)
+    transformed.append(np.abs(fourier))
 
     transformed = pd.DataFrame(transformed)
     transformed = transformed.transpose()
 
-    if len(transformed.columns) != columns:
-        get_logger().warning("Failed to fourier transform all channels. Transformed " +
-                             str(len(transformed.columns)) + ", expected: " + str(columns))
-    get_logger().info("Fourier transformed " + str(len(datawindow.columns)) + " channels, returning")
+    # if len(transformed.columns) != columns:
+    #     get_logger().warning("Failed to fourier transform all channels. Transformed " +
+    #                          str(len(transformed.columns)) + ", expected: " + str(columns))
+    # get_logger().info("Fourier transformed " + str(len(datawindow.columns)) + " channels, returning")
 
     return transformed
 

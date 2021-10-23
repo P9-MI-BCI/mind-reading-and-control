@@ -45,14 +45,14 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
         ensemble_predictions_train.append(train_preds)
         ensemble_predictions_test.append(test_preds)
 
-        score_dict[channel] = [get_accuracy(train_preds, y_train),
-                               get_accuracy(test_preds, y_test),
-                               get_precision(train_preds, y_train),
-                               get_precision(test_preds, y_test),
-                               get_recall(train_preds, y_train),
-                               get_recall(test_preds, y_test),
-                               get_f1_score(train_preds, y_train),
-                               get_f1_score(test_preds, y_test),
+        score_dict[channel] = [get_accuracy(y_train, train_preds),
+                               get_accuracy(y_test, test_preds),
+                               get_precision(y_train, train_preds),
+                               get_precision(y_test, test_preds),
+                               get_recall(y_train, train_preds),
+                               get_recall(y_test, test_preds),
+                               get_f1_score(y_train, train_preds),
+                               get_f1_score(y_test, test_preds),
                                ]
 
         if save_model:
@@ -66,14 +66,14 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     ensemble_preds_train = combine_predictions(ensemble_predictions_train).astype(int)
     ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
 
-    score_dict['ensemble'] = [get_accuracy(ensemble_preds_train, y_train),
-                              get_accuracy(ensemble_preds_test, y_test),
-                              get_precision(ensemble_preds_train, y_train),
-                              get_precision(ensemble_preds_test, y_test),
-                              get_recall(ensemble_preds_train, y_train),
-                              get_recall(ensemble_preds_test, y_test),
-                              get_f1_score(ensemble_preds_train, y_train),
-                              get_f1_score(ensemble_preds_test, y_test),
+    score_dict['ensemble'] = [get_accuracy(y_train, ensemble_preds_train),
+                              get_accuracy(y_test, ensemble_preds_test),
+                              get_precision(y_train, ensemble_preds_train),
+                              get_precision(y_test, ensemble_preds_test),
+                              get_recall(y_train, ensemble_preds_train),
+                              get_recall(y_test, ensemble_preds_test),
+                              get_f1_score(y_train, ensemble_preds_train),
+                              get_f1_score(y_test, ensemble_preds_test),
                               ]
 
     return score_dict

@@ -3,13 +3,16 @@ import pickle
 
 from classes import Dataset
 import pandas as pd
-import biosppy
-from data_preprocessing.data_distribution import cut_windows, slice_and_label_idle_windows, cut_windows_for_online, \
+from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
+    cut_mrcp_windows_for_online, \
     slice_and_label_idle_windows_for_online
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.emg_processing import emg_clustering
+from data_preprocessing.emg_processing import onset_detection
+from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
 import os
+
+from data_preprocessing.fourier_transform import fourier_transform_single_datawindow
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH
 
@@ -19,75 +22,59 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
     WINDOW_SIZE = 1  # seconds
-    dataset = copy.deepcopy(data)
+    dataset_copy = copy.deepcopy(data)
 
-    # Filter EMG Data
-    filtered_data = pd.DataFrame()
-    if bipolar_mode:
-        bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL + 1])
-        filtered_data[EMG_CHANNEL] = butter_filter(data=bipolar_emg,
-                                                   order=config['emg_order'],
-                                                   cutoff=config['emg_cutoff'],
-                                                   btype=config['emg_btype'],
-                                                   )
-    else:
-        filtered_data[EMG_CHANNEL] = butter_filter(data=dataset.data_device1[EMG_CHANNEL],
-                                                   order=config['emg_order'],
-                                                   cutoff=config['emg_cutoff'],
-                                                   btype=config['emg_btype'],
-                                                   )
+    # Find EMG onsets and group onsets based on time
+    emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
 
-    # Find onsets based on the filtered data
-    onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
-                                              sampling_rate=dataset.sample_rate,
-                                              )
-
-    # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
-                                  onsets=onsets,
-                                  freq=dataset.sample_rate,
-                                  peaks_to_find=len(tp_table),
-                                  )
+    dataset_copy.data_device1['surrogate'] = surrogate_channels(dataset_copy.data_device1[EEG_CHANNELS])
+    EEG_CHANNELS.append('surrogate')
 
     # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
-        filtered_data[i] = butter_filter(data=dataset.data_device1[i],
+        filtered_data[i] = butter_filter(data=dataset_copy.data_device1[i],
                                          order=config['eeg_order'],
                                          cutoff=config['eeg_cutoff'],
                                          btype=config['eeg_btype']
                                          )
 
     # Reshape filtered_data frame so EMG column is not first
-    filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+    # filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
-    tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset.sample_rate)
+    tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
-    windows, filtered_data, dataset = cut_windows(tp_table=tp_table,
-                                                  tt_column=config['aggregate_strategy'],
-                                                  data=filtered_data,
-                                                  dataset=dataset,
-                                                  window_size=WINDOW_SIZE
-                                                  )
+    windows, filtered_data, dataset_copy = cut_mrcp_windows(tp_table=tp_table,
+                                                            tt_column=config['aggregate_strategy'],
+                                                            filtered_data=filtered_data,
+                                                            dataset=dataset_copy,
+                                                            window_size=WINDOW_SIZE,
+                                                            )
     # Cut the the remaining data
-    windows.extend(slice_and_label_idle_windows(data=dataset.data_device1,
-                                                filtered_data=filtered_data,
-                                                window_size=WINDOW_SIZE,
-                                                freq=dataset.sample_rate))
+    windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
+                                              filtered_data=filtered_data,
+                                              window_size=WINDOW_SIZE,
+                                              freq=dataset_copy.sample_rate,
+                                              ))
 
     # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
-    filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
+    # filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
 
-    for i in range(0, len(windows)):
-        windows[i].update_filter_type(filter_type_df)
-        windows[i].num_id = i
-        windows[i].aggregate_strategy = config['aggregate_strategy']
-        windows[i].extract_features()
+    # Find frequencies of all detected blinks from EOG channel 9
+    blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
+
+    # Updates each window with various information
+    for i, window in enumerate(windows):
+        window.update_filter_type(filter_type_df)
+        window.num_id = i
+        window.aggregate_strategy = config['aggregate_strategy']
+        window.extract_features()
+        window.blink_detection(blinks)
 
     return windows, tp_table
 
@@ -135,33 +122,15 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
     WINDOW_SIZE = 1  # seconds
     dataset = copy.deepcopy(data)
 
-    # Filter EMG Data
-    filtered_data = pd.DataFrame()
-    if bipolar_mode:
-        bipolar_emg = abs(data.data_device1[EMG_CHANNEL] - data.data_device1[EMG_CHANNEL + 1])
-        filtered_data[EMG_CHANNEL] = butter_filter(data=bipolar_emg,
-                                                   order=config['emg_order'],
-                                                   cutoff=config['emg_cutoff'],
-                                                   btype=config['emg_btype'],
-                                                   )
-    else:
-        filtered_data[EMG_CHANNEL] = butter_filter(data=dataset.data_device1[EMG_CHANNEL],
-                                                   order=config['emg_order'],
-                                                   cutoff=config['emg_cutoff'],
-                                                   btype=config['emg_btype'],
-                                                   )
-
-    # Find onsets based on the filtered data
-    onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
-                                              sampling_rate=dataset.sample_rate,
-                                              )
-
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
-                                  onsets=onsets,
-                                  freq=dataset.sample_rate,
-                                  peaks_to_find=len(tp_table),
-                                  )
+    emg_clusters, filtered_data = onset_detection(dataset, tp_table, config, bipolar_mode)
+
+    for i in EEG_CHANNELS:
+        filtered_data[i] = butter_filter(data=dataset.data_device1[i],
+                                         order=config['eeg_order'],
+                                         cutoff=config['eeg_cutoff'],
+                                         btype=config['eeg_btype']
+                                         )
 
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
@@ -169,15 +138,17 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
-    windows, dataset = cut_windows_for_online(tp_table=tp_table,
-                                                      tt_column=config['aggregate_strategy'],
-                                                      dataset=dataset,
-                                                      window_size=WINDOW_SIZE
-                                                      )
+    windows, filtered_data, dataset = cut_mrcp_windows(tp_table=tp_table,
+                                                       tt_column=config['aggregate_strategy'],
+                                                       dataset=dataset,
+                                                       filtered_data=filtered_data,
+                                                       window_size=WINDOW_SIZE
+                                                       )
     # Cut the the remaining data
-    windows.extend(slice_and_label_idle_windows_for_online(data=dataset.data_device1,
-                                                            window_size=WINDOW_SIZE,
-                                                            freq=dataset.sample_rate))
+    windows.extend(cut_and_label_idle_windows(data=dataset.data_device1,
+                                              filtered_data=filtered_data,
+                                              window_size=WINDOW_SIZE,
+                                              freq=dataset.sample_rate))
 
     # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
@@ -189,16 +160,35 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
 
     for i in range(0, len(windows)):
         windows[i].update_filter_type(filter_type_df)
-        for channel in EEG_CHANNELS:
-            windows[i].filter(butter_filter,
-                              channel,
-                              order=config['eeg_order'],
-                              cutoff=config['eeg_cutoff'],
-                              btype=config['eeg_btype'],
-                              freq=dataset.sample_rate
-                              )
+        # for channel in EEG_CHANNELS:
+        #     windows[i].filter(butter_filter,
+        #                       channel,
+        #                       order=config['eeg_order'],
+        #                       cutoff=config['eeg_cutoff'],
+        #                       btype=config['eeg_btype'],
+        #                       freq=dataset.sample_rate
+        #                       )
+        #      windows[i].filter(fourier_transform_single_datawindow, channel=channel)
         windows[i].num_id = i
         windows[i].aggregate_strategy = config['aggregate_strategy']
         windows[i].extract_features()
+        # windows[i].plot()
 
     return windows, tp_table
+
+
+def surrogate_channels(data: pd.DataFrame):
+    surrogate_channel = []
+
+    for i, row in data.iterrows():
+        temp = []
+        for col in data.columns:
+            temp.append(surrogate(row[col]))
+
+        surrogate_channel.append(sum(temp))
+
+    return surrogate_channel
+
+
+def surrogate(y):
+    return -(1 / (y - 1))

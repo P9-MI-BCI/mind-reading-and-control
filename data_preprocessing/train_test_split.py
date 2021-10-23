@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.DataFrame], [pd.DataFrame]):
-    dd = data_distribution(data)['expected_triggered_percent']
+    dd = data_distribution(data)['expected_labeled_percent']
     isAcceptableDistribution = True
     upper_bound = 1.10
     lower_bound = 0.90
@@ -19,8 +19,8 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.Dat
         train_data = data[test_size:]
         test_data = data[:test_size]
 
-        train_dd = data_distribution(train_data)['expected_triggered_percent']
-        test_dd = data_distribution(test_data)['expected_triggered_percent']
+        train_dd = data_distribution(train_data)['expected_labeled_percent']
+        test_dd = data_distribution(test_data)['expected_labeled_percent']
 
         if dd * upper_bound > train_dd > dd * lower_bound:
             if dd * upper_bound > test_dd > dd * lower_bound:
