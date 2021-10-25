@@ -21,7 +21,7 @@ from data_preprocessing.train_test_split import train_test_split_data
 from data_training.online_emulation import emulate_online, evaluate_online_predictions
 from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
-from data_visualization.visualize_windows import visualize_windows
+from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
@@ -94,10 +94,11 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            visualize_windows(data=dataset, windows=windows, channel=4)
+            visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            dataset.plot()
+            dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
             prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
@@ -109,7 +110,7 @@ def main():
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
             for window in windows:
-                window.plot()
+                window.plot(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
