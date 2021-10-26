@@ -8,7 +8,7 @@ def get_accuracy(targets, preds):
         if pred == target:
             counter += 1
 
-    return (counter / len(preds))
+    return counter / len(preds)
 
 
 def get_precision(targets, preds):
@@ -27,6 +27,7 @@ def get_confusion_matrix(targets, preds):
     return confusion_matrix(targets, preds)
 
 
+# combines predictions for all channels based on the most frequent prediction
 def combine_predictions(all_channel_predictions):
     c_df = pd.DataFrame()
     counter = 0

@@ -1,5 +1,5 @@
 # this file functions as a default method that takes in a scikit model and runs training and prediction
-# the current working models are KNN and SVM
+# the current tested models are KNN, SVM, LDA, LGBM
 import glob
 import pickle
 
@@ -18,15 +18,15 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
-    score_dict = pd.DataFrame()
-    score_dict.index = ['accuracy_train',
-                        'accuracy_test',
-                        'precision_train',
-                        'precision_test',
-                        'recall_train',
-                        'recall_test',
-                        'f1_train',
-                        'f1_test']
+    score_df = pd.DataFrame()
+    score_df.index = ['accuracy_train',
+                      'accuracy_test',
+                      'precision_train',
+                      'precision_test',
+                      'recall_train',
+                      'recall_test',
+                      'f1_train',
+                      'f1_test']
     ensemble_predictions_train = []
     ensemble_predictions_test = []
 
@@ -45,15 +45,15 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
         ensemble_predictions_train.append(train_preds)
         ensemble_predictions_test.append(test_preds)
 
-        score_dict[channel] = [get_accuracy(y_train, train_preds),
-                               get_accuracy(y_test, test_preds),
-                               get_precision(y_train, train_preds),
-                               get_precision(y_test, test_preds),
-                               get_recall(y_train, train_preds),
-                               get_recall(y_test, test_preds),
-                               get_f1_score(y_train, train_preds),
-                               get_f1_score(y_test, test_preds),
-                               ]
+        score_df[channel] = [get_accuracy(y_train, train_preds),
+                             get_accuracy(y_test, test_preds),
+                             get_precision(y_train, train_preds),
+                             get_precision(y_test, test_preds),
+                             get_recall(y_train, train_preds),
+                             get_recall(y_test, test_preds),
+                             get_f1_score(y_train, train_preds),
+                             get_f1_score(y_test, test_preds),
+                             ]
 
         if save_model:
             path = os.path.join(OUTPUT_PATH, 'models', dir_name)
@@ -61,22 +61,22 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
             filename = os.path.join(path, dir_name + str(channel))
             pickle.dump(model, open(filename, 'wb'))
 
-    score_dict['average'] = score_dict.mean(numeric_only=True, axis=1)
+    score_df['average'] = score_df.mean(numeric_only=True, axis=1)
 
     ensemble_preds_train = combine_predictions(ensemble_predictions_train).astype(int)
     ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
 
-    score_dict['ensemble'] = [get_accuracy(y_train, ensemble_preds_train),
-                              get_accuracy(y_test, ensemble_preds_test),
-                              get_precision(y_train, ensemble_preds_train),
-                              get_precision(y_test, ensemble_preds_test),
-                              get_recall(y_train, ensemble_preds_train),
-                              get_recall(y_test, ensemble_preds_test),
-                              get_f1_score(y_train, ensemble_preds_train),
-                              get_f1_score(y_test, ensemble_preds_test),
-                              ]
+    score_df['ensemble'] = [get_accuracy(y_train, ensemble_preds_train),
+                            get_accuracy(y_test, ensemble_preds_test),
+                            get_precision(y_train, ensemble_preds_train),
+                            get_precision(y_test, ensemble_preds_test),
+                            get_recall(y_train, ensemble_preds_train),
+                            get_recall(y_test, ensemble_preds_test),
+                            get_f1_score(y_train, ensemble_preds_train),
+                            get_f1_score(y_test, ensemble_preds_test),
+                            ]
 
-    return score_dict
+    return score_df
 
 
 def load_scikit_classifiers(dir_name):

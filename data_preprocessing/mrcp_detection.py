@@ -2,17 +2,11 @@ import copy
 import pickle
 
 from classes import Dataset
-import pandas as pd
-from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
-    cut_mrcp_windows_for_online, \
-    slice_and_label_idle_windows_for_online
+from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import onset_detection
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
-import os
-
-from data_preprocessing.fourier_transform import fourier_transform_single_datawindow
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH
 
@@ -27,9 +21,6 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Find EMG onsets and group onsets based on time
     emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
 
-    dataset_copy.data_device1['surrogate'] = surrogate_channels(dataset_copy.data_device1[EEG_CHANNELS])
-    EEG_CHANNELS.append('surrogate')
-
     # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
         filtered_data[i] = butter_filter(data=dataset_copy.data_device1[i],
@@ -39,11 +30,13 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                          )
 
     # Reshape filtered_data frame so EMG column is not first
-    # filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+    filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
+    tp_table = fix_time_table(tp_table)
+
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
@@ -63,7 +56,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
     filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
-    # filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
+    filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
 
     # Find frequencies of all detected blinks from EOG channel 9
     blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
@@ -94,12 +87,13 @@ def save_index_list(index):
     pickle.dump(index, open(filename, 'wb'))
 
 
-def load_index_list():
+def load_index_list() -> [int]:
     path = os.path.join(OUTPUT_PATH, 'online', 'index')
     return (pickle.load(open(path, 'rb'))).tolist()
 
 
-def pair_index_list(index):
+# converts index list to a pair_index list where it holds pairs of (start, end) of each range
+def pair_index_list(index: [int]):
     pair_indexes = []
     start, current, end = index[0], index[0], 0
     for i in range(1, len(index) - 1):
@@ -135,6 +129,7 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset.sample_rate)
+    tp_table = fix_time_table(tp_table)
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
@@ -160,19 +155,9 @@ def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config,
 
     for i in range(0, len(windows)):
         windows[i].update_filter_type(filter_type_df)
-        # for channel in EEG_CHANNELS:
-        #     windows[i].filter(butter_filter,
-        #                       channel,
-        #                       order=config['eeg_order'],
-        #                       cutoff=config['eeg_cutoff'],
-        #                       btype=config['eeg_btype'],
-        #                       freq=dataset.sample_rate
-        #                       )
-        #      windows[i].filter(fourier_transform_single_datawindow, channel=channel)
         windows[i].num_id = i
         windows[i].aggregate_strategy = config['aggregate_strategy']
         windows[i].extract_features()
-        # windows[i].plot()
 
     return windows, tp_table
 
@@ -192,3 +177,25 @@ def surrogate_channels(data: pd.DataFrame):
 
 def surrogate(y):
     return -(1 / (y - 1))
+
+
+def fix_time_table(trigger_table: pd.DataFrame) -> pd.DataFrame:
+    columns = ['emg_start', 'emg_peak', 'emg_end']
+    tp_cols = ['tp_start', 'tp_end']
+
+    fixed_list = []
+
+    # checks if next timestamp is closer and applies that instead.
+    for i in range(len(trigger_table)-1):
+        time_diff = abs(trigger_table.iloc[i]['emg_start'] - trigger_table.iloc[i]['tp_start'])
+        if time_diff > abs(trigger_table.iloc[i+1]['emg_start'] - trigger_table.iloc[i]['tp_start']):
+            temp = trigger_table.iloc[i][tp_cols]
+            temp = temp.append(trigger_table.iloc[i+1][columns])
+            fixed_list.append(temp)
+        else:
+            fixed_list.append(trigger_table.iloc[i])
+
+    fixed_tp_table = pd.DataFrame(fixed_list)
+    fixed_tp_table = fixed_tp_table.reset_index(drop=True)
+
+    return fixed_tp_table

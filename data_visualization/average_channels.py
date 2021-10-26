@@ -10,23 +10,27 @@ from classes import Window
 
 
 # Finds the emg_peaks within its corresponding tp interval (our simple heuristic)
-def find_usable_emg(tp_table: pd.DataFrame, config) -> [int]:
-    emg = []
+def windows_based_on_heuristic(tp_table: pd.DataFrame, config) -> [int]:
+    windows = []
+    agg_strat = config['aggregate_strategy']
     for i in range(0, len(tp_table)):
-        if tp_table['tp_start'][i] < tp_table[config['aggregate_strategy']][i] < tp_table['tp_end'][i]:
-            emg.append(i)
+        if tp_table['tp_start'][i] < tp_table[agg_strat][i] < tp_table['tp_end'][i]:
+            windows.append(i)
         else:
-            get_logger().debug('EMG detected outside tp_start-tp_end')
+            get_logger().debug(f'{agg_strat} detected outside tp_start-tp_end')
 
-    return emg
+    return windows
 
 
 # Takes all windows with MRCP within each EEG channel and calculates the mean of them.
-def average_channel(windows: [Window]) -> [Window]:
-    mrcp_windows = 0
-    for window in windows:
-        if window.label == 1:
-            mrcp_windows += 1
+def average_channel(windows: [Window], mrcp_windows: [int] = None) -> [Window]:
+    if mrcp_windows is None:
+        i = 0
+        mrcp_windows = []
+        for window in windows:
+            if window.label == 1:
+                mrcp_windows.append(i)
+            i += 1
 
     EEG_CHANNELS = list(range(0, 9))
     avg_channel = []

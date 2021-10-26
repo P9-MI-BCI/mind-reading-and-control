@@ -12,6 +12,7 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.Dat
     lower_bound = 0.90
 
     counter = 0
+    # continuously shuffles the data until the distribution of the train and test split is acceptable
     while isAcceptableDistribution and counter < 100:
         random.shuffle(data)
         test_size = int(len(data) / 100 * split_per)
@@ -29,14 +30,17 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.Dat
                 isAcceptableDistribution = False
             else:
                 get_logger().debug(
-                    f'Test Data did not have an acceptable label distribution of {test_dd} percent - expected {round(dd * lower_bound, 2)}-{round(dd * upper_bound,2)} percent, trying again.')
+                    f'Test Data did not have an acceptable label distribution of {test_dd} percent '
+                    f'- expected {round(dd * lower_bound, 2)}-{round(dd * upper_bound, 2)} percent, trying again.')
         else:
             get_logger().debug(
-                f'Training Data did not have an acceptable label distribution of {train_dd} percent - expected {round(dd * lower_bound, 2)}-{round(dd * upper_bound,2)} percent, trying again.')
+                f'Training Data did not have an acceptable label distribution of {train_dd} percent '
+                f'- expected {round(dd * lower_bound, 2)}-{round(dd * upper_bound, 2)} percent, trying again.')
         counter += 1
 
     if counter >= 99:
         get_logger().warning('Tried to find acceptable label distribution more than 100 times.')
+        exit()
 
     if len(train_data) < 1 or len(test_data) < 1:
         get_logger().warning('Train or test split was created with size < 1.')
@@ -51,7 +55,8 @@ def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
     x = []
 
     if len(data) < 1:
-        get_logger().warning('List of windows was empty while attempting to format data and target variables.')
+        get_logger().warning('List of windows was empty while attempting to format data and target variables - Exiting')
+        exit()
     if features == 'raw':
         for window in data:
             y.append(window.label)

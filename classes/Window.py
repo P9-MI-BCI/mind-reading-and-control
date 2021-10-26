@@ -156,7 +156,7 @@ class Window:
             agg_strat = self.aggregate_strategy
 
             emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
-            y_t = ['TP'] * len(tp_timestamp)
+            y_t = ['EC'] * len(tp_timestamp)
             y_t2 = ['EMG'] * len(emg_timestamp)
 
             gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)

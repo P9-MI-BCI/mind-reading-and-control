@@ -8,18 +8,18 @@ from data_preprocessing.optimize_windows import optimize_average_minimum, remove
     prune_poor_quality_samples, remove_windows_with_blink
 from data_preprocessing.init_dataset import init
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
-    fourier_transform_single_datawindow
+    fourier_transform_single_data_channel
 from data_preprocessing.mrcp_detection import mrcp_detection, load_index_list, pair_index_list, \
-    mrcp_detection_for_online_use
+    mrcp_detection_for_online_use, fix_time_table
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd, trigger_time_table
 from data_preprocessing.train_test_split import train_test_split_data
 
 # Data visualization imports
-from data_training.online_emulation import emulate_online, evaluate_online_predictions
+from data_training.online_emulation import simulate_online, evaluate_online_predictions
 from data_training.scikit_classifiers import load_scikit_classifiers
-from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.average_channels import windows_based_on_heuristic, average_channel, plot_average_channels
 from data_visualization.visualize_windows import visualize_windows
 
 # Training/Classification imports
@@ -38,7 +38,7 @@ from utility.pdf_creation import save_results_to_pdf
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # Datawindow print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-    config = json.load(config_file)['cue_set0']  # Choose config
+    config = json.load(config_file)['cue_set1']  # Choose config
     script_params = json.load(script_parameters)  # Load script parameters
 
 
@@ -80,7 +80,7 @@ def main():
     if script_params['offline_mode']:
         
         # Shift Data to remove startup
-        dataset = shift_data(freq=80000, dataset=dataset)
+        dataset = shift_data(freq=config['start_time'], dataset=dataset)
 
         # Create table containing information when trigger points were shown/removed
         trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
@@ -90,22 +90,22 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            # visualize_windows(data=dataset, windows=windows, channel=4)
+            visualize_windows(data=dataset, windows=windows, channel=4)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            # dataset.plot()
+            dataset.plot()
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
-            # remove_windows_with_blink(dataset=dataset, windows=windows)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
+            remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
-            # avg_windows = average_channel(windows)
-            # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            avg_windows = average_channel(windows)
+            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
-            # for window in windows:
-            #     window.plot(plot_features=True)
+            for window in windows:
+                window.plot(plot_features=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
@@ -132,7 +132,7 @@ def main():
             save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
     if script_params['online_mode']:
-        dataset = shift_data(freq=60000, dataset=dataset)
+        dataset = shift_data(freq=config['start_time'], dataset=dataset)
 
         # Create table containing information when trigger points were shown/removed
         trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
@@ -140,7 +140,7 @@ def main():
         if script_params['run_mrcp_detection']:
             windows, trigger_table = mrcp_detection_for_online_use(data=dataset, tp_table=trigger_table, config=config)
 
-            prune_poor_quality_samples(windows, trigger_table, config, remove=8, method=remove_worst_windows)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=9, method=remove_worst_windows)
             avg_windows = average_channel(windows)
             plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
@@ -172,10 +172,10 @@ def main():
             pair_indexes = pair_index_list(index)
 
             get_logger().info('Starting Online Predictions.')
-            windows_on, predictions = emulate_online(dataset, config, models, features='features', continuous=True)
+            windows_on, predictions = simulate_online(dataset, config, models, features='features', continuous=True)
             get_logger().info('Finished Online Predictions.')
 
-            score = evaluate_online_predictions(windows_on, predictions, pair_indexes, channels=[1, 3, 5, 8])
+            score = evaluate_online_predictions(windows_on, predictions, pair_indexes)
             print(score)
 
 

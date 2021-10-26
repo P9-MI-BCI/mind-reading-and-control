@@ -28,9 +28,9 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, peaks_to_fi
 
         get_logger().debug(f'Found {len(onset_clusters_array)} clusters if this is more than {peaks_to_find} then increment.')
         cluster_range += 0.01
-        if len(onset_clusters_array) == 1:
+        if len(onset_clusters_array) == 0:
             get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
-            break
+            exit()
 
     for onset_cluster in onset_clusters_array:
         highest = 0

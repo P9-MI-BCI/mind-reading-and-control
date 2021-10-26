@@ -15,10 +15,12 @@ from data_training.measurements import combine_predictions, get_accuracy, get_pr
 from utility.logger import get_logger
 
 
-def emulate_online(dataset: Dataset, config, models, features='features', continuous=False, data_buffer=True):
+# Simulates online behavior by consuming the dataset sequentially (windows)
+def simulate_online(dataset: Dataset, config, models, features: str = 'features', continuous=False, data_buffer=True):
     WINDOW_LENGTH = 2  # seconds
     WINDOW_SIZE = WINDOW_LENGTH * dataset.sample_rate
     EEG_CHANNELS = list(range(0, 9))
+    EMG_CHANNEL = 12
 
     continuous_data = pd.DataFrame(columns=EEG_CHANNELS)
     data_buffer_size = WINDOW_SIZE * 10
@@ -29,15 +31,17 @@ def emulate_online(dataset: Dataset, config, models, features='features', contin
         get_logger().info('Building Data Buffer.')
 
     for i in tqdm(range(0, len(dataset.data_device1), WINDOW_SIZE)):
-        window = Window()
         predictions = []
+        window = Window()
         window.data = dataset.data_device1.iloc[i:i + WINDOW_SIZE]
         window.label = None
         window.num_id = i
         window.frequency_range = [i, i + WINDOW_SIZE]
 
+        # will use previous knowledge of seen data
         if continuous:
             if data_buffer:
+                # keeps the buffer at a minimum size and will not run following code until satisfied.
                 if len(continuous_data) < data_buffer_size:
                     continuous_data = pd.concat(
                         [continuous_data, dataset.data_device1.iloc[i:i + WINDOW_SIZE, EEG_CHANNELS]],
@@ -48,6 +52,7 @@ def emulate_online(dataset: Dataset, config, models, features='features', contin
                         [continuous_data, dataset.data_device1.iloc[i:i + WINDOW_SIZE, EEG_CHANNELS]])
                 filtered_data = pd.DataFrame(columns=EEG_CHANNELS)
 
+                # filters the new window + the previous continuous data
                 for chan in EEG_CHANNELS:
                     filtered_data[chan] = butter_filter(data=continuous_data[chan],
                                                         order=config['eeg_order'],
@@ -57,8 +62,10 @@ def emulate_online(dataset: Dataset, config, models, features='features', contin
 
                 window.filtered_data = filtered_data.iloc[-WINDOW_SIZE:]
                 window.filtered_data = window.filtered_data.reset_index(drop=True)
+                # removes the first window to keep buffer size small
                 continuous_data = continuous_data.iloc[WINDOW_SIZE:]
 
+        # other case where you only process one window at a time and doesnt consider previous data
         else:
             for channel in EEG_CHANNELS:
                 window.filter(butter_filter,
@@ -69,7 +76,7 @@ def emulate_online(dataset: Dataset, config, models, features='features', contin
                               freq=dataset.sample_rate
                               )
 
-        filter_type_df = pd.DataFrame(columns=[12], data=[config['emg_btype']])
+        filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
         filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
 
         window.update_filter_type(filter_type_df)
@@ -88,15 +95,18 @@ def emulate_online(dataset: Dataset, config, models, features='features', contin
                     f = getattr(window, feature)
                     feature_vector.append(f[channel].item())
 
+            # predicts using a saved model for each channel, with the selected feature
             predictions.append(models[channel].predict([feature_vector]).tolist()[0])
 
         all_windows.append(window)
         all_window_preds.append(predictions)
 
+    # returns the windows created during runtime and all predictions made
     return all_windows, all_window_preds
 
 
-def evaluate_online_predictions(windows, predictions, index, channels=None):
+# evaluates the online performance on the selected channels
+def evaluate_online_predictions(windows: [Window], predictions: [int], index: [(int, int)], channels=None):
     if channels is None:
         channels = list(range(0, 9))
 
@@ -109,10 +119,15 @@ def evaluate_online_predictions(windows, predictions, index, channels=None):
     predictions_z = []
     target_z = []
     i_p = 0
+
+    # iterates through each window with the corresponding predictions.
+    # checks if the windows' frequency is within the pair_index (start, end) list
+    # (which determines if the window is labeled as mrcp)
     for window, prediction in zip(windows, predictions):
         frequency_range = [window.frequency_range[0], window.frequency_range[1]]
 
         pred = 0
+        # majority vote for prediction
         for chan in channels:
             pred += prediction[chan]
         if pred > len(channels) // 2:
@@ -122,6 +137,7 @@ def evaluate_online_predictions(windows, predictions, index, channels=None):
 
         is_in_index = False
 
+        # traverses the index list by checking all statements
         traverse = True
         while traverse:
             if i_p >= len(index):
@@ -149,9 +165,5 @@ def evaluate_online_predictions(windows, predictions, index, channels=None):
                             get_recall(target_z, predictions_z),
                             get_f1_score(target_z, predictions_z),
                             ]
-
-    print(predictions_z)
-    print(target_z)
-    print(confusion_matrix(target_z, predictions_z))
 
     return score_dict
