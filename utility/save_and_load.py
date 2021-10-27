@@ -87,17 +87,3 @@ def load_train_test_split(dir_name: str):
     get_logger().info(
         f'Loaded {len(train_names) + len(test_names)} windows with shape: {train_windows[0].data.shape}')
     return train_windows, test_windows
-
-
-# old style of loading
-def file_to_window(file):
-    window = Window.Window()
-
-    window_df = pd.read_csv(file, squeeze=True)
-
-    window.label = window_df['label'].iloc[0]
-
-    window_df.drop('label', axis=1, inplace=True)
-    window.data = window_df
-
-    return window

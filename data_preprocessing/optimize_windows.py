@@ -2,9 +2,10 @@
 import json
 import pandas as pd
 import numpy as np
+
 from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.eog_detection import blink_detection
-from data_visualization.average_channels import find_usable_emg, average_channel
+from data_visualization.average_channels import windows_based_on_heuristic, average_channel
 from utility.logger import get_logger
 from classes import Window
 from tqdm import tqdm
@@ -83,6 +84,7 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
             for sample in range(0, len(valid_emg)):
                 minimize_array = []
 
+                # iterate over all combinations of array combination
                 b = [x for i, x in enumerate(valid_emg) if i != sample]
                 windows = average_channel(emg_windows, b)
 
@@ -152,7 +154,7 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
         if window.label == 1:
             mrcp_windows += 1
 
-    valid_emg = find_usable_emg(trigger_table, config)  # Our simple time heuristic
+    valid_emg = windows_based_on_heuristic(trigger_table, config)  # Our simple time heuristic
 
     remove = remove - (mrcp_windows - len(valid_emg))
     if remove < 0:
@@ -161,14 +163,8 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
 
     if method:
         valid_emg = method(valid_emg, windows, remove=remove)
-    # valid_emg = optimize_average_minimum(valid_emg, windows, remove=8)
-    # valid_emg = remove_worst_windows(valid_emg, windows, remove=remove)
 
-    mrcp_windows = 0
-    for window in windows:
-        if window.label == 1:
-            mrcp_windows += 1
-
+    # deletes windows from last index first, in order to avoid index collision
     for i in range(mrcp_windows - 1, -1, -1):
         if i not in valid_emg:
             del windows[i]
