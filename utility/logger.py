@@ -27,7 +27,7 @@ def get_logger() -> logging.Logger:
     return logger
 
 
-def create_logger(name: str, log_path: str = "none", level: int = logging.WARNING):
+def create_logger(name: str, level: int = logging.WARNING):
 
     logging_format = "%(asctime)s :: %(process)-5d :: %(levelname)s :: %(name)s :: %(message)-8s"
     date_format = "%Y-%m-%d - %H:%M:%S"
@@ -43,18 +43,6 @@ def create_logger(name: str, log_path: str = "none", level: int = logging.WARNIN
     console_handler.setFormatter(formatter)
     custom_logger.addHandler(console_handler)
 
-    # Create file handler
-    # if log_path != "none":
-    #     create_dir(os.path.split(log_path)[0])
-    #
-    #     file_handler = logging.FileHandler(log_path)
-    #     file_handler.setLevel(level)
-    #     file_handler.setFormatter(formatter)
-    #     custom_logger.addHandler(file_handler)
-
-    # if catch_output:
-    #     catch_output_stream_to_logger(custom_logger)
-
     return custom_logger
 
 
@@ -66,10 +54,10 @@ class StreamToLogger(object):
     def __init__(self, target_logger: logging.Logger, level: int):
         self.logger = target_logger
         self.level = level
-        self.linebuf = ""
+        self.linebuff = ""
 
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
+    def write(self, buff):
+        for line in buff.rstrip().splitlines():
             self.logger.log(self.level, line.rstrip())
 
     def flush(self):

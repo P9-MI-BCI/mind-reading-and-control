@@ -2,31 +2,32 @@ import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 
-def get_accuracy(preds, targets):
+def get_accuracy(targets, preds):
     counter = 0
     for pred, target in zip(preds, targets):
         if pred == target:
             counter += 1
 
-    return (counter / len(preds))
+    return counter / len(preds)
 
 
-def get_precision(preds, targets):
-    return precision_score(preds,targets)
+def get_precision(targets, preds):
+    return precision_score(targets, preds)
 
 
-def get_recall(preds, targets):
-    return recall_score(preds, targets)
+def get_recall(targets, preds):
+    return recall_score(targets, preds)
 
 
-def get_f1_score(preds, targets):
-    return f1_score(preds, targets)
+def get_f1_score(targets, preds):
+    return f1_score(targets, preds)
 
 
-def get_confusion_matrix(preds, targets):
-    return confusion_matrix(preds, targets)
+def get_confusion_matrix(targets, preds):
+    return confusion_matrix(targets, preds)
 
 
+# combines predictions for all channels based on the most frequent prediction
 def combine_predictions(all_channel_predictions):
     c_df = pd.DataFrame()
     counter = 0

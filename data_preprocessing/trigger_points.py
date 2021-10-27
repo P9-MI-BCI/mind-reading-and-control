@@ -1,8 +1,6 @@
 import pandas as pd
 import datetime
-from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date, convert_freq_to_datetime
-
-SAMPLE_RATE = 1200
+from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 
 
 def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
@@ -13,12 +11,12 @@ def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
         for x in t_p[1:-1]:  # first item is the label / rest is the timestamp
             temp.append(int(x))
 
-        # hacky fix using string split
+        # using string split to format the timestamps.
         time_str = str(t_p[-1]).split('.')
         temp.append(int(time_str[0]))
 
         deci_temp = time_str[1][:3]
-        while len(deci_temp) < 3:
+        while len(deci_temp) < 3:  # matlab dates only have 3 decimals. Adds 0 to missing decimals.
             deci_temp += '0'
         temp.append(int(deci_temp)*1000)
 
@@ -28,7 +26,8 @@ def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
     return pd.DataFrame(columns=['Trigger', 'Date'], data=trigger_point_lst)
 
 
-def is_triggered(freq: int, tp_table: pd.DataFrame, sample_rate=1200) -> int:
+# returns true or false depending on if the queried freq is within a triggered timeframe
+def is_triggered(freq: int, tp_table: pd.DataFrame, sample_rate: int = 1200) -> int:
     freq_in_sec = convert_freq_to_datetime(freq, sample_rate)
 
     for i, row in tp_table.iterrows():

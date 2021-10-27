@@ -1,12 +1,26 @@
 {
   "cue_set0": {
     "id": 0,
+    "start_time": 60000,
     "emg_order": 5,
     "emg_cutoff": 80,
     "emg_btype": "highpass",
     "eeg_order": 2,
     "eeg_cutoff": [0.05, 5],
     "eeg_btype": "bandpass",
-    "aggregate_strategy": "emg_start"}
+    "aggregate_strategy": "emg_start"},
+
+  "cue_set1": {
+    "id": 1,
+    "start_time": 5000,
+    "emg_order": 5,
+    "emg_cutoff": 80,
+    "emg_btype": "highpass",
+    "eeg_order": 2,
+    "eeg_cutoff": [0.05, 5],
+    "eeg_btype": "bandpass",
+    "aggregate_strategy": "emg_peak"}
 }
+
+
 
