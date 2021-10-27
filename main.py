@@ -112,7 +112,7 @@ def main():
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
             for window in windows:
                 window.plot(save_fig=False, overwrite=True)
-                window.plot_window_for_all_channels()
+                window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
