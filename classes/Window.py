@@ -214,6 +214,7 @@ class Window:
         return fig
 
     def plot_window_for_all_channels(self, freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
+        # Finds a list of all EEG channels by checking their filter type
         eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
         fig = plt.figure(figsize=(14, 10))
 
