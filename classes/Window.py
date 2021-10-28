@@ -118,7 +118,7 @@ class Window:
                 middle = len(self.filtered_data[channel]) // 2
                 x1 = self.filtered_data[channel].iloc[:middle].idxmax()
                 x2 = self.filtered_data[channel].iloc[x1+1:].idxmin()
-                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1:].min(),
+                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1+1:].min(),
                 x = (x1, x2)
                 slope, intercept, r_value, p_value, std_err = linregress(x, y)
                 self.negative_slope[channel] = [slope]

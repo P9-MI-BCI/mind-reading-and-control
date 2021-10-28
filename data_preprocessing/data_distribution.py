@@ -20,7 +20,7 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
         start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_sz * 1.5)
         end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_sz // 2)
         window = Window()
-        window.data = dataset.data_device1.iloc[start :end]
+        window.data = dataset.data_device1.iloc[start:end]
         window.label = 1  # indicates MRCP within window
         window.timestamp = row
         window.frequency_range = [start, end]
@@ -185,3 +185,12 @@ def max_absolute_scaling(window: pd.DataFrame) -> pd.DataFrame:
 
 def min_max_scaling(window: pd.DataFrame) -> pd.DataFrame:
     return (window - window.min()) / (window.max() - window.min())
+
+
+def blinks_in_list(windows: [Window]) -> int:
+    counter = 0
+    for window in windows:
+        if window.blink == 1:
+            counter += 1
+
+    return counter

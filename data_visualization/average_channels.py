@@ -36,7 +36,7 @@ def average_channel(windows: [Window], mrcp_windows: [int] = None) -> [Window]:
     avg_channel = []
     for col in EEG_CHANNELS:
         df_temp = pd.DataFrame()
-        for i in range(0, mrcp_windows):
+        for i in range(0, len(mrcp_windows)):
             df_temp[i] = windows[i].filtered_data[col]
 
         window = Window.Window()

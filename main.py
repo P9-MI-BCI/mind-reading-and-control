@@ -25,7 +25,7 @@ from data_visualization.visualize_windows import visualize_windows
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier
-from data_training.KNN.knn_prediction import knn_classifier
+from data_training.KNN.knn_prediction import knn_classifier, knn_classifier_loocv
 from data_training.LDA.lda_prediction import lda_classifier
 
 # Logging imports
@@ -90,22 +90,22 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            visualize_windows(data=dataset, windows=windows, channel=4)
+            # visualize_windows(data=dataset, windows=windows, channel=4)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            dataset.plot()
+            # dataset.plot()
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            prune_poor_quality_samples(windows, trigger_table, config, remove=5, method=remove_worst_windows)
-            remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=7, method=remove_worst_windows)
+            # remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
-            avg_windows = average_channel(windows)
-            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            # avg_windows = average_channel(windows)
+            # (avg_windows, save_fig=False, overwrite=True)
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
-            for window in windows:
-                window.plot(plot_features=True)
+            # for window in windows:
+            #     window.plot(plot_features=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
@@ -117,19 +117,23 @@ def main():
 
             train_data, test_data = load_train_test_split(dir_name='EEG')
 
-            feature = 'features'
-            knn_score = knn_classifier(train_data, test_data, features=feature)
-            svm_score = svm_classifier(train_data, test_data, features=feature)
-            lda_score = lda_classifier(train_data, test_data, features=feature)
+            train_data.extend(test_data)
 
-            results = {
-                'KNN_results': knn_score,
-                'SVM_results': svm_score,
-                'LDA_results': lda_score
-            }
-
-            # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+            knn_score = knn_classifier_loocv(train_data, features='features')
+            print(knn_score)
+            # feature = 'features'
+            # knn_score = knn_classifier(train_data, test_data, features=feature)
+            # svm_score = svm_classifier(train_data, test_data, features=feature)
+            # lda_score = lda_classifier(train_data, test_data, features=feature)
+            #
+            # results = {
+            #     'KNN_results': knn_score,
+            #     'SVM_results': svm_score,
+            #     'LDA_results': lda_score
+            # }
+            #
+            # # Writes the test and train window plots + classifier score tables to pdf file
+            # save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)

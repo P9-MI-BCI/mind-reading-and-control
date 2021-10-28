@@ -14,3 +14,10 @@ def knn_classifier(train_data, test_data, channels=None, features='raw'):
     return result
 
 
+def knn_classifier_loocv(data, channels=None, features='raw'):
+
+    model = KNeighborsClassifier(n_neighbors=3)
+
+    result = scikit_classifier_loocv(model, data, channels, features, dir_name='knn')
+
+    return result
