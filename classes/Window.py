@@ -17,7 +17,7 @@ class Window:
     signal_negativity = pd.DataFrame()
 
     def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
-                frequency_range=0,
+                frequency_range=None,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
         if frequency_range is None:
             frequency_range = []
@@ -40,10 +40,8 @@ class Window:
             try:
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.filtered_data[channel], **kwargs))
             except:
-                get_logger().debug('Adding key to filtered data window.')
                 self.filtered_data[channel] = pd.DataFrame(filter_in(self.data[channel], **kwargs))
         except AttributeError:
-            get_logger().debug('filtered data was not yet initialized, creating data window.')
             self.filtered_data = pd.DataFrame(filter_in(self.data[channel], **kwargs))
 
     def update_filter_type(self, filter_types: pd.DataFrame):
@@ -52,10 +50,9 @@ class Window:
                 try:
                     self.filter_type[channel] = [filter_types[channel].iloc[0]]
                 except KeyError:
-                    get_logger().debug('Key did not yet exist in filter type, adding it.')
+                    get_logger().exception('Key did not yet exist in filter type, adding it.')
                     self.filter_type[channel] = [filter_types[channel].iloc[0]]
             except AttributeError:
-                get_logger().debug('Attribute not yet created in a window - initializing data window.')
                 self.filter_type = pd.DataFrame()
                 self.filter_type[channel] = [filter_types[channel].iloc[0]]
 
@@ -75,7 +72,7 @@ class Window:
                 slope, intercept, r_value, p_value, std_err = linregress(x, y)
                 self.negative_slope[channel] = [slope]
         else:
-            get_logger().error("Cannot feature extract negative slope without filtered data.")
+            get_logger().error('Cannot feature extract negative slope without filtered data.')
 
     def _calc_variability(self):
         if isinstance(self.filtered_data, pd.DataFrame):
@@ -119,7 +116,7 @@ class Window:
                 middle = len(self.filtered_data[channel]) // 2
                 x1 = self.filtered_data[channel].iloc[:middle].idxmax()
                 x2 = self.filtered_data[channel].iloc[x1+1:].idxmin()
-                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1:].min(),
+                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1+1:].min(),
                 x = (x1, x2)
                 slope, intercept, r_value, p_value, std_err = linregress(x, y)
                 self.negative_slope[channel] = [slope]
@@ -146,8 +143,9 @@ class Window:
 
         return existing_features
 
-    def plot(self, channel=4, freq=1200, show=True, plot_features=False, save_fig=False,
-             overwrite=False) -> plt.figure():
+    def plot(self, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
+             save_fig: bool = False,
+             overwrite: bool=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
@@ -167,12 +165,15 @@ class Window:
             ax1.plot(x_seconds, self.data[channel], color='tomato')
             ax1.axvline(x=0, color='black', ls='--')
 
-            ax4 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
-            ax4.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
-            ax4.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+            ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
+            ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
+            ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+            ax2.axvline(x=0, color='black', ls='--')
+
             if plot_features:
                 x, y, slope = self._plot_features(center, freq, channel)
-                ax4.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
+                ax2.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
+                
                 mean = self.filtered_data[channel].mean()
                 y_mean = [mean] * len(self.filtered_data)
                 ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
@@ -305,7 +306,9 @@ class Window:
         slope, intercept, r_value, p_value, std_err = linregress([x1, x2], y)
         return [x1 / freq - center, x2 / freq - center], y, slope
 
-    def _plot_signal_negativity(self, center, freq, channel):
+
+    def _plot_signal_negativity(self, center: int, freq: int, channel: int):
+
         prev = self.filtered_data[channel].iloc[0]
         sum_negativity = 0
         res_x, res_y = [], []

@@ -18,8 +18,7 @@ def fourier_transform_single_data_channel(datawindow: pd.DataFrame) -> pd.DataFr
     return transformed
 
 
-
-# Add logger, Christoffer help
+# Processes a list of windows and applies fourier transformation to all its channels.
 def fourier_transform_listof_datawindows(lst_data_window: [pd.DataFrame]) -> [pd.DataFrame]:
 
     lst_transformed = []

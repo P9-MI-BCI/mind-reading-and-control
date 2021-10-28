@@ -1,11 +1,15 @@
+import datetime
 from classes import Dataset
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from utility.logger import get_logger
 
+'''
+When given a frequency - shift all data by that much.
+This method will delete all data prior to the frequency cutoff.
+Calculates time based on freq from time_start_device1
+'''
 
-# when given a frequency - shift all data by that much.
-# this method will delete anything prior to the frequency.
-# calculate time based on freq from time_start_device1
+
 def shift_data(freq: int, dataset: Dataset) -> Dataset:
     time_shift = convert_freq_to_datetime(freq, dataset.sample_rate)
 
@@ -19,7 +23,8 @@ def shift_data(freq: int, dataset: Dataset) -> Dataset:
     return dataset
 
 
-def delete_timestamps(time_shift, time_start_device1, timestamp_arr, is_tp=False):
+def delete_timestamps(time_shift: datetime.timedelta, time_start_device1: datetime.timedelta,
+                      timestamp_arr: [datetime.timedelta], is_tp=False):
     delete_rows = []
     if is_tp:
         for i, row in timestamp_arr.iterrows():

@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
-
+import numpy as np
 
 def get_accuracy(targets, preds):
     counter = 0
@@ -38,3 +38,10 @@ def combine_predictions(all_channel_predictions):
 
     most_frequent_pred = c_df.mode(axis=1)
     return most_frequent_pred[0].to_numpy()
+
+
+def combine_loocv_predictions(all_channel_predictions):
+
+    all_preds = np.array(all_channel_predictions)
+
+    pass

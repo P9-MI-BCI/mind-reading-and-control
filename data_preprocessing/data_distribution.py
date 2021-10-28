@@ -1,6 +1,7 @@
 import collections
 import random
 import pandas as pd
+import sys
 
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.trigger_points import is_triggered
@@ -20,7 +21,7 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
         start = int(row[tt_column].total_seconds() * dataset.sample_rate - window_sz * 1.5)
         end = int(row[tt_column].total_seconds() * dataset.sample_rate + window_sz // 2)
         window = Window()
-        window.data = dataset.data_device1.iloc[start :end]
+        window.data = dataset.data_device1.iloc[start:end]
         window.label = 1  # indicates MRCP within window
         window.timestamp = row
         window.frequency_range = [start, end]
@@ -40,8 +41,9 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
     return list_of_mrcp_windows, filtered_data, dataset
 
 
-def cut_windows_for_online(tp_table: pd.DataFrame, tt_column: str,
-               dataset: Dataset, window_size: float = 2.) -> ([Window], Dataset):
+def cut_mrcp_windows_for_online(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
+                                window_size: int) -> (
+        [Window], Dataset):
     list_of_trigger_windows = []
     indices_to_delete = []
 
@@ -86,12 +88,11 @@ def cut_windows_for_online(tp_table: pd.DataFrame, tt_column: str,
     return list_of_trigger_windows, filtered_data, dataset
 
 
-def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
+def cut_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame,
+                               window_size: int, freq: int) -> [Window]:
     list_of_windows = []
     window_sz = window_size * freq * 2
     i = 0
-
-    blinks = blink_detection(data=data, sample_rate=freq)
 
     while i < len(data) and i + window_sz < len(data):
         cutout = abs(data.index[i] - data.index[i + window_sz]) == window_sz
@@ -111,7 +112,7 @@ def slice_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame
     return list_of_windows
 
 
-def slice_and_label_idle_windows_for_online(data: pd.DataFrame, window_size: int = 2, freq: int = 1200) -> [Window]:
+def slice_and_label_idle_windows_for_online(data: pd.DataFrame, window_size: int, freq: int) -> [Window]:
     list_of_windows = []
     window_sz = window_size * freq * 2
     i = 0
@@ -121,7 +122,7 @@ def slice_and_label_idle_windows_for_online(data: pd.DataFrame, window_size: int
             window = Window()
             window.data = data.iloc[i:i + window_sz]
             window.label = 0  # indicates no EMG peak / no MRCP should be present
-            window.frequency_range = [data.index[i], data.index[i]+window_sz]
+            window.frequency_range = [data.index[i], data.index[i] + window_sz]
             list_of_windows.append(window)
             i += window_sz
         else:
@@ -147,14 +148,14 @@ def data_distribution(labelled_data_lst: [Window]) -> {}:
 
 
 def create_uniform_distribution(data_list: [Window]) -> [Window]:
-    # returns the dataset with equal amount of samples, chosen by the least represented feature.
+    # Returns the dataset with equal amount of samples, chosen by the least represented feature.
     features = []
 
     for window in data_list:
         features.append(window.label)
 
-    counter = collections.Counter(features)
-    least_represented_feature = 99999999999
+    counter = collections.Counter(features)  # find how many of each feature is present
+    least_represented_feature = sys.maxsize
     feat_counter = {}
 
     # find the value of how many exist of the least represented feature
@@ -185,3 +186,12 @@ def max_absolute_scaling(window: pd.DataFrame) -> pd.DataFrame:
 
 def min_max_scaling(window: pd.DataFrame) -> pd.DataFrame:
     return (window - window.min()) / (window.max() - window.min())
+
+
+def blinks_in_list(windows: [Window]) -> int:
+    counter = 0
+    for window in windows:
+        if window.blink == 1:
+            counter += 1
+
+    return counter

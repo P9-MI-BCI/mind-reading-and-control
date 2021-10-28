@@ -7,10 +7,14 @@ from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.eog_detection import blink_detection
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel
 from utility.logger import get_logger
-from classes import Window
+from classes import Window, Dataset
 from tqdm import tqdm
 
+'''
+find_best_config_params is a deprecated method. It was used for grid search of filter parameters.
+'''
 
+# todo change sample indexes to be ids of the windows instead
 # test distance from minimum to middle
 # what sample has the biggest negative influence on the average
 
@@ -61,21 +65,25 @@ def find_best_config_params(data, trigger_table, config):
     print(minimized_config)
 
 
-# todo fix
-def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None, remove: int = 10):
+# Defines a method to score each window depending on their distance to the min y val in the function.
+# Higher score is worse.
+def optimize_average_minimum(valid_emg: [int], emg_windows: [Window], channels: [int] = None, weights: [int] = None,
+                             remove: int = 10) -> [int]:
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-    base_windows = average_channel(emg_windows, valid_emg)
+    base_windows = average_channel(emg_windows, valid_emg)  # the windows to calc avg of.
 
     base_score = []
     for i in range(0, len(base_windows)):
         if i in channels:
-            base_score.append(abs(base_windows[i].data.idxmin() - int(len(base_windows[i].data) / 2)))
+            base_score.append(abs(base_windows[i].data.idxmin() - int(len(base_windows[i].data) / 2)) * weights[
+                i])  # calc the distance from the min y to where the window center is.
 
     minimize_cost = sum(base_score)
 
     get_logger().debug(f'Base score is {minimize_cost}')
+    # Removes the amount (remove param) of windows with the highest score
     try:
         for rem in range(0, remove):
             worst_sample = None
@@ -112,7 +120,11 @@ def optimize_average_minimum(valid_emg, emg_windows, channels=None, weights=None
     return valid_emg
 
 
-def remove_worst_windows(valid_emg: list, emg_windows: list, channels=None, weights=None, remove: int = 10) -> [int]:
+def remove_worst_windows(valid_emg: [int],
+                         emg_windows: [Window],
+                         channels: [int] = None,
+                         weights: [int] = None,
+                         remove: int = 10) -> [int]:
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
@@ -162,6 +174,7 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
         return
 
     if method:
+        # method here can be either optimize_average_minimum or remove_worst_windows
         valid_emg = method(valid_emg, windows, remove=remove)
 
     # deletes windows from last index first, in order to avoid index collision
@@ -170,8 +183,8 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
             del windows[i]
 
 
-def remove_windows_with_blink(dataset, windows):
-    blinks = blink_detection(data=dataset.data_device1, sample_rate=dataset.sample_rate)
+def remove_windows_with_blink(data: pd.DataFrame, windows: [Window], sample_rate: int = 1200):
+    blinks = blink_detection(data=data, sample_rate=sample_rate)
 
     # Perform blink removal. Checks if any blink frequencies are within any of the windows. Remove window if so.
     window_ids = []

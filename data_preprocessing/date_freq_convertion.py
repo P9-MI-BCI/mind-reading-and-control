@@ -25,7 +25,7 @@ def convert_mat_date_to_python_date(date_arr: [list]) -> pd.DataFrame:
     return pd.DataFrame(columns=['Date'], data=p_date_lst)
 
 
-# converts an input freq to a timedelta
+# Converts an input freq to a timedelta
 def convert_freq_to_datetime(input_freq: int, sample_freq: int) -> datetime.timedelta:
     time_in_seconds = (input_freq / sample_freq)
     time_str = str(time_in_seconds).split('.')
