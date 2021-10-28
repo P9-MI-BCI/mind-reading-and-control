@@ -111,6 +111,7 @@ def scikit_classifier_loocv(model, data, channels=None, features='raw', save_mod
         feats, labels = format_dataset(data, channel=channel, features=features)
 
         train_predictions = []
+        train_labels = []
         test_predictions = []
         test_labels = []
 
@@ -126,6 +127,7 @@ def scikit_classifier_loocv(model, data, channels=None, features='raw', save_mod
             train_preds = model.predict(x_train)
             test_predictions.append(model.predict([x_test]).tolist()[0])
             train_predictions.append(train_preds.tolist())
+            train_labels.append(y_train)
             test_labels.append(y_test)
             temp_scores[sample, 0] = get_accuracy(y_train, train_preds)
             temp_scores[sample, 1] = get_precision(y_train, train_preds)
@@ -153,16 +155,16 @@ def scikit_classifier_loocv(model, data, channels=None, features='raw', save_mod
 
     score_df['average'] = score_df.mean(numeric_only=True, axis=1)
 
-    ensemble_preds_train = combine_loocv_predictions(ensemble_predictions_train).astype(int)
     ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
+    ensemble_acc, ensemble_precision, ensemble_recall, ensemble_f1 = combine_loocv_predictions(train_labels, ensemble_predictions_train)
 
-    score_df['ensemble'] = [np.nan,
+    score_df['ensemble'] = [ensemble_acc,
                             get_accuracy(test_labels, ensemble_preds_test),
-                            np.nan,
+                            ensemble_precision,
                             get_precision(test_labels, ensemble_preds_test),
-                            np.nan,
+                            ensemble_recall,
                             get_recall(test_labels, ensemble_preds_test),
-                            np.nan,
+                            ensemble_f1,
                             get_f1_score(test_labels, ensemble_preds_test),
                             ]
 

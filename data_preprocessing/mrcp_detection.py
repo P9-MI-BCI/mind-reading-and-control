@@ -186,7 +186,7 @@ def fix_time_table(trigger_table: pd.DataFrame) -> pd.DataFrame:
     tp_cols = ['tp_start', 'tp_end']
 
     fixed_list = []
-
+    counter = 0
     # checks if next timestamp is closer and applies that instead.
     for i in range(len(trigger_table)-1):
         time_diff = abs(trigger_table.iloc[i]['emg_start'] - trigger_table.iloc[i]['tp_start'])
@@ -194,9 +194,13 @@ def fix_time_table(trigger_table: pd.DataFrame) -> pd.DataFrame:
             temp = trigger_table.iloc[i][tp_cols]
             temp = temp.append(trigger_table.iloc[i+1][columns])
             fixed_list.append(temp)
+            counter -= 1
         else:
             fixed_list.append(trigger_table.iloc[i])
+        counter += 1
 
+    if counter == len(trigger_table)-1:
+        fixed_list.append(trigger_table.iloc[-1])
     fixed_tp_table = pd.DataFrame(fixed_list)
     fixed_tp_table = fixed_tp_table.reset_index(drop=True)
 

@@ -40,8 +40,24 @@ def combine_predictions(all_channel_predictions):
     return most_frequent_pred[0].to_numpy()
 
 
-def combine_loocv_predictions(all_channel_predictions):
+def combine_loocv_predictions(labels, all_channel_predictions):
 
     all_preds = np.array(all_channel_predictions)
 
-    pass
+    accs = []
+    prec = []
+    recall = []
+    f1 = []
+    for sample in range(0, all_preds.shape[1]):
+        new_arr = []
+        for channel in range(0, all_preds.shape[0]):
+            new_arr.append(all_preds[channel][sample])
+
+        combined = combine_predictions(new_arr)
+
+        accs.append(get_accuracy(labels[sample], combined))
+        prec.append(get_precision(labels[sample], combined))
+        recall.append(get_recall(labels[sample], combined))
+        f1.append(get_f1_score(labels[sample], combined))
+
+    return np.mean(accs), np.mean(prec), np.mean(recall), np.mean(f1)

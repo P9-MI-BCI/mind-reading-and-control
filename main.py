@@ -19,21 +19,21 @@ from data_preprocessing.train_test_split import train_test_split_data
 # Data visualization imports
 from data_training.online_emulation import simulate_online, evaluate_online_predictions
 from data_training.scikit_classifiers import load_scikit_classifiers
-from data_visualization.average_channels import find_usable_emg, average_channel, plot_average_channels
+from data_visualization.average_channels import average_channel, plot_average_channels
 from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows, visualize_window_all_channels
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel, plot_average_channels
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
-from data_training.SVM.svm_prediction import svm_classifier
+from data_training.SVM.svm_prediction import svm_classifier, svm_classifier_loocv
 from data_training.KNN.knn_prediction import knn_classifier, knn_classifier_loocv
-from data_training.LDA.lda_prediction import lda_classifier
+from data_training.LDA.lda_prediction import lda_classifier, lda_classifier_loocv
 
 # Logging imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
-from utility.pdf_creation import save_results_to_pdf
+from utility.pdf_creation import save_results_to_pdf, save_results_to_pdf_2
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
@@ -59,40 +59,42 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
-            visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            # visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            # visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
             # visualize_window_all_channels(data=dataset, windows=windows, window_id=5)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            dataset.plot(save_fig=False, overwrite=True)
+            # dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            prune_poor_quality_samples(windows, trigger_table, config, remove=7, method=remove_worst_windows)
+            # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
             remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
-            avg_windows = average_channel(windows)
-            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            # avg_windows = average_channel(windows)
+            # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
-            for window in windows:
-                window.plot(save_fig=False, overwrite=True)
-                window.plot_window_for_all_channels(save_fig=False, overwrite=True)
+            # for window in windows:
+            #     window.plot(save_fig=False, overwrite=True)
+            #     window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
             uniform_data = create_uniform_distribution(windows)
             train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 
-            save_train_test_split(train_data, test_data, dir_name='EEG')
+            save_train_test_split(train_data, test_data, dir_name='c1_EEG_no_blinks')
 
         if script_params['run_classification']:
 
-            train_data, test_data = load_train_test_split(dir_name='EEG')
+            train_data, test_data = load_train_test_split(dir_name='c1_EEG_no_blinks')
+
+            train_data.extend(test_data)
 
             feature = 'features'
-            knn_score = knn_classifier(train_data, test_data, features=feature)
-            svm_score = svm_classifier(train_data, test_data, features=feature)
-            lda_score = lda_classifier(train_data, test_data, features=feature)
+            knn_score = knn_classifier_loocv(train_data, features=feature)
+            svm_score = svm_classifier_loocv(train_data, features=feature)
+            lda_score = lda_classifier_loocv(train_data, features=feature)
 
             results = {
                 'KNN_results': knn_score,
@@ -101,7 +103,7 @@ def main():
             }
 
             # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+            save_results_to_pdf_2(train_data, results, file_name='c1_prune_no_blinks_overview.pdf')
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
