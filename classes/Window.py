@@ -225,7 +225,10 @@ class Window:
         plt.tight_layout()
 
         if save_fig:
-            path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id}.png'
+            if plot_features:
+                path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id}_feat.png'
+            else:
+                path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id}.png'
             file = os.path.split(path)[1]
             try:
                 save_figure(path, fig, overwrite=overwrite)

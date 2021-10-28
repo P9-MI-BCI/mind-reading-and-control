@@ -1,7 +1,5 @@
 import os
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
-
 from classes import Dataset, Window
 from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
@@ -73,7 +71,8 @@ def visualize_labeled_windows(data: Dataset, windows: [Window], channel: int = 4
 
 
 # Visualizes a single window for all channels
-def visualize_window_all_channels(data: Dataset, windows: [Window], window_id: int):
+def visualize_window_all_channels(data: Dataset, windows: [Window], window_id: int, savefig: bool = False,
+                                  overwrite: bool = False):
     fig = plt.figure(figsize=(12,10))
 
     start = windows[window_id].frequency_range[0]
@@ -86,4 +85,14 @@ def visualize_window_all_channels(data: Dataset, windows: [Window], window_id: i
         ax.plot(data.filtered_data[channel])
 
     plt.tight_layout()
+
+    if savefig:
+        path = f'{OUTPUT_PATH}/plots/window_overview/all_channels_single_window.png'
+        file = os.path.split(path)[1]
+        try:
+            save_figure(path, fig, overwrite=overwrite)
+        except FileExistsError:
+            get_logger().exception(f'Found file already exists: {file} you can '
+                                   f'overwrite the file by setting overwrite=True')
+
     plt.show()
