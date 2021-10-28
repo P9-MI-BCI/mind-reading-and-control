@@ -183,8 +183,8 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
             del windows[i]
 
 
-def remove_windows_with_blink(dataset, windows):
-    blinks = blink_detection(data=dataset.data_device1, sample_rate=dataset.sample_rate)
+def remove_windows_with_blink(data: pd.DataFrame, windows: [Window], sample_rate: int = 1200):
+    blinks = blink_detection(data=data, sample_rate=sample_rate)
 
     # Perform blink removal. Checks if any blink frequencies are within any of the windows. Remove window if so.
     window_ids = []
