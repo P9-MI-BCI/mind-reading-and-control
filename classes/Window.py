@@ -173,6 +173,7 @@ class Window:
             if plot_features:
                 x, y, slope = self._plot_features(center, freq, channel)
                 ax2.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
+                
                 mean = self.filtered_data[channel].mean()
                 y_mean = [mean] * len(self.filtered_data)
                 ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
@@ -224,7 +225,7 @@ class Window:
         plt.tight_layout()
 
         if save_fig:
-            path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id + 1}.png'
+            path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id}.png'
             file = os.path.split(path)[1]
             try:
                 save_figure(path, fig, overwrite=overwrite)
@@ -237,7 +238,38 @@ class Window:
 
         return fig
 
-    def _timestamp_order(self, agg_strat: str):
+    def plot_window_for_all_channels(self, freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
+        # Finds a list of all EEG channels by checking their filter type
+        eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
+        fig = plt.figure(figsize=(14, 10))
+
+        x_seconds = []
+        center = (len(self.data) / 2) / freq
+
+        for i, row in self.filtered_data[0].items():  # converts the window.data freqs to seconds
+            x_seconds.append(i / freq - center)
+
+        for channel in eeg_channels:
+            ax = fig.add_subplot(3, 3, channel + 1)
+            ax.set_title(f'Channel: {channel + 1}')
+            ax.plot(x_seconds, self.filtered_data[channel], label='Filtered data')
+            ax.axvline(x=0, color='black', ls='--')
+
+        fig.suptitle(f'Window {self.num_id}', fontsize=16)
+        plt.tight_layout()
+
+        if save_fig:
+            path = f'{OUTPUT_PATH}/plots/all_window_all_channel_plots/window{self.num_id}.png'
+            file = os.path.split(path)[1]
+            try:
+                save_figure(path, fig, overwrite=overwrite)
+            except FileExistsError:
+                get_logger().exception(f'Found file already exists: {file} you can '
+                                       f'overwrite the file by setting overwrite=True')
+
+        plt.show()
+
+    def _timestamp_order(self, agg_strat):
         emg_timestamp = []
         tp_timestamp = []
 
@@ -274,7 +306,9 @@ class Window:
         slope, intercept, r_value, p_value, std_err = linregress([x1, x2], y)
         return [x1 / freq - center, x2 / freq - center], y, slope
 
+
     def _plot_signal_negativity(self, center: int, freq: int, channel: int):
+
         prev = self.filtered_data[channel].iloc[0]
         sum_negativity = 0
         res_x, res_y = [], []
