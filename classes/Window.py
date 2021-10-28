@@ -16,8 +16,7 @@ class Window:
     mean_amplitude = pd.DataFrame()
     signal_negativity = pd.DataFrame()
 
-    def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
-                frequency_range=0,
+    def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0, frequency_range=0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
         if frequency_range is None:
             frequency_range = []
@@ -146,8 +145,7 @@ class Window:
 
         return existing_features
 
-    def plot(self, channel=4, freq=1200, show=True, plot_features=False, save_fig=False,
-             overwrite=False) -> plt.figure():
+    def plot(self, channel=4, freq=1200, show=True, plot_features=False, save_fig=False, overwrite=False) -> plt.figure():
         x_seconds = []
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
@@ -172,7 +170,7 @@ class Window:
             ax4.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
             if plot_features:
                 x, y, slope = self._plot_features(center, freq, channel)
-                ax4.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
+                ax4.plot(x, y, label=f'slope {round(slope,9)}', alpha=0.7)
                 mean = self.filtered_data[channel].mean()
                 y_mean = [mean] * len(self.filtered_data)
                 ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
@@ -224,7 +222,7 @@ class Window:
         plt.tight_layout()
 
         if save_fig:
-            path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id}.png'
+            path = f'{OUTPUT_PATH}/plots/window_plots/channel{channel}_{self.num_id + 1}.png'
             file = os.path.split(path)[1]
             try:
                 save_figure(path, fig, overwrite=overwrite)
@@ -236,37 +234,6 @@ class Window:
             plt.show()
 
         return fig
-
-    def plot_window_for_all_channels(self, freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
-        # Finds a list of all EEG channels by checking their filter type
-        eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
-        fig = plt.figure(figsize=(14, 10))
-
-        x_seconds = []
-        center = (len(self.data) / 2) / freq
-
-        for i, row in self.filtered_data[0].items():  # converts the window.data freqs to seconds
-            x_seconds.append(i / freq - center)
-
-        for channel in eeg_channels:
-            ax = fig.add_subplot(3, 3, channel + 1)
-            ax.set_title(f'Channel: {channel + 1}')
-            ax.plot(x_seconds, self.filtered_data[channel], label='Filtered data')
-            ax.axvline(x=0, color='black', ls='--')
-
-        fig.suptitle(f'Window {self.num_id}', fontsize=16)
-        plt.tight_layout()
-
-        if save_fig:
-            path = f'{OUTPUT_PATH}/plots/all_window_all_channel_plots/window{self.num_id}.png'
-            file = os.path.split(path)[1]
-            try:
-                save_figure(path, fig, overwrite=overwrite)
-            except FileExistsError:
-                get_logger().exception(f'Found file already exists: {file} you can '
-                                       f'overwrite the file by setting overwrite=True')
-
-        plt.show()
 
     def _timestamp_order(self, agg_strat):
         emg_timestamp = []
@@ -306,27 +273,27 @@ class Window:
         return [x1 / freq - center, x2 / freq - center], y, slope
 
     def _plot_signal_negativity(self, center, freq, channel):
-        prev = self.filtered_data[channel].iloc[0]
-        sum_negativity = 0
-        res_x, res_y = [], []
-        consecutive_negative_x = []
-        consecutive_negative_y = []
+            prev = self.filtered_data[channel].iloc[0]
+            sum_negativity = 0
+            res_x, res_y = [], []
+            consecutive_negative_x = []
+            consecutive_negative_y = []
 
-        for i, value in self.filtered_data[channel].items():
-            diff = prev - value
+            for i, value in self.filtered_data[channel].items():
+                diff = prev - value
 
-            if diff > 0:
-                sum_negativity -= diff
-                prev = value
-                consecutive_negative_x.append(i / freq - center)
-                consecutive_negative_y.append(value)
+                if diff > 0:
+                    sum_negativity -= diff
+                    prev = value
+                    consecutive_negative_x.append(i / freq - center)
+                    consecutive_negative_y.append(value)
 
-            else:
-                res_x.append(consecutive_negative_x)
-                res_y.append(consecutive_negative_y)
-                prev = value
+                else:
+                    res_x.append(consecutive_negative_x)
+                    res_y.append(consecutive_negative_y)
+                    prev = value
 
-                consecutive_negative_x = []
-                consecutive_negative_y = []
+                    consecutive_negative_x = []
+                    consecutive_negative_y = []
 
-        return res_x, res_y, sum_negativity
+            return res_x, res_y, sum_negativity
