@@ -5,6 +5,7 @@ from utility.logger import get_logger
 import pandas as pd
 
 
+# Creates a test and train split with the same label distribution as the input data
 def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.DataFrame], [pd.DataFrame]):
     dd = data_distribution(data)['expected_labeled_percent']
     isAcceptableDistribution = True
@@ -26,7 +27,8 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.Dat
         if dd * upper_bound > train_dd > dd * lower_bound:
             if dd * upper_bound > test_dd > dd * lower_bound:
                 get_logger().info(
-                    f'The Train and Test Data has an acceptable label distribution of {train_dd} and {test_dd} percent - Returning.')
+                    f'The Train and Test Data has an acceptable label distribution of {train_dd} and {test_dd} '
+                    f'percent - Returning.')
                 isAcceptableDistribution = False
             else:
                 get_logger().debug(
@@ -49,7 +51,7 @@ def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.Dat
 
 
 def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
-    # takes in list of datawindows on the usual format [target_value, pd.DataFrame] and returns these are separate
+    # takes in list of datawindows on the usual format [target_value, pd.DataFrame] and returns these as separate
     # vectors for downstream prediction
     y = []
     x = []

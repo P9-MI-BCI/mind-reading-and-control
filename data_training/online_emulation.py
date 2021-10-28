@@ -1,17 +1,9 @@
-# emulate an online environment where the dataset is processed sequentially, the last 20% of the dataset should be used a test-set?
-# labelling will be difficult.
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from classes.Dataset import Dataset
 from classes.Window import Window
-from data_preprocessing.data_distribution import cut_and_label_idle_windows
 from data_preprocessing.filters import butter_filter
-import numpy as np
 import pandas as pd
-from sklearn.metrics import confusion_matrix
-
-from data_preprocessing.mrcp_detection import surrogate_channels
-from data_training.measurements import combine_predictions, get_accuracy, get_precision, get_recall, get_f1_score
+from data_training.measurements import get_accuracy, get_precision, get_recall, get_f1_score
 from utility.logger import get_logger
 
 

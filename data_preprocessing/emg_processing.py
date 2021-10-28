@@ -1,7 +1,7 @@
-import biosppy.signals
-import biosppy.plotting
-from classes import Dataset
+import biosppy
 import pandas as pd
+from classes.Dataset import Dataset
+from data_preprocessing.filters import butter_filter
 from utility.logger import get_logger
 
 
@@ -26,7 +26,8 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, peaks_to_fi
                 onset_clusters_array.append(temp)
                 temp = []
 
-        get_logger().debug(f'Found {len(onset_clusters_array)} clusters if this is more than {peaks_to_find} then increment.')
+        get_logger().debug(
+            f'Found {len(onset_clusters_array)} clusters, if this is more than {peaks_to_find} then increment.')
         cluster_range += 0.01
         if len(onset_clusters_array) == 0:
             get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
@@ -44,6 +45,7 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, peaks_to_fi
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     return all_peaks
+
 
 # Finds EMG onsets using highpass filtering and afterwards Biosppy's onset detection
 def onset_detection(dataset: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool) -> [[int]]:

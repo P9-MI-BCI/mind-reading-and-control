@@ -1,7 +1,6 @@
-from sklearn.neighbors import KNeighborsClassifier
 import pandas as pd
-
-from data_training.scikit_classifiers import scikit_classifier
+from sklearn.neighbors import KNeighborsClassifier
+from data_training.scikit_classifiers import scikit_classifier, scikit_classifier_loocv
 
 pd.options.mode.chained_assignment = None
 

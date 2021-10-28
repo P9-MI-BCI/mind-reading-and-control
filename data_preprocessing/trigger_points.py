@@ -18,7 +18,7 @@ def covert_trigger_points_to_pd(trigger_point_inp: []) -> pd.DataFrame:
         deci_temp = time_str[1][:3]
         while len(deci_temp) < 3:  # matlab dates only have 3 decimals. Adds 0 to missing decimals.
             deci_temp += '0'
-        temp.append(int(deci_temp)*1000)
+        temp.append(int(deci_temp) * 1000)
 
         timestamp = datetime.datetime(*temp)
         trigger_point_lst.append([int(t_p[0]), timestamp])
@@ -36,6 +36,7 @@ def is_triggered(freq: int, tp_table: pd.DataFrame, sample_rate: int = 1200) -> 
     return 0
 
 
+# creates a dataframe containing the intervals between the TriggerPoints. Gives each TP start, end timestamps.
 def trigger_time_table(trigger_points_pd: pd.DataFrame, time_start: datetime.datetime) -> pd.DataFrame:
     is_trigger_time_table = []
 

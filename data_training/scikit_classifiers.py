@@ -2,15 +2,13 @@
 # the current tested models are KNN, SVM, LDA, LGBM
 import glob
 import pickle
-
-from sklearn.neighbors import KNeighborsClassifier
+import os
+import pandas as pd
 from data_preprocessing.train_test_split import format_dataset
 from data_training.measurements import combine_predictions, get_precision, get_recall, get_f1_score, \
     get_confusion_matrix, combine_loocv_predictions
 from data_training.measurements import get_accuracy
-import pandas as pd
 from utility.file_util import create_dir
-import os
 from definitions import OUTPUT_PATH
 import statistics
 import numpy as np
@@ -82,7 +80,8 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     return score_df
 
 
-def load_scikit_classifiers(dir_name):
+# used to load weights from previously trained models.
+def load_scikit_classifiers(dir_name: str):
     path = os.path.join(OUTPUT_PATH, 'models', dir_name)
 
     models = []

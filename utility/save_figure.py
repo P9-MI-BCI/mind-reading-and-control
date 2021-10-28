@@ -14,4 +14,4 @@ def save_figure(path: str, fig, overwrite: bool = False):
         fig.savefig(path)
         get_logger().info(f'Figure overwritten: {path}')
     elif file_exist(path):
-        raise FileExistsError()
+        raise FileExistsError(f'Plot is already saved at {path}')

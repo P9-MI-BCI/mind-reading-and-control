@@ -1,5 +1,4 @@
 import lightgbm as lgb
-
 from data_training.scikit_classifiers import scikit_classifier
 
 

@@ -51,10 +51,6 @@ def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int 
         b, a = butter_highpass(order, cutoff, freq)
         return filtfilt(b, a, data)
 
-    elif btype == 'sos_bandpass' and len(cutoff) == 2:
-        sos = butter_sos_bandpass(order, cutoff, freq)
-        return sosfiltfilt(sos, data)
-
     elif btype == 'bandpass' and len(cutoff) == 2:
         b, a = butter_bandpass(order, cutoff, freq)
         return filtfilt(b, a, data)

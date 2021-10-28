@@ -1,6 +1,7 @@
+import os
 import copy
 import pickle
-
+import pandas as pd
 from classes import Dataset
 from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
@@ -80,7 +81,8 @@ def emg_peaks_freq_to_datetime(emg_peaks, freq: int):
     return emg_peaks
 
 
-def save_index_list(index):
+# Writes the indexes of windows with mrcp to a file
+def save_index_list(index: [int]):
     path = os.path.join(OUTPUT_PATH, 'online')
     create_dir(path, recursive=True)
     filename = os.path.join(path, 'index')
