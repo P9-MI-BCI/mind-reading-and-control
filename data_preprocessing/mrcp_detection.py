@@ -3,7 +3,8 @@ import copy
 import pickle
 import pandas as pd
 from classes import Dataset
-from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows
+from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
+    cut_mrcp_windows_rest_movement_phase
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import onset_detection
 from data_preprocessing.eog_detection import blink_detection
@@ -41,18 +42,18 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     data.filtered_data = filtered_data
 
     # Cut windows based on aggregation strategy and window size
-    windows, filtered_data, dataset_copy = cut_mrcp_windows(tp_table=tp_table,
-                                                            tt_column=config['aggregate_strategy'],
-                                                            filtered_data=filtered_data,
-                                                            dataset=dataset_copy,
-                                                            window_size=WINDOW_SIZE,
-                                                            )
+    windows = cut_mrcp_windows_rest_movement_phase(tp_table=tp_table,
+                                                   tt_column=config['aggregate_strategy'],
+                                                   filtered_data=filtered_data,
+                                                   dataset=dataset_copy,
+                                                   window_size=WINDOW_SIZE,
+                                                   )
     # Cut the the remaining data
-    windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
-                                              filtered_data=filtered_data,
-                                              window_size=WINDOW_SIZE,
-                                              freq=dataset_copy.sample_rate,
-                                              ))
+    # windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
+    #                                           filtered_data=filtered_data,
+    #                                           window_size=WINDOW_SIZE,
+    #                                           freq=dataset_copy.sample_rate,
+    #                                           ))
 
     # Update information for each window in regards to ids, filter types, and extract features
     filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
@@ -188,18 +189,18 @@ def fix_time_table(trigger_table: pd.DataFrame) -> pd.DataFrame:
     fixed_list = []
     counter = 0
     # checks if next timestamp is closer and applies that instead.
-    for i in range(len(trigger_table)-1):
+    for i in range(len(trigger_table) - 1):
         time_diff = abs(trigger_table.iloc[i]['emg_start'] - trigger_table.iloc[i]['tp_start'])
-        if time_diff > abs(trigger_table.iloc[i+1]['emg_start'] - trigger_table.iloc[i]['tp_start']):
+        if time_diff > abs(trigger_table.iloc[i + 1]['emg_start'] - trigger_table.iloc[i]['tp_start']):
             temp = trigger_table.iloc[i][tp_cols]
-            temp = temp.append(trigger_table.iloc[i+1][columns])
+            temp = temp.append(trigger_table.iloc[i + 1][columns])
             fixed_list.append(temp)
             counter -= 1
         else:
             fixed_list.append(trigger_table.iloc[i])
         counter += 1
 
-    if counter == len(trigger_table)-1:
+    if counter == len(trigger_table) - 1:
         fixed_list.append(trigger_table.iloc[-1])
     fixed_tp_table = pd.DataFrame(fixed_list)
     fixed_tp_table = fixed_tp_table.reset_index(drop=True)
