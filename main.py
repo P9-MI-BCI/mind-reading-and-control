@@ -39,7 +39,7 @@ from utility.pdf_creation import save_results_to_pdf, save_results_to_pdf_2
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-    config = json.load(config_file)['cue_set1']  # Choose config
+    config = json.load(config_file)['cue_set0']  # Choose config
     script_params = json.load(script_parameters)  # Load script parameters
 
 
@@ -59,35 +59,35 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            # visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
-            # visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
-            # visualize_window_all_channels(data=dataset, windows=windows, window_id=5)
+            visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            visualize_window_all_channels(data=dataset, windows=windows, window_id=5)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            # dataset.plot(save_fig=False, overwrite=True)
+            dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
-            remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
-            # avg_windows = average_channel(windows)
-            # plot_average_channels(avg_windows, save_fig=False, overwrite=True)
+            avg_windows = average_channel(windows)
+            plot_average_channels(avg_windows, save_fig=False, overwrite=True)
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
-            # for window in windows:
-            #     window.plot(save_fig=False, overwrite=True)
-            #     window.plot_window_for_all_channels(save_fig=False, overwrite=True)
+            for window in windows:
+                window.plot(save_fig=False, overwrite=True)
+                window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
-            uniform_data = create_uniform_distribution(windows)
-            train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+            # uniform_data = create_uniform_distribution(windows)
+            train_data, test_data = train_test_split_data(windows, split_per=20)
 
-            save_train_test_split(train_data, test_data, dir_name='c1_EEG_no_blinks')
+            save_train_test_split(train_data, test_data, dir_name='rest_move_eeg')
 
         if script_params['run_classification']:
 
-            train_data, test_data = load_train_test_split(dir_name='c1_EEG_no_blinks')
+            train_data, test_data = load_train_test_split(dir_name='rest_move_eeg')
 
             train_data.extend(test_data)
 
@@ -103,7 +103,7 @@ def main():
             }
 
             # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf_2(train_data, results, file_name='c1_prune_no_blinks_overview.pdf')
+            save_results_to_pdf_2(train_data, results, file_name='c0_rest_move_eeg_overview.pdf')
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)

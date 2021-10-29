@@ -44,7 +44,6 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
 def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
                      window_size: int) -> ([Window], Dataset):
     list_of_windows = []
-    indices_to_delete = []
 
     window_sz = window_size * dataset.sample_rate
 
@@ -61,8 +60,6 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         window0.filtered_data = window0.filtered_data.reset_index(drop=True)
         list_of_windows.append(window0)
 
-        #  indices_to_delete.append([center - window_sz, center + window_sz])
-
         # [-4, -2]
         window1 = Window()
         window1.data = dataset.data_device1.iloc[center - window_sz * 4: center - window_sz * 2]
@@ -73,15 +70,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         window1.filtered_data = window1.filtered_data.reset_index(drop=True)
         list_of_windows.append(window1)
 
-        # indices_to_delete.append([center - window_sz * 4, center + window_sz * 2])
-
-        # indices_to_delete.reverse()
-
-        # for indices in indices_to_delete:
-        #     dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
-        #     filtered_data = filtered_data.drop(filtered_data.index[indices[0]:indices[1]])
-
-    return list_of_windows # , filtered_data, dataset
+    return list_of_windows
 
 
 def cut_mrcp_windows_for_online(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,

@@ -1,3 +1,4 @@
+import operator
 import os
 import copy
 import pickle
@@ -63,6 +64,8 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Find frequencies of all detected blinks from EOG channel 9
     blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
 
+    # sort mrcp windows first, implicit knowledge used for other functionality later in code
+    windows.sort(key=operator.attrgetter('label'), reverse=True)
     # Updates each window with various information
     for i, window in enumerate(windows):
         window.update_filter_type(filter_type_df)
