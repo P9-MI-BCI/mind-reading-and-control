@@ -161,7 +161,7 @@ class Window:
 
             gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
             ax1 = fig.add_subplot(gs[:2, 0])
-            ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id + 1} - Raw')
+            ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id + 1} - Raw  - Blink: {self.blink}')
             ax1.plot(x_seconds, self.data[channel], color='tomato')
             ax1.axvline(x=0, color='black', ls='--')
 
@@ -200,7 +200,7 @@ class Window:
             gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
             ax1 = fig.add_subplot(gs[0, 0])
             ax1.set_title(
-                f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Filter: Raw')
+                f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Raw - Blink: {self.blink}')
             ax1.plot(x_seconds, self.data[channel], color='tomato')
             ax1.axvline(x=0, color='black', ls='--')
 

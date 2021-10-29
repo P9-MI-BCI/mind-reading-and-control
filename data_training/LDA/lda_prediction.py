@@ -1,7 +1,7 @@
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import pandas as pd
 
-from data_training.scikit_classifiers import scikit_classifier
+from data_training.scikit_classifiers import scikit_classifier, scikit_classifier_loocv
 
 pd.options.mode.chained_assignment = None
 
@@ -14,3 +14,10 @@ def lda_classifier(train_data, test_data, channels=None, features='raw'):
     return result
 
 
+def lda_classifier_loocv(data, channels=None, features='raw'):
+
+    model = LinearDiscriminantAnalysis()
+
+    result = scikit_classifier_loocv(model, data, channels, features, dir_name='lda')
+
+    return result
