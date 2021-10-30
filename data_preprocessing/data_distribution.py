@@ -2,7 +2,7 @@ import collections
 import random
 import pandas as pd
 import sys
-
+from statistics import mean
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.trigger_points import is_triggered
 from classes.Window import Window
@@ -42,23 +42,48 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
 
 
 def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int) -> ([Window], Dataset):
+                     window_size: int, sub_windows :bool = False, perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
 
     window_sz = window_size * dataset.sample_rate
 
+    # sub windows are half a second
+    sub_window_sz = int(window_sz / 2)
+    # step size is 50% overlap
+    step_sz = int(sub_window_sz / 2)
+
+    weights = [1, 1, 1, 1, 1, 1, 1, 1]
     for i, row in tp_table.iterrows():
         center = int(row[tt_column].total_seconds() * dataset.sample_rate)
 
-        # [-1, 1]
         window0 = Window()
+        window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
+
+        if perfect_centering:
+            adjustments = []
+            for column in window0.filtered_data.columns:
+                if column == 12 or column == 8:
+                    continue
+                distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
+                adjustments.append(distance)
+            center = int(center + mean(adjustments))
+
+
+        # [-1, 1]
         window0.data = dataset.data_device1.iloc[center - window_sz: center + window_sz]
-        window0.label = 1 # Movement phase
+        window0.label = 1  # Movement phase
         window0.timestamp = row
         window0.frequency_range = [center - window_sz, center + window_sz]
         window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
         window0.filtered_data = window0.filtered_data.reset_index(drop=True)
-        list_of_windows.append(window0)
+        if sub_windows:
+            # create window size / sub_window_sz new windows
+            amount_sub_windows = int(len(window0.data) / sub_window_sz * 2 - 1)
+            for sw in range(0, len(window0.data)-step_sz, step_sz):
+                window_sw = create_sub_windows(window0, sw, sub_window_sz)
+                list_of_windows.append(window_sw)
+        else:
+            list_of_windows.append(window0)
 
         # [-4, -2]
         window1 = Window()
@@ -68,9 +93,27 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         window1.frequency_range = [center - window_sz * 4, center - window_sz * 2]
         window1.filtered_data = filtered_data.iloc[center - window_sz * 4: center - window_sz * 2]
         window1.filtered_data = window1.filtered_data.reset_index(drop=True)
-        list_of_windows.append(window1)
+        if sub_windows:
+            amount_sub_windows = int(len(window1.data) / sub_window_sz * 2 - 1)
+            for sw in range(0, len(window0.data)-step_sz, step_sz):
+                window_sw = create_sub_windows(window1, sw, sub_window_sz)
+                list_of_windows.append(window_sw)
+        else:
+            list_of_windows.append(window1)
 
     return list_of_windows
+
+
+def create_sub_windows(window: Window, sw: int, sub_window_sz: int):
+    window_sw = Window()
+    window_sw.data = window.data.iloc[sw: sw + sub_window_sz]
+    window_sw.label = window.label
+    window_sw.timestamp = window.timestamp
+    window_sw.frequency_range = [window.frequency_range[0] + sw, window.frequency_range[0] + sw + sub_window_sz]
+    window_sw.filtered_data = window.filtered_data.iloc[sw: sw + sub_window_sz]
+    window_sw.filtered_data = window_sw.filtered_data.reset_index(drop=True)
+
+    return window_sw
 
 
 def cut_mrcp_windows_for_online(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,

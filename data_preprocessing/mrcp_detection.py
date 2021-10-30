@@ -48,6 +48,8 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    filtered_data=filtered_data,
                                                    dataset=dataset_copy,
                                                    window_size=WINDOW_SIZE,
+                                                   sub_windows=False,
+                                                   perfect_centering=True
                                                    )
     # Cut the the remaining data
     # windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
