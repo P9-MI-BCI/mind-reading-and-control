@@ -14,10 +14,10 @@ def lda_classifier(train_data, test_data, channels=None, features='raw'):
     return result
 
 
-def lda_classifier_loocv(data, channels=None, features='raw'):
+def lda_classifier_loocv(data, channels=None, features='raw', prediction='whole'):
 
     model = LinearDiscriminantAnalysis()
 
-    result = scikit_classifier_loocv(model, data, channels, features, dir_name='lda')
+    result = scikit_classifier_loocv(model, data, channels, features, dir_name='lda', prediction=prediction)
 
     return result

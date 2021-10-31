@@ -10,10 +10,10 @@ def svm_classifier(train_data, test_data, channels=None, features='raw'):
     return result
 
 
-def svm_classifier_loocv(data, channels=None, features='raw'):
+def svm_classifier_loocv(data, channels=None, features='raw', prediction='whole'):
 
     model = svm.SVC()
 
-    result = scikit_classifier_loocv(model, data, channels, features, dir_name='svm')
+    result = scikit_classifier_loocv(model, data, channels, features, dir_name='svm', prediction=prediction)
 
     return result

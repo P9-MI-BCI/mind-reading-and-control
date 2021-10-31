@@ -48,7 +48,7 @@ def save_results_to_pdf(train_data: [Window], test_data: [Window], results: Dict
         get_logger().info(f'Pdf file written to {path}')
 
 
-def save_results_to_pdf_2(data: [Window], results: Dict[str, pd.DataFrame], file_name: str):
+def save_results_to_pdf_2(data: [Window], results: Dict[str, pd.DataFrame], file_name: str, save_fig:bool =True):
     path = os.path.join(OUTPUT_PATH, file_name)
 
     n = blinks_in_list(data)
@@ -63,9 +63,10 @@ def save_results_to_pdf_2(data: [Window], results: Dict[str, pd.DataFrame], file
         pdf.savefig(
             add_pdf_text_page(f'Out of {len(data)}, {n} windows have blink in them. ({n / len(data)}%)', font_size=12))
 
-        pdf.savefig(add_pdf_text_page('Windows'))
-        for window in data:
-            pdf.savefig(window.plot(show=False))
-            plt.close()
+        if save_fig:
+            pdf.savefig(add_pdf_text_page('Windows'))
+            for window in data:
+                pdf.savefig(window.plot(show=False))
+                plt.close()
 
         get_logger().info(f'Pdf file written to {path}')

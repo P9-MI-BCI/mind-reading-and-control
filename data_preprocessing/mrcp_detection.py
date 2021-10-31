@@ -48,6 +48,8 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    filtered_data=filtered_data,
                                                    dataset=dataset_copy,
                                                    window_size=WINDOW_SIZE,
+                                                   sub_windows=True,
+                                                   perfect_centering=True
                                                    )
     # Cut the the remaining data
     # windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
@@ -69,7 +71,6 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Updates each window with various information
     for i, window in enumerate(windows):
         window.update_filter_type(filter_type_df)
-        window.num_id = i
         window.aggregate_strategy = config['aggregate_strategy']
         window.extract_features()
         window.blink_detection(blinks)

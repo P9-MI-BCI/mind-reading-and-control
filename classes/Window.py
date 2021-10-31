@@ -17,7 +17,7 @@ class Window:
     signal_negativity = pd.DataFrame()
 
     def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
-                frequency_range=None,
+                frequency_range=None, is_sub_window=False, sub_windows=0,
                 filtered_data: pd.DataFrame = 0, filter_type: pd.DataFrame = 0, num_id=0, aggregate_strategy=0):
         if frequency_range is None:
             frequency_range = []
@@ -26,8 +26,10 @@ class Window:
         self.data = data
         self.timestamp = timestamp
         self.frequency_range = frequency_range
+        self.is_sub_window = is_sub_window
         self.filtered_data = filtered_data
         self.num_id = num_id
+        self.sub_windows = sub_windows
         self.aggregate_strategy = aggregate_strategy
         self.negative_slope = pd.DataFrame()
         self.variability = pd.DataFrame()
@@ -152,77 +154,78 @@ class Window:
         for i, row in self.filtered_data[channel].items():  # converts the window.data freqs to seconds
             x_seconds.append(i / freq - center)
 
-        if self.label == 1:
-            agg_strat = self.aggregate_strategy
+        if not self.is_sub_window:
+            if self.label == 1:
+                agg_strat = self.aggregate_strategy
 
-            emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
-            y_t = ['EC'] * len(tp_timestamp)
-            y_t2 = ['EMG'] * len(emg_timestamp)
+                emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
+                y_t = ['EC'] * len(tp_timestamp)
+                y_t2 = ['EMG'] * len(emg_timestamp)
 
-            gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
-            ax1 = fig.add_subplot(gs[:2, 0])
-            ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id + 1} - Raw  - Blink: {self.blink}')
-            ax1.plot(x_seconds, self.data[channel], color='tomato')
-            ax1.axvline(x=0, color='black', ls='--')
+                gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
+                ax1 = fig.add_subplot(gs[:2, 0])
+                ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id + 1} - Raw  - Blink: {self.blink}')
+                ax1.plot(x_seconds, self.data[channel], color='tomato')
+                ax1.axvline(x=0, color='black', ls='--')
 
-            ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
-            ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
-            ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
-            ax2.axvline(x=0, color='black', ls='--')
+                ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
+                ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
+                ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+                ax2.axvline(x=0, color='black', ls='--')
 
-            if plot_features:
-                x, y, slope = self._plot_features(center, freq, channel)
-                ax2.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
-                
-                mean = self.filtered_data[channel].mean()
-                y_mean = [mean] * len(self.filtered_data)
-                ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
+                if plot_features:
+                    x, y, slope = self._plot_features(center, freq, channel)
+                    ax2.plot(x, y, label=f'slope {round(slope, 9)}', alpha=0.7)
 
-                x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
+                    mean = self.filtered_data[channel].mean()
+                    y_mean = [mean] * len(self.filtered_data)
+                    ax2.plot(x_seconds, y_mean, label=f'mean {round(self.filtered_data[channel].mean(), 7)}', alpha=0.7)
 
-                ax2.plot(x_arr[0], y_arr[0], color='black',  label=f'negative {round(sum_negative, 7)}', alpha=1)
-                for xi, yi in zip(x_arr, y_arr):
-                    ax2.plot(xi, yi, color='black',  alpha=1)
+                    x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-                ax2.legend()
+                    ax2.plot(x_arr[0], y_arr[0], color='black',  label=f'negative {round(sum_negative, 7)}', alpha=1)
+                    for xi, yi in zip(x_arr, y_arr):
+                        ax2.plot(xi, yi, color='black',  alpha=1)
 
-            ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
-            ax3.set_title('EMG Detection')
-            ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
-            ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
+                    ax2.legend()
 
-            ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
-            ax4.set_title('Execution Cue Interval')
-            ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
-            ax4.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
+                ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
+                ax3.set_title('EMG Detection')
+                ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
+                ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
-        else:
-            gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
-            ax1 = fig.add_subplot(gs[0, 0])
-            ax1.set_title(
-                f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Raw - Blink: {self.blink}')
-            ax1.plot(x_seconds, self.data[channel], color='tomato')
-            ax1.axvline(x=0, color='black', ls='--')
+                ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
+                ax4.set_title('Execution Cue Interval')
+                ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
+                ax4.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
 
-            ax2 = fig.add_subplot(gs[1, 0])
-            ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
-            ax2.plot(x_seconds, self.filtered_data[channel], color='tomato')
-            if plot_features:
-                x, y, slope = self._plot_features(center, freq, channel)
-                ax2.plot(x, y, label='slope', alpha=0.7)
+            else:
+                gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
+                ax1 = fig.add_subplot(gs[0, 0])
+                ax1.set_title(
+                    f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Raw - Blink: {self.blink}')
+                ax1.plot(x_seconds, self.data[channel], color='tomato')
+                ax1.axvline(x=0, color='black', ls='--')
 
-                y_mean = [self.filtered_data[channel].mean()] * len(self.filtered_data)
-                ax2.plot(x_seconds, y_mean, label='mean', alpha=0.7)
+                ax2 = fig.add_subplot(gs[1, 0])
+                ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
+                ax2.plot(x_seconds, self.filtered_data[channel], color='tomato')
+                if plot_features:
+                    x, y, slope = self._plot_features(center, freq, channel)
+                    ax2.plot(x, y, label='slope', alpha=0.7)
 
-                x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
+                    y_mean = [self.filtered_data[channel].mean()] * len(self.filtered_data)
+                    ax2.plot(x_seconds, y_mean, label='mean', alpha=0.7)
 
-                ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=1)
-                for xi, yi in zip(x_arr, y_arr):
-                    ax2.plot(xi, yi, color='black', alpha=1)
-                ax2.legend()
-            ax2.axvline(x=0, color='black', ls='--')
+                    x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-        plt.tight_layout()
+                    ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative', alpha=1)
+                    for xi, yi in zip(x_arr, y_arr):
+                        ax2.plot(xi, yi, color='black', alpha=1)
+                    ax2.legend()
+                ax2.axvline(x=0, color='black', ls='--')
+
+            plt.tight_layout()
 
         if save_fig:
             if plot_features:
@@ -236,8 +239,8 @@ class Window:
                 get_logger().exception(f'Found file already exists: {file} you can '
                                        f'overwrite the file by setting overwrite=True')
 
-        if show:
-            plt.show()
+            if show:
+                plt.show()
 
         return fig
 
