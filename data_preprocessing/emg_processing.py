@@ -73,6 +73,7 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, referencing
 
         # saving start, peak, and end.
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+
     '''
     Heuristic for removing TriggerPoint table entries that have no corresponding onset cluster.
     Also removes duplicate onset clusters for a single TriggerPoint interval (first come, first serve order)
@@ -85,14 +86,16 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, referencing
         tp_indexes = list(range(0, len(tp_table)))
         for i in range(0, len(all_peaks)):
             for j in tp_indexes:
-                if tp_table['tp_start'].iloc[j].total_seconds()*freq < all_peaks[i][0] < tp_table['tp_end'].iloc[j].total_seconds()*freq:
+                if (tp_table['tp_start'].iloc[j].total_seconds() * freq) < all_peaks[i][0] < (tp_table['tp_end'].iloc[j].total_seconds() * freq):
                     if j not in save_arr:
                         save_arr.append(j)
                     else:
                         dupe_arr.append(i)
+
         not_save_arr = list(set(tp_indexes)-set(save_arr))
         for i in not_save_arr:
             tp_table.drop(i, inplace=True)
+
         tp_table.reset_index(inplace=True, drop=True)
         for i in range(len(all_peaks)-1, -1, -1):
             if i in dupe_arr:
