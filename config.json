@@ -19,7 +19,7 @@
     "eeg_order": 2,
     "eeg_cutoff": [0.05, 5],
     "eeg_btype": "bandpass",
-    "aggregate_strategy": "emg_peak"}
+    "aggregate_strategy": "emg_start"}
 }
 
 
