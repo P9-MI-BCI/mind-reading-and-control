@@ -120,8 +120,7 @@ def optimize_average_minimum(valid_emg: [int], emg_windows: [Window], channels: 
     return valid_emg
 
 
-def remove_worst_windows(valid_emg: [int],
-                         emg_windows: [Window],
+def remove_worst_windows(emg_windows: [Window],
                          channels: [int] = None,
                          weights: [int] = None,
                          remove: int = 10) -> [int]:
@@ -129,57 +128,84 @@ def remove_worst_windows(valid_emg: [int],
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
+    remove_windows = []
     for rem in range(0, remove):
 
-        get_logger().debug(f'Iteration {rem} - Amount of valid windows {len(valid_emg)}')
+        get_logger().debug(f'Iteration {rem} - Amount of valid windows {len(emg_windows)}')
         idx_ws = 0
         worst_sample = 0
-        for sample in range(0, len(valid_emg)):
+        for sample in range(0, len(emg_windows)):
             minimize_array = []
             for chan in range(0, len(channels)):
-                center = int(len(emg_windows[valid_emg[sample]].filtered_data[chan]) / 2)
+                center = int(len(emg_windows[sample].filtered_data[chan]) / 2)
                 minimize_array.append(
-                    abs(emg_windows[valid_emg[sample]].filtered_data[chan].idxmin() - center) * weights[chan])
+                    abs(emg_windows[sample].filtered_data[chan].idxmin() - center) * weights[chan])
 
             if sum(minimize_array) > worst_sample:
                 worst_sample = sum(minimize_array)
                 idx_ws = sample
                 get_logger().debug(
-                    f'Worst sample: {valid_emg[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
+                    f'Worst sample: {[idx_ws]} - with score: {worst_sample} - based on channels {channels}')
 
         try:
-            del valid_emg[idx_ws]
+            remove_windows.append(emg_windows[idx_ws])
+            del emg_windows[idx_ws]
         except:
             get_logger().exception(f'It was not possible to create a better subset of values. {rem} '
                                    f'values were removed from the array')
-            return valid_emg
+            return remove_windows
 
-    get_logger().debug(f'Resulting array: {valid_emg}')
-    return valid_emg
+    # get_logger().debug(f'Resulting array: {valid_emg}')
+    return remove_windows
 
 
 def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, config,
-                               remove: int = 8, method=None):
+                               remove: int = 8, method=None, heuristic: bool = False):
     # Find valid emgs based on heuristic and calculate averages
-    mrcp_windows = 0
+    mrcp_windows = []
     for window in windows:
-        if window.label == 1:
-            mrcp_windows += 1
+        if window.label == 1 and not window.is_sub_window:
+            mrcp_windows.append(window)
 
-    valid_emg = windows_based_on_heuristic(trigger_table, config)  # Our simple time heuristic
+    if heuristic:
+        valid_emg = windows_based_on_heuristic(trigger_table, config)  # Our simple time heuristic
 
-    remove = remove - (mrcp_windows - len(valid_emg))
+    # remove = remove - (mrcp_windows - len(valid_emg))
     if remove < 0:
         get_logger().error('You are trying to remove more windows than exists')
         return
 
     if method:
         # method here can be either optimize_average_minimum or remove_worst_windows
-        valid_emg = method(valid_emg, windows, remove=remove)
+        remove_mrcp = method(mrcp_windows, remove=remove)
 
     # deletes windows from last index first, in order to avoid index collision
-    for i in range(mrcp_windows - 1, -1, -1):
-        if i not in valid_emg:
+    del_list = []
+
+    for remove_w in remove_mrcp:
+        for iw, w in enumerate(windows):
+            if remove_w.num_id == w.num_id:
+                del_list.append(iw)
+                # delete sub windows then delete rest
+                for sub_w in remove_w.sub_windows:
+                    for i, sw in enumerate(windows):
+                        if sub_w == sw.num_id:
+                            del_list.append(i)
+                            break
+                rest_id = w.num_id.replace('mrcp', 'rest')
+                for ir, wr in enumerate(windows):
+                    if wr.num_id == rest_id:
+                        del_list.append(ir)
+                        for sub_w in wr.sub_windows:
+                            for i, sw in enumerate(windows):
+                                if sub_w == sw.num_id:
+                                    del_list.append(i)
+                                    break
+
+    del_list.sort(reverse=True)
+    windows.reverse()
+    for i in range(len(windows)-1, -1, -1):
+        if i in del_list:
             del windows[i]
 
 
