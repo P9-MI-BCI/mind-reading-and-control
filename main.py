@@ -20,7 +20,8 @@ from data_preprocessing.train_test_split import train_test_split_data
 from data_training.online_emulation import simulate_online, evaluate_online_predictions
 from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import average_channel, plot_average_channels
-from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows, visualize_window_all_channels
+from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows, \
+    visualize_window_all_channels
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel, plot_average_channels
 
 # Training/Classification imports
@@ -39,15 +40,15 @@ from utility.pdf_creation import save_results_to_pdf, save_results_to_pdf_2
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
 with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-    config = json.load(config_file)['cue_set1']  # Choose config
+    config = json.load(config_file)['cue_set0']  # Choose config
     script_params = json.load(script_parameters)  # Load script parameters
 
 
 def main():
     dataset = init(selected_cue_set=config['id'])
-    
+
     if script_params['offline_mode']:
-        
+
         # Shift Data to remove startup
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
 
@@ -59,12 +60,12 @@ def main():
             windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
             # Plotting a specific EEG channel's filtered data and showing the cut windows and their labels
-            # visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
-            # visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
-            # visualize_window_all_channels(data=dataset, windows=windows, window_id=5)
+            visualize_labeled_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            visualize_windows(data=dataset, windows=windows, channel=4, xlim=400000)
+            visualize_window_all_channels(data=dataset, windows=windows, window_id=5)
 
             # Plot all filtered channels (0-9 and 12) together with the raw data
-            # dataset.plot(save_fig=False, overwrite=True)
+            dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
             # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
@@ -76,29 +77,27 @@ def main():
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
             for window in windows:
-                 if window.label == 1:
-                    # window.plot(save_fig=False, overwrite=True)
-                     window.plot_window_for_all_channels(save_fig=False, overwrite=True)
+                if window.label == 1 and not window.is_sub_window:
+                    window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
             # uniform_data = create_uniform_distribution(windows)
-            # train_data, test_data = train_test_split_data(windows, split_per=20)
+            train_data, test_data = train_test_split_data(windows, split_per=20)
 
             save_train_test_split(windows, [], dir_name='test_eeg')
 
         if script_params['run_classification']:
-
             train_data, test_data = load_train_test_split(dir_name='test_eeg')
 
             train_data.extend(test_data)
 
             feature = 'features'
             get_logger().info('LOOCV with KNN. ')
-            knn_score = knn_classifier_loocv(train_data, features=feature)
+            knn_score = knn_classifier_loocv(train_data, features=feature, prediction='s')
             get_logger().info('LOOCV with SVM. ')
-            svm_score = svm_classifier_loocv(train_data, features=feature)
+            svm_score = svm_classifier_loocv(train_data, features=feature, prediction='s')
             get_logger().info('LOOCV with LDA. ')
-            lda_score = lda_classifier_loocv(train_data, features=feature)
+            lda_score = lda_classifier_loocv(train_data, features=feature, prediction='s')
 
             results = {
                 'KNN_results': knn_score,
@@ -107,7 +106,7 @@ def main():
             }
 
             # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf_2(train_data, results, file_name='xtest_eeg_overview.pdf', save_fig=False)
+            save_results_to_pdf_2(train_data, results, file_name='yxtest_eeg_overview.pdf', save_fig=False)
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
