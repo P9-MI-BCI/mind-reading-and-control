@@ -20,7 +20,8 @@ from data_preprocessing.train_test_split import train_test_split_data
 from data_training.online_emulation import simulate_online, evaluate_online_predictions
 from data_training.scikit_classifiers import load_scikit_classifiers
 from data_visualization.average_channels import average_channel, plot_average_channels
-from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows, visualize_window_all_channels
+from data_visualization.visualize_windows import visualize_windows, visualize_labeled_windows, \
+    visualize_window_all_channels
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel, plot_average_channels
 
 # Training/Classification imports
@@ -45,9 +46,9 @@ with open('config.json') as config_file, open('script_parameters.json') as scrip
 
 def main():
     dataset = init(selected_cue_set=config['id'])
-    
+
     if script_params['offline_mode']:
-        
+
         # Shift Data to remove startup
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
 
@@ -67,7 +68,7 @@ def main():
             dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
             # remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
@@ -76,25 +77,27 @@ def main():
 
             # Plots all individual windows together with EMG[start, peak, end] and Execution cue interval
             for window in windows:
-                window.plot(save_fig=False, overwrite=True)
-                window.plot_window_for_all_channels(save_fig=False, overwrite=True)
+                if window.label == 1 and not window.is_sub_window:
+                    window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
             # uniform_data = create_uniform_distribution(windows)
             train_data, test_data = train_test_split_data(windows, split_per=20)
 
-            save_train_test_split(train_data, test_data, dir_name='rest_move_eeg')
+            save_train_test_split(windows, [], dir_name='test_eeg')
 
         if script_params['run_classification']:
-
-            train_data, test_data = load_train_test_split(dir_name='rest_move_eeg')
+            train_data, test_data = load_train_test_split(dir_name='test_eeg')
 
             train_data.extend(test_data)
 
             feature = 'features'
-            knn_score = knn_classifier_loocv(train_data, features=feature)
-            svm_score = svm_classifier_loocv(train_data, features=feature)
-            lda_score = lda_classifier_loocv(train_data, features=feature)
+            get_logger().info('LOOCV with KNN. ')
+            knn_score = knn_classifier_loocv(train_data, features=feature, prediction='s')
+            get_logger().info('LOOCV with SVM. ')
+            svm_score = svm_classifier_loocv(train_data, features=feature, prediction='s')
+            get_logger().info('LOOCV with LDA. ')
+            lda_score = lda_classifier_loocv(train_data, features=feature, prediction='s')
 
             results = {
                 'KNN_results': knn_score,
@@ -103,7 +106,7 @@ def main():
             }
 
             # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf_2(train_data, results, file_name='c0_rest_move_eeg_overview.pdf')
+            save_results_to_pdf_2(train_data, results, file_name='yxtest_eeg_overview.pdf', save_fig=False)
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
