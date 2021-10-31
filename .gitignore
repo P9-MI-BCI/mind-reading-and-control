@@ -3,6 +3,8 @@
 input
 output
 dataset
+config.json
+script_parameters.json
 
 
 # Byte-compiled / optimized / DLL files
