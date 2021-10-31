@@ -25,15 +25,15 @@ from data_visualization.average_channels import windows_based_on_heuristic, aver
 
 # Training/Classification imports
 from data_training.LGBM.lgbm_prediction import lgbm_classifier
-from data_training.SVM.svm_prediction import svm_classifier
+from data_training.SVM.svm_prediction import svm_classifier, svm_classifier_loocv
 from data_training.KNN.knn_prediction import knn_classifier, knn_classifier_loocv
-from data_training.LDA.lda_prediction import lda_classifier
+from data_training.LDA.lda_prediction import lda_classifier, lda_classifier_loocv
 
 # Logging/utility imports
 import logging
 from utility.logger import get_logger
 from utility.save_and_load import save_train_test_split, load_train_test_split
-from utility.pdf_creation import save_results_to_pdf
+from utility.pdf_creation import save_results_to_pdf, save_results_to_pdf_2
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
@@ -67,8 +67,8 @@ def main():
             dataset.plot(save_fig=False, overwrite=True)
 
             # Remove poor quality samples based on heuristic, score and blink detection
-            prune_poor_quality_samples(windows, trigger_table, config, remove=7, method=remove_worst_windows)
-            remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
+            prune_poor_quality_samples(windows, trigger_table, config, remove=10, method=remove_worst_windows)
+            # remove_windows_with_blink(data=dataset.data_device1, windows=windows, sample_rate=dataset.sample_rate)
 
             # Create and plot the average windows
             avg_windows = average_channel(windows)
@@ -80,19 +80,21 @@ def main():
                 window.plot_window_for_all_channels(save_fig=False, overwrite=True)
 
             # Create distribution for training and dividing into train and test set
-            uniform_data = create_uniform_distribution(windows)
-            train_data, test_data = train_test_split_data(uniform_data, split_per=20)
+            # uniform_data = create_uniform_distribution(windows)
+            train_data, test_data = train_test_split_data(windows, split_per=20)
 
-            save_train_test_split(train_data, test_data, dir_name='EEG')
+            save_train_test_split(train_data, test_data, dir_name='rest_move_eeg')
 
         if script_params['run_classification']:
 
-            train_data, test_data = load_train_test_split(dir_name='EEG')
+            train_data, test_data = load_train_test_split(dir_name='rest_move_eeg')
+
+            train_data.extend(test_data)
 
             feature = 'features'
-            knn_score = knn_classifier(train_data, test_data, features=feature)
-            svm_score = svm_classifier(train_data, test_data, features=feature)
-            lda_score = lda_classifier(train_data, test_data, features=feature)
+            knn_score = knn_classifier_loocv(train_data, features=feature)
+            svm_score = svm_classifier_loocv(train_data, features=feature)
+            lda_score = lda_classifier_loocv(train_data, features=feature)
 
             results = {
                 'KNN_results': knn_score,
@@ -101,7 +103,7 @@ def main():
             }
 
             # Writes the test and train window plots + classifier score tables to pdf file
-            save_results_to_pdf(train_data, test_data, results, file_name='result_overview.pdf')
+            save_results_to_pdf_2(train_data, results, file_name='c0_rest_move_eeg_overview.pdf')
 
     if script_params['online_mode']:
         dataset = shift_data(freq=config['start_time'], dataset=dataset)
