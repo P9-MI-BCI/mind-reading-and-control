@@ -2,7 +2,7 @@ import collections
 import random
 import pandas as pd
 import sys
-from statistics import mean
+from statistics import mean, stdev, median
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.trigger_points import is_triggered
 from classes.Window import Window
@@ -42,7 +42,7 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
 
 
 def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, sub_windows :bool = False, perfect_centering: bool = False) -> ([Window], Dataset):
+                     window_size: int, sub_windows: bool = False, perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
 
     window_sz = window_size * dataset.sample_rate
@@ -53,7 +53,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
     step_sz = int(sub_window_sz / 2)
 
     # weights
-    weights = [1, 1, 1, 1, 1, 1, 1, 1]
+    weights = [1, 1, 0, 1, 1, 0, 1, 1]
 
     # ids
     id = 0
@@ -70,7 +70,25 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
                     continue
                 distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
                 adjustments.append(distance)
-            center = int(center + mean(adjustments))
+            negative_counter = 0
+            for d in adjustments:
+                if d <= 0:
+                    negative_counter += 1
+            if negative_counter > len(adjustments) / 2:
+                adjustments = [min(x, 0) for x in adjustments]
+            else:
+                adjustments = [max(x, 0) for x in adjustments]
+
+            adjustments = [i for i in adjustments if i != 0]
+            adjustments.sort()
+            temp_mean = int(median(adjustments))
+            if temp_mean > 0:
+                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+            else:
+                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+
+            if adjustments:
+                center = int(center + median(adjustments))
 
         # [-1, 1]
         w0_id = f'mrcp:{id}'

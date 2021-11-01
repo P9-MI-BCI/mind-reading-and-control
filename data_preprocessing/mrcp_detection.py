@@ -38,7 +38,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
-    tp_table = fix_time_table(tp_table)
+    # tp_table = fix_time_table(tp_table)
 
     data.filtered_data = filtered_data
 
