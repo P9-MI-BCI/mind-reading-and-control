@@ -66,7 +66,7 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, referencing
     for onset_cluster in onset_clusters_array:
         highest = 0
         index = 0
-        for onset in range(onset_cluster[0], onset_cluster[-1]):
+        for onset in range(onset_cluster[0], onset_cluster[-1]+1):
             if abs(emg_data[onset]) > highest:
                 highest = abs(emg_data[onset])
                 index = onset
