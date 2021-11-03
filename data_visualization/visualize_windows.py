@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import matplotlib.pyplot as plt
 from classes import Dataset, Window
 from definitions import OUTPUT_PATH
@@ -36,7 +37,7 @@ def visualize_windows(data: Dataset, windows: [Window], channel: int = 4, xlim: 
 # Visualizes the windows that are cut with their associated labels
 def visualize_labeled_windows(data: Dataset, windows: [Window], channel: int = 4, xlim: int = 400000,
                               savefig: bool = False, overwrite: bool = False):
-    fig = plt.figure(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10,6))
 
     for window in windows:
         start = window.frequency_range[0]
@@ -47,9 +48,9 @@ def visualize_labeled_windows(data: Dataset, windows: [Window], channel: int = 4
         elif window.label == 1 and window.blink == 1:
             mrcp_blink_win = plt.axvspan(start, end, color='red', alpha=0.5, label='MRCP w. blink')
         elif window.label == 0 and window.blink == 0:
-            idle_win = plt.axvspan(start, end, color='grey', alpha=0.5, label='Idle')
+            idle_win = plt.axvspan(start, end, color='grey', alpha=0.5, label='Rest')
         elif window.label == 0 and window.blink == 1:
-            idle_blink_win = plt.axvspan(start, end, color='black', alpha=0.5, label='Idle w. blink')
+            idle_blink_win = plt.axvspan(start, end, color='orange', alpha=0.5, label='Rest w. blink')
 
     plt.xlabel('Frequency')
     filtered_data, = plt.plot(data.filtered_data[channel], label='Filtered data')
@@ -73,13 +74,13 @@ def visualize_labeled_windows(data: Dataset, windows: [Window], channel: int = 4
 # Visualizes a single window for all channels
 def visualize_window_all_channels(data: Dataset, windows: [Window], window_id: int, savefig: bool = False,
                                   overwrite: bool = False):
-    fig = plt.figure(figsize=(12,10))
+    fig = plt.figure(figsize=(12, 10))
 
     start = windows[window_id].frequency_range[0]
     end = windows[window_id].frequency_range[-1]
 
     for channel in range(9):
-        ax = fig.add_subplot(3, 3, channel +1)
+        ax = fig.add_subplot(3, 3, channel + 1)
         ax.axvspan(start, end, color='grey', alpha=0.5, label=f'Window {window_id}')
         ax.set_title(f'Channel {channel + 1}')
         ax.plot(data.filtered_data[channel])

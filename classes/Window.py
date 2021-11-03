@@ -1,5 +1,4 @@
 import pandas as pd
-
 from data_preprocessing.eog_detection import blink_detection
 from utility.logger import get_logger
 from scipy.stats import linregress
@@ -125,7 +124,6 @@ class Window:
         else:
             get_logger().error('Cannot feature extract negative slope without filtered data.')
 
-
     def extract_features(self):
         self._calc_negative_slope()
         self._calc_variability()
@@ -145,12 +143,12 @@ class Window:
 
         return existing_features
 
-    def plot(self, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
-             save_fig: bool = False,
-             overwrite: bool=False) -> plt.figure():
-        x_seconds = []
+    def plot(self, sub_windows, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
+             plot_windows: bool = False, save_fig: bool = False, overwrite: bool=False) -> plt.figure():
+
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
+        x_seconds = []
         for i, row in self.filtered_data[channel].items():  # converts the window.data freqs to seconds
             x_seconds.append(i / freq - center)
 
@@ -163,15 +161,55 @@ class Window:
                 y_t2 = ['EMG'] * len(emg_timestamp)
 
                 gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
+
+                # Adding raw data subplot
                 ax1 = fig.add_subplot(gs[:2, 0])
-                ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id + 1} - Raw  - Blink: {self.blink}')
+                ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id} - Raw  - Blink: {self.blink}')
                 ax1.plot(x_seconds, self.data[channel], color='tomato')
                 ax1.axvline(x=0, color='black', ls='--')
 
+                # Adding filtered data subplot
                 ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
                 ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
                 ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
                 ax2.axvline(x=0, color='black', ls='--')
+
+                # Showing span of each sub-window on filtered data subplot
+                if plot_windows:
+                    sub_wins = []
+                    for sub_win in sub_windows:
+                        if sub_win.num_id in self.sub_windows:
+                            sub_wins.append(sub_win)
+                            if len(sub_wins) == len(self.sub_windows):
+                                break
+
+                    for index, x in enumerate(sub_wins):
+                        if index == 0:
+                            start = 0 - center
+                            end = 600 / freq - center
+                        elif index == 1:
+                            start = 300 / freq - center
+                            end = 900 / freq - center
+                        elif index == 2:
+                            start = 600 / freq - center
+                            end = 1200 / freq - center
+                        elif index == 3:
+                            start = 900 / freq - center
+                            end = 1500 / freq - center
+                        elif index == 4:
+                            start = 1200 / freq - center
+                            end = 1800 / freq - center
+                        elif index == 5:
+                            start = 1500 / freq - center
+                            end = 2100 / freq - center
+                        elif index == 6:
+                            start = 1800 / freq - center
+                            end = 2400 / freq - center
+
+                        if self.label == 1 and self.blink == 0:
+                            ax2.axvspan(start, end, color='green', alpha=0.5, label='MRCP')
+                        elif self.label == 1 and self.blink == 1:
+                            ax2.axvspan(start, end, color='red', alpha=0.5, label='MRCP w. blink')
 
                 if plot_features:
                     x, y, slope = self._plot_features(center, freq, channel)
@@ -189,11 +227,13 @@ class Window:
 
                     ax2.legend()
 
+                # Adding EMG start, peak, end subplot
                 ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
                 ax3.set_title('EMG Detection')
                 ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
                 ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
+                # Adding execution cue interval subplot
                 ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
                 ax4.set_title('Execution Cue Interval')
                 ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
@@ -203,7 +243,7 @@ class Window:
                 gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
                 ax1 = fig.add_subplot(gs[0, 0])
                 ax1.set_title(
-                    f' Channel: {channel + 1} - EEG Window: {self.num_id + 1} - Raw - Blink: {self.blink}')
+                    f' Channel: {channel + 1} - EEG Window: {str(self.num_id + 1)} - Raw - Blink: {self.blink}')
                 ax1.plot(x_seconds, self.data[channel], color='tomato')
                 ax1.axvline(x=0, color='black', ls='--')
 
@@ -239,8 +279,8 @@ class Window:
                 get_logger().exception(f'Found file already exists: {file} you can '
                                        f'overwrite the file by setting overwrite=True')
 
-            if show:
-                plt.show()
+        if show:
+            plt.show()
 
         return fig
 
