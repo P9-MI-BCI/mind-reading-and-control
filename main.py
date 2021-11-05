@@ -6,7 +6,7 @@ from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.emg_processing import onset_threshold_detection
 from data_preprocessing.optimize_windows import optimize_average_minimum, remove_worst_windows, find_best_config_params, \
-    prune_poor_quality_samples, remove_windows_with_blink
+    prune_poor_quality_samples, remove_windows_with_blink, optimize_everything
 from data_preprocessing.init_dataset import init
 from data_preprocessing.fourier_transform import fourier_transform_listof_datawindows, \
     fourier_transform_single_data_channel
@@ -30,6 +30,8 @@ from data_training.LGBM.lgbm_prediction import lgbm_classifier
 from data_training.SVM.svm_prediction import svm_classifier, svm_classifier_loocv
 from data_training.KNN.knn_prediction import knn_classifier, knn_classifier_loocv
 from data_training.LDA.lda_prediction import lda_classifier, lda_classifier_loocv
+from classes.Simulation import Simulation
+from classes.Dict import AttrDict
 
 # Logging/utility imports
 import logging
@@ -40,12 +42,13 @@ from utility.pdf_creation import save_results_to_pdf, save_results_to_pdf_2
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
-with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-    config = json.load(config_file)['cue_set1']  # Choose config
-    script_params = json.load(script_parameters)  # Load script parameters
 
 
 def main():
+    with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
+        config = json.load(config_file)['cue_set1']  # Choose config
+        script_params = json.load(script_parameters)  # Load script parameters
+
     dataset = init(selected_cue_set=config['id'])
 
     if script_params['offline_mode']:
@@ -84,12 +87,12 @@ def main():
 
             # Create distribution for training and dividing into train and test set
             # uniform_data = create_uniform_distribution(windows)
-            train_data, test_data = train_test_split_data(windows, split_per=20)
+            # train_data, test_data = train_test_split_data(windows, split_per=20)
 
-            save_train_test_split(windows, [], dir_name='test_eeg')
+            save_train_test_split(windows, [], dir_name=f'test_eeg')
 
         if script_params['run_classification']:
-            train_data, test_data = load_train_test_split(dir_name='test_eeg')
+            train_data, test_data = load_train_test_split(dir_name=f'test_eeg')
 
             train_data.extend(test_data)
 
@@ -115,6 +118,11 @@ def main():
 
         # Create table containing information when trigger points were shown/removed
         trigger_table = trigger_time_table(dataset.TriggerPoint, dataset.time_start_device1)
+
+        config = AttrDict(config)
+        simulation = Simulation(config)
+        simulation.mount_dataset(dataset)
+        simulation.simulate(real_time=False)
 
         if script_params['run_mrcp_detection']:
             windows, trigger_table = mrcp_detection_for_online_use(data=dataset, tp_table=trigger_table, config=config)
