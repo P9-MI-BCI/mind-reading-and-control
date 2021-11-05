@@ -46,7 +46,11 @@ def average_channel(windows: [Window], mrcp_windows: [int] = None) -> [Window]:
     return avg_channel
 
 
-def plot_average_channels(avg_channels: [Window], freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
+def plot_average_channels(avg_channels: [Window], config, freq: int = 1200, layout: str = 'separate',
+                          save_fig: bool = False, overwrite: bool = False):
+
+    agg_strat = config['aggregate_strategy']
+    fig = plt.figure(figsize=(12,10))
     for channel in range(0, len(avg_channels)):
         x = []
         y = []
@@ -57,13 +61,27 @@ def plot_average_channels(avg_channels: [Window], freq: int = 1200, save_fig: bo
 
         y = np.array(y)
 
-        fig = plt.figure()
-        plt.plot(x, y)
-        plt.axvline(x=0, color='black', ls='--')
-        plt.title(f'Channel: {channel + 1}')
+        # Makes individual plots of each eeg channel
+        if layout == 'separate':
+            fig = plt.figure()
+            plt.axvline(x=0, color='black', ls='--')
+            plt.title(f'Channel: {channel + 1} - Agg. Strat: {agg_strat}')
+            plt.plot(x, y)
+
+        # Makes a grid plot of all eeg channels
+        elif layout == 'grid':
+            ax = fig.add_subplot(3, 3, channel + 1)
+            plt.axvline(x=0, color='black', ls='--')
+            ax.set_title(f'Channel {channel + 1}')
+            ax.plot(x, y)
+            fig.suptitle(f'Average of EEG channels - Agg. Strat: {agg_strat}', fontsize=16)
+            plt.tight_layout()
 
         if save_fig:
-            path = f'{OUTPUT_PATH}/plots/average_emg_start/{channel + 1}.png'
+            if layout == 'separate':
+                path = f'{OUTPUT_PATH}/plots/average_{agg_strat}/{channel + 1}.png'
+            elif layout == 'grid':
+                path = f'{OUTPUT_PATH}/plots/average_{agg_strat}/all_channels.png'
             file = os.path.split(path)[1]
             try:
                 save_figure(path, fig, overwrite=overwrite)
@@ -71,4 +89,4 @@ def plot_average_channels(avg_channels: [Window], freq: int = 1200, save_fig: bo
                 get_logger().exception(f'Found file already exists: {file} you can '
                                        f'overwrite the file by setting overwrite=True')
 
-        plt.show()
+    plt.show()
