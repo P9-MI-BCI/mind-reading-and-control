@@ -7,7 +7,7 @@ from classes import Dataset
 from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
     cut_mrcp_windows_rest_movement_phase
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.emg_processing import onset_detection
+from data_preprocessing.emg_processing import onset_detection, onset_threshold_detection
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
 from utility.file_util import create_dir
@@ -22,7 +22,10 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     dataset_copy = copy.deepcopy(data)
 
     # Find EMG onsets and group onsets based on time
-    emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
+    # emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
+
+    # Find EMG onsets with a static threshold and group onsets based on time
+    emg_clusters, filtered_data = onset_threshold_detection(dataset=dataset_copy, tp_table=tp_table, config=config)
 
     # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
@@ -38,7 +41,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Update trigger table and save filtered data
     columns = ['emg_start', 'emg_peak', 'emg_end']
     tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
-    # tp_table = fix_time_table(tp_table)
+    tp_table = fix_time_table(tp_table)
 
     data.filtered_data = filtered_data
 
@@ -49,7 +52,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    dataset=dataset_copy,
                                                    window_size=WINDOW_SIZE,
                                                    sub_windows=True,
-                                                   perfect_centering=True
+                                                   perfect_centering=False
                                                    )
     # Cut the the remaining data
     # windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
@@ -68,6 +71,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
 
     # sort mrcp windows first, implicit knowledge used for other functionality later in code
     windows.sort(key=operator.attrgetter('label'), reverse=True)
+
     # Updates each window with various information
     for i, window in enumerate(windows):
         window.update_filter_type(filter_type_df)
