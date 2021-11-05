@@ -5,6 +5,7 @@
     "emg_order": 5,
     "emg_cutoff": 80,
     "emg_btype": "highpass",
+
     "eeg_order": 2,
     "eeg_cutoff": [0.05, 5],
     "eeg_btype": "bandpass",
@@ -18,18 +19,28 @@
   "cue_set1": {
     "id": 1,
     "start_time": 1000,
+
     "emg_order": 5,
     "emg_cutoff": 80,
     "emg_btype": "highpass",
+
     "eeg_order": 2,
     "eeg_cutoff": [0.05, 5],
     "eeg_btype": "bandpass",
+
     "aggregate_strategy": "emg_start",
 
     "emg_threshold": 3.58e-5,
     "emg2_order": 4,
     "emg2_cutoff": 5,
-    "emg2_btype": "lowpass"}
+    "emg2_btype": "lowpass",
+
+    "window_size": 2,
+    "filtering": 1,
+    "EEG_Channels": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    "buffer_size": 10,
+    "step_size": 100
+  }
 }
 
 
