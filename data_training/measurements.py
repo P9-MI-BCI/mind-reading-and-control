@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
 
-def get_accuracy(targets, preds):
+def accuracy(targets, preds):
     counter = 0
     for pred, target in zip(preds, targets):
         if pred == target:
@@ -11,15 +11,15 @@ def get_accuracy(targets, preds):
     return counter / len(preds)
 
 
-def get_precision(targets, preds):
+def precision(targets, preds):
     return precision_score(targets, preds)
 
 
-def get_recall(targets, preds):
+def recall(targets, preds):
     return recall_score(targets, preds)
 
 
-def get_f1_score(targets, preds):
+def f1(targets, preds):
     return f1_score(targets, preds)
 
 
@@ -55,9 +55,9 @@ def combine_loocv_predictions(labels, all_channel_predictions):
 
         combined = combine_predictions(new_arr)
 
-        accs.append(get_accuracy(labels[sample], combined))
-        prec.append(get_precision(labels[sample], combined))
-        recall.append(get_recall(labels[sample], combined))
-        f1.append(get_f1_score(labels[sample], combined))
+        accs.append(accuracy(labels[sample], combined))
+        prec.append(precision(labels[sample], combined))
+        recall.append(recall(labels[sample], combined))
+        f1.append(f1(labels[sample], combined))
 
     return np.mean(accs), np.mean(prec), np.mean(recall), np.mean(f1)

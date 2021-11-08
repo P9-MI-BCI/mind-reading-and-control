@@ -2,6 +2,8 @@ import operator
 import os
 import copy
 import pickle
+import time
+
 import pandas as pd
 from classes import Dataset
 from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
@@ -11,8 +13,9 @@ from data_preprocessing.emg_processing import onset_detection, onset_threshold_d
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
 from utility.file_util import create_dir
-from definitions import OUTPUT_PATH
-
+from definitions import OUTPUT_PATH, CONFIG_PATH
+import json
+import datetime
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
@@ -30,9 +33,9 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
         filtered_data[i] = butter_filter(data=dataset_copy.data_device1[i],
-                                         order=config['eeg_order'],
-                                         cutoff=config['eeg_cutoff'],
-                                         btype=config['eeg_btype']
+                                         order=config.eeg_order,
+                                         cutoff=config.eeg_cutoff,
+                                         btype=config.eeg_btype
                                          )
 
     # Reshape filtered_data frame so EMG column is not first
@@ -47,24 +50,26 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
 
     # Cut windows based on aggregation strategy and window size
     windows = cut_mrcp_windows_rest_movement_phase(tp_table=tp_table,
-                                                   tt_column=config['aggregate_strategy'],
+                                                   tt_column=config.aggregate_strategy,
                                                    filtered_data=filtered_data,
                                                    dataset=dataset_copy,
                                                    window_size=WINDOW_SIZE,
-                                                   sub_windows=True,
-                                                   perfect_centering=False
+                                                   perfect_centering=True
                                                    )
     # Cut the the remaining data
-    # windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
-    #                                           filtered_data=filtered_data,
-    #                                           window_size=WINDOW_SIZE,
-    #                                           freq=dataset_copy.sample_rate,
-    #                                           ))
+    windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
+                                              filtered_data=filtered_data,
+                                              window_size=WINDOW_SIZE,
+                                              freq=dataset_copy.sample_rate,
+                                              ))
 
     # Update information for each window in regards to ids, filter types, and extract features
-    filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
-    filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
+    filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config.emg_btype])
+    filter_type_df[EEG_CHANNELS] = [config.eeg_btype] * len(EEG_CHANNELS)
     filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
+
+    index_list = data.data_device1.index.difference(dataset_copy.data_device1.index)
+    save_index_list(index_list, config)
 
     # Find frequencies of all detected blinks from EOG channel 9
     blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
@@ -75,9 +80,11 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Updates each window with various information
     for i, window in enumerate(windows):
         window.update_filter_type(filter_type_df)
-        window.aggregate_strategy = config['aggregate_strategy']
+        window.aggregate_strategy = config.aggregate_strategy
         window.extract_features()
         window.blink_detection(blinks)
+
+    update_config(config)
 
     return windows, tp_table
 
@@ -90,16 +97,27 @@ def emg_peaks_freq_to_datetime(emg_peaks, freq: int):
     return emg_peaks
 
 
+def update_config(config):
+    with open(CONFIG_PATH, 'r') as readfile:
+        old_config = json.load(readfile)
+
+    old_config[config.cue_set_name] = config
+
+    with open(CONFIG_PATH, 'w') as writefile:
+        json.dump(old_config, writefile,  indent=4, sort_keys=True)
+
+
 # Writes the indexes of windows with mrcp to a file
-def save_index_list(index: [int]):
-    path = os.path.join(OUTPUT_PATH, 'online')
+def save_index_list(index: [int], config):
+    path = os.path.join(OUTPUT_PATH, config.cue_set_name)
     create_dir(path, recursive=True)
     filename = os.path.join(path, 'index')
     pickle.dump(index, open(filename, 'wb'))
+    config.index_timestamp = time.time()
+    config.index = filename
 
 
-def load_index_list() -> [int]:
-    path = os.path.join(OUTPUT_PATH, 'online', 'index')
+def load_index_list(path) -> [int]:
     return (pickle.load(open(path, 'rb'))).tolist()
 
 
