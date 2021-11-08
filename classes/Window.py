@@ -128,7 +128,7 @@ class Window:
         self._calc_negative_slope()
         self._calc_variability()
         self._calc_mean_amplitude()
-        self._calc_signal_negativity()
+        # self._calc_signal_negativity()
 
     def get_features(self):
         existing_features = []
