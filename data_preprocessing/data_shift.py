@@ -35,7 +35,10 @@ def delete_timestamps(time_shift: datetime.timedelta, time_start_device1: dateti
 
     for i in range(0, len(delete_rows)):
         if delete_rows[i]:
-            timestamp_arr = timestamp_arr.drop(i)
+            try:
+                timestamp_arr = timestamp_arr.drop(i, axis=0)
+            except KeyError:
+                get_logger().debug('Row already deleted')
     # checks if more than 1 TP is del. The first one is always del because the timestamp is before time_start_device1
     if any(delete_rows) and is_tp and sum(delete_rows) > 1:
         get_logger().warning("You are deleting TriggerPoints with shift_data. Consider shifting less frequency.")

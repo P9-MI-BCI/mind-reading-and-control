@@ -5,6 +5,9 @@ import numpy as np
 
 from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.eog_detection import blink_detection
+from data_training.KNN.knn_prediction import knn_classifier_loocv
+from data_training.LDA.lda_prediction import lda_classifier_loocv
+from data_training.SVM.svm_prediction import svm_classifier_loocv
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel
 from utility.logger import get_logger
 from classes import Window, Dataset
@@ -14,10 +17,10 @@ from tqdm import tqdm
 find_best_config_params is a deprecated method. It was used for grid search of filter parameters.
 '''
 
+
 # todo change sample indexes to be ids of the windows instead
 # test distance from minimum to middle
 # what sample has the biggest negative influence on the average
-
 def find_best_config_params(data, trigger_table, config):
     emg_order_range = [4, 5, 6]
     emg_cutoff_range = list(range(75, 110))
@@ -63,6 +66,84 @@ def find_best_config_params(data, trigger_table, config):
                             get_logger().debug(f'During param search - Config : {config} did not work.')
         # for some reason always prints the last params ..
     print(minimized_config)
+
+
+def optimize_everything(data, trigger_table, config):
+    referencing = [True, False]
+    referencing_value = [0.5, 0.05]
+    fix_table = [True, False]
+    perfect_centering = [True, False]
+    eeg_channels = [[0, 1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 3, 4, 6, 7, 8]]
+    pred_types = ['w', 'm', 's']
+
+    saveconfig_w = 0
+    saveconfig_s = 0
+    saveconfig_m = 0
+    max_score_w = 0
+    max_score_s = 0
+    max_score_m = 0
+    for ref in tqdm(referencing):
+        for pc in tqdm(perfect_centering):
+            for ec in eeg_channels:
+                if ref:
+                    config['referencing_value'] = referencing_value[0]
+                    config['fix_table'] = fix_table[1]
+                else:
+                    config['referencing_value'] = referencing_value[1]
+                    config['fix_table'] = fix_table[0]
+                config['referencing'] = ref
+                config['perfect_centering'] = pc
+                config['eeg_channels'] = ec
+
+                windows, trigger_table = mrcp_detection(data=data, tp_table=trigger_table, config=config)
+
+                for pt in pred_types:
+                    config['pred_type'] = pt
+
+                    pred = config['pred_type']
+                    feature = 'features'
+
+                    get_logger().info('LOOCV with KNN. ')
+                    knn_score = knn_classifier_loocv(windows, features=feature, prediction=pred,
+                                                     channels=config['eeg_channels'])
+                    get_logger().info('LOOCV with SVM. ')
+                    svm_score = svm_classifier_loocv(windows, features=feature, prediction=pred,
+                                                     channels=config['eeg_channels'])
+                    get_logger().info('LOOCV with LDA. ')
+                    lda_score = lda_classifier_loocv(windows, features=feature, prediction=pred,
+                                                     channels=config['eeg_channels'])
+
+                    temp = sum(knn_score['ensemble'].loc[
+                                   ['accuracy_test', 'precision_test', 'recall_test',
+                                    'f1_test']].tolist()) + sum(svm_score['ensemble'].loc[
+                                                                    ['accuracy_test', 'precision_test',
+                                                                     'recall_test', 'f1_test']].tolist()) + sum(
+                        lda_score['ensemble'].loc[
+                            ['accuracy_test', 'precision_test', 'recall_test', 'f1_test']].tolist())
+
+                    if config['pred_type'] == 'w' and temp > max_score_w:
+                        max_score_w = temp
+                        get_logger().info(f'New best score for whole {temp}')
+
+                        print(config)
+                        saveconfig_w = config
+                    elif config['pred_type'] == 's' and temp > max_score_s:
+                        max_score_s = temp
+                        get_logger().info(f'New best score for sub {temp}')
+
+                        print(config)
+                        saveconfig_s = config
+
+                    elif config['pred_type'] == 'm' and temp > max_score_m:
+                        max_score_m = temp
+                        get_logger().info(f'New best score for majority {temp}')
+
+                        print(config)
+                        saveconfig_m = config
+
+    print(saveconfig_w)
+    print(saveconfig_s)
+    print(saveconfig_m)
 
 
 # Defines a method to score each window depending on their distance to the min y val in the function.
@@ -204,7 +285,7 @@ def prune_poor_quality_samples(windows: [Window], trigger_table: pd.DataFrame, c
 
     del_list.sort(reverse=True)
     windows.reverse()
-    for i in range(len(windows)-1, -1, -1):
+    for i in range(len(windows) - 1, -1, -1):
         if i in del_list:
             del windows[i]
 

@@ -137,8 +137,8 @@ def onset_detection(dataset: Dataset, tp_table: pd.DataFrame, config, bipolar_mo
                                   freq=dataset.sample_rate,
                                   peaks_to_find=len(tp_table),
                                   tp_table=tp_table,
-                                  referencing=True,
-                                  cluster_range=0.5)
+                                  referencing=False,
+                                  cluster_range=0.05)
 
     return emg_clusters, filtered_data
 
