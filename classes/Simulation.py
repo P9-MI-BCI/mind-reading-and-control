@@ -11,14 +11,26 @@ from data_training.measurements import get_accuracy, get_precision, get_recall, 
 from utility.logger import get_logger
 from data_preprocessing.filters import butter_filter
 import datetime
-import random
+
+from api import sql_create_windows_table, table_exist, truncate_table
+from definitions import DB_PATH
+import sqlite3
+
+
+connex = sqlite3.connect(DB_PATH)  # Opens file if exists, else creates file
+cur = connex.cursor()
+cur.execute(table_exist('Windows'))
+# Checks if Windows table exist, else create new Windows table
+if not cur.fetchone()[0] == 1:
+    cur.executescript(sql_create_windows_table())
+cur.execute(truncate_table('Windows'))  # Removes all records from table
+
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 
 
 class Simulation:
-
     def __init__(self, config, dataset: Dataset = 0, real_time: bool = False):
         self.time = time.time()
         self.iteration = 0
@@ -97,7 +109,7 @@ class Simulation:
                         self._initiate_simulation(pbar)
                 else:
                     self.sliding_window.data = pd.concat(
-                        [self.sliding_window.data.iloc[self.iteration:],
+                        [self.sliding_window.data.iloc[self.step_size:],
                          self.dataset.data_device1.iloc[self.iteration: self.iteration + self.step_size]],
                         ignore_index=True)
 
@@ -108,8 +120,8 @@ class Simulation:
                         self._filter_module()
                         self._feature_extraction_predictions()
                         # temp for testing
-                        self.prev_pred_buffer.pop(0)
-                        self.prev_pred_buffer.append(random.randint(0, 1))
+                        # self.prev_pred_buffer.pop(0)
+                        # self.prev_pred_buffer.append(random.randint(0, 1))
 
                     self._check_heuristic()
 
@@ -117,9 +129,14 @@ class Simulation:
                     if self.mrcp_detected:
                         self.freeze_flag = True
 
+                    # Insert sliding windows into sqlite db
+                    self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
+                                                                                              con=connex,
+                                                                                              index=False,
+                                                                                              if_exists='append')
+
                     # deallocate data
                     self.data_buffer = self.data_buffer.iloc[self.step_size:]
-                    self.sliding_window.data = self.sliding_window.data.iloc[self.step_size:]
 
                     # update time
                     self._time_module(pbar)
@@ -226,8 +243,8 @@ class Simulation:
         get_logger().info(f'Data buffer build of size {self.buffer_size} seconds.')
         get_logger().info(f'--- Starting Simulation ---')
         self.data_buffer_flag = False
-        self.data_buffer = self.data_buffer.iloc[self.step_size:]
-        self.sliding_window.data = self.sliding_window.data.iloc[self.step_size:]
+        # self.data_buffer = self.data_buffer.iloc[self.step_size:]
+        # self.sliding_window.data = self.sliding_window.data.iloc[self.step_size:]
         self._time_module(pbar)
 
     def _real_time_check(self):
