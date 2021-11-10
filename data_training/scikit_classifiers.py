@@ -5,9 +5,9 @@ import pickle
 import os
 import pandas as pd
 from data_preprocessing.train_test_split import format_dataset
-from data_training.measurements import combine_predictions, get_precision, get_recall, get_f1_score, \
+from data_training.measurements import combine_predictions, precision, recall, f1, \
     get_confusion_matrix, combine_loocv_predictions
-from data_training.measurements import get_accuracy
+from data_training.measurements import accuracy
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH
 import statistics
@@ -47,14 +47,14 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
         ensemble_predictions_train.append(train_preds)
         ensemble_predictions_test.append(test_preds)
 
-        score_df[channel] = [get_accuracy(y_train, train_preds),
-                             get_accuracy(y_test, test_preds),
-                             get_precision(y_train, train_preds),
-                             get_precision(y_test, test_preds),
-                             get_recall(y_train, train_preds),
-                             get_recall(y_test, test_preds),
-                             get_f1_score(y_train, train_preds),
-                             get_f1_score(y_test, test_preds),
+        score_df[channel] = [accuracy(y_train, train_preds),
+                             accuracy(y_test, test_preds),
+                             precision(y_train, train_preds),
+                             precision(y_test, test_preds),
+                             recall(y_train, train_preds),
+                             recall(y_test, test_preds),
+                             f1(y_train, train_preds),
+                             f1(y_test, test_preds),
                              ]
 
         if save_model:
@@ -68,14 +68,14 @@ def scikit_classifier(model, train_data, test_data, channels=None, features='raw
     ensemble_preds_train = combine_predictions(ensemble_predictions_train).astype(int)
     ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
 
-    score_df['ensemble'] = [get_accuracy(y_train, ensemble_preds_train),
-                            get_accuracy(y_test, ensemble_preds_test),
-                            get_precision(y_train, ensemble_preds_train),
-                            get_precision(y_test, ensemble_preds_test),
-                            get_recall(y_train, ensemble_preds_train),
-                            get_recall(y_test, ensemble_preds_test),
-                            get_f1_score(y_train, ensemble_preds_train),
-                            get_f1_score(y_test, ensemble_preds_test),
+    score_df['ensemble'] = [accuracy(y_train, ensemble_preds_train),
+                            accuracy(y_test, ensemble_preds_test),
+                            precision(y_train, ensemble_preds_train),
+                            precision(y_test, ensemble_preds_test),
+                            recall(y_train, ensemble_preds_train),
+                            recall(y_test, ensemble_preds_test),
+                            f1(y_train, ensemble_preds_train),
+                            f1(y_test, ensemble_preds_test),
                             ]
 
     return score_df
@@ -199,22 +199,22 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
 
             train_labels.append(y_train)
             test_labels.append(y_test)
-            temp_scores[sample, 0] = get_accuracy(y_train, train_preds)
-            temp_scores[sample, 1] = get_precision(y_train, train_preds)
-            temp_scores[sample, 2] = get_recall(y_train, train_preds)
-            temp_scores[sample, 3] = get_f1_score(y_train, train_preds)
+            temp_scores[sample, 0] = accuracy(y_train, train_preds)
+            temp_scores[sample, 1] = precision(y_train, train_preds)
+            temp_scores[sample, 2] = recall(y_train, train_preds)
+            temp_scores[sample, 3] = f1(y_train, train_preds)
 
         ensemble_predictions_train.append(train_predictions)
         ensemble_predictions_test.append(test_predictions)
 
         score_df[channel] = [np.mean(temp_scores[:, 0]),
-                             get_accuracy(test_labels, test_predictions),
+                             accuracy(test_labels, test_predictions),
                              np.mean(temp_scores[:, 1]),
-                             get_precision(test_labels, test_predictions),
+                             precision(test_labels, test_predictions),
                              np.mean(temp_scores[:, 2]),
-                             get_recall(test_labels, test_predictions),
+                             recall(test_labels, test_predictions),
                              np.mean(temp_scores[:, 3]),
-                             get_f1_score(test_labels, test_predictions),
+                             f1(test_labels, test_predictions),
                              ]
 
         if save_model:
@@ -230,13 +230,13 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
                                                                                                ensemble_predictions_train)
 
     score_df['ensemble'] = [ensemble_acc,
-                            get_accuracy(test_labels, ensemble_preds_test),
+                            accuracy(test_labels, ensemble_preds_test),
                             ensemble_precision,
-                            get_precision(test_labels, ensemble_preds_test),
+                            precision(test_labels, ensemble_preds_test),
                             ensemble_recall,
-                            get_recall(test_labels, ensemble_preds_test),
+                            recall(test_labels, ensemble_preds_test),
                             ensemble_f1,
-                            get_f1_score(test_labels, ensemble_preds_test),
+                            f1(test_labels, ensemble_preds_test),
                             ]
 
     return score_df

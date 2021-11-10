@@ -3,7 +3,7 @@ from classes.Dataset import Dataset
 from classes.Window import Window
 from data_preprocessing.filters import butter_filter
 import pandas as pd
-from data_training.measurements import get_accuracy, get_precision, get_recall, get_f1_score
+from data_training.measurements import accuracy, precision, recall, f1
 from utility.logger import get_logger
 
 
@@ -152,10 +152,10 @@ def evaluate_online_predictions(windows: [Window], predictions: [int], index: [(
         else:
             target_z.append(0)
 
-    score_dict['online'] = [get_accuracy(target_z, predictions_z),
-                            get_precision(target_z, predictions_z),
-                            get_recall(target_z, predictions_z),
-                            get_f1_score(target_z, predictions_z),
+    score_dict['online'] = [accuracy(target_z, predictions_z),
+                            precision(target_z, predictions_z),
+                            recall(target_z, predictions_z),
+                            f1(target_z, predictions_z),
                             ]
 
     return score_dict

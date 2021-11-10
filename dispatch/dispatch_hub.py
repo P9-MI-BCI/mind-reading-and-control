@@ -10,4 +10,4 @@ def dispatch(script_params, config):
     if script_params.offline_mode:
         offline(script_params, config, dataset)
     elif script_params.online_mode:
-        online(script_params, config, dataset)
+        online(config, dataset)
