@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
 
+
 def accuracy(targets, preds):
     counter = 0
     for pred, target in zip(preds, targets):
@@ -12,15 +13,15 @@ def accuracy(targets, preds):
 
 
 def precision(targets, preds):
-    return precision_score(targets, preds)
+    return precision_score(targets, preds, zero_division=1)
 
 
 def recall(targets, preds):
-    return recall_score(targets, preds)
+    return recall_score(targets, preds, zero_division=1)
 
 
 def f1(targets, preds):
-    return f1_score(targets, preds)
+    return f1_score(targets, preds, zero_division=1)
 
 
 def get_confusion_matrix(targets, preds):
@@ -46,8 +47,8 @@ def combine_loocv_predictions(labels, all_channel_predictions):
 
     accs = []
     prec = []
-    recall = []
-    f1 = []
+    recall_score = []
+    f1_score = []
     for sample in range(0, all_preds.shape[1]):
         new_arr = []
         for channel in range(0, all_preds.shape[0]):
@@ -57,7 +58,7 @@ def combine_loocv_predictions(labels, all_channel_predictions):
 
         accs.append(accuracy(labels[sample], combined))
         prec.append(precision(labels[sample], combined))
-        recall.append(recall(labels[sample], combined))
-        f1.append(f1(labels[sample], combined))
+        recall_score.append(recall(labels[sample], combined))
+        f1_score.append(f1(labels[sample], combined))
 
-    return np.mean(accs), np.mean(prec), np.mean(recall), np.mean(f1)
+    return np.mean(accs), np.mean(prec), np.mean(recall_score), np.mean(f1_score)
