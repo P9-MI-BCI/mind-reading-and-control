@@ -39,7 +39,7 @@ def offline(script_params, config, dataset):
         # in LOOCV everything is test and train data
         train_data.extend(test_data)
 
-        feature = 'features'
+        feature = 'feature_vec'
         get_logger().info('LOOCV with KNN. ')
         knn_score = knn_classifier_loocv(train_data, features=feature, prediction='w')
         get_logger().info('LOOCV with SVM. ')

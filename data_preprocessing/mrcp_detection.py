@@ -15,7 +15,7 @@ from data_preprocessing.filters import butter_filter
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH, CONFIG_PATH
 import json
-import datetime
+
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
@@ -56,6 +56,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    window_size=WINDOW_SIZE,
                                                    perfect_centering=True
                                                    )
+
     # Cut the the remaining data
     windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
                                               filtered_data=filtered_data,
@@ -83,6 +84,7 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
         window.aggregate_strategy = config.aggregate_strategy
         window.extract_features()
         window.blink_detection(blinks)
+        window.create_feature_vector()
 
     update_config(config)
 

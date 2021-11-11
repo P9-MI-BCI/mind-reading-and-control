@@ -1,4 +1,5 @@
 import pandas as pd
+
 from data_preprocessing.eog_detection import blink_detection
 from utility.logger import get_logger
 from scipy.stats import linregress
@@ -8,12 +9,15 @@ from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
 import os
 
+from data_preprocessing.feature_extraction import calc_best_fit_slope, calc_variability, calc_mean_amplitude
+
 
 class Window:
     negative_slope = pd.DataFrame()
     variability = pd.DataFrame()
     mean_amplitude = pd.DataFrame()
     signal_negativity = pd.DataFrame()
+    feature_vector = pd.DataFrame()
 
     def __int__(self, label: int = 0, blink: int = 0, data: pd.DataFrame = 0, timestamp: pd.Series = 0,
                 frequency_range=None, is_sub_window=False, sub_windows=0,
@@ -35,6 +39,30 @@ class Window:
         self.mean_amplitude = pd.DataFrame()
         self.signal_negativity = pd.DataFrame()
         self.filter_type = pd.DataFrame()
+        self.feature_vector = pd.DataFrame()
+
+    def create_feature_vector(self):
+        window_sz = len(self.data)  # window size in seconds
+        sub_window_sz = int(0.5 * 1200)  # sliding windows are 500 ms
+        step_sz = int(sub_window_sz / 2)  # step size is 50% overlap
+        self.feature_vector = pd.DataFrame()
+
+        for channel in self.filtered_data.columns:
+            feature_vec = []
+            amount_sub_windows = len(self.data) / sub_window_sz * 2 - 1
+            for sw in range(0, window_sz - step_sz, step_sz):
+                freq_range = sw, sw + sub_window_sz
+                data = self.filtered_data.iloc[freq_range[0]:freq_range[1], :]
+
+                _, b = calc_best_fit_slope(data, channel)
+                var = calc_variability(data, channel)
+                mean_amp = calc_mean_amplitude(data, channel)
+
+                feature_vec.append([b, var, mean_amp])
+
+            self.feature_vector[channel] = [feature_vec]
+
+            assert len(feature_vec) == amount_sub_windows
 
     def filter(self, filter_in, channel: int, **kwargs):
         try:
@@ -116,8 +144,8 @@ class Window:
             for channel in self.filtered_data.columns:
                 middle = len(self.filtered_data[channel]) // 2
                 x1 = self.filtered_data[channel].iloc[:middle].idxmax()
-                x2 = self.filtered_data[channel].iloc[x1+1:].idxmin()
-                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1+1:].min(),
+                x2 = self.filtered_data[channel].iloc[x1 + 1:].idxmin()
+                y = self.filtered_data[channel].iloc[:middle].max(), self.filtered_data[channel].iloc[x1 + 1:].min(),
                 x = (x1, x2)
                 slope, intercept, r_value, p_value, std_err = linregress(x, y)
                 self.negative_slope[channel] = [slope]
@@ -144,7 +172,7 @@ class Window:
         return existing_features
 
     def plot(self, sub_windows, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
-             plot_windows: bool = False, save_fig: bool = False, overwrite: bool=False) -> plt.figure():
+             plot_windows: bool = False, save_fig: bool = False, overwrite: bool = False) -> plt.figure():
 
         fig = plt.figure(figsize=(5, 7))
         center = (len(self.data) / 2) / freq
@@ -221,9 +249,9 @@ class Window:
 
                     x_arr, y_arr, sum_negative = self._plot_signal_negativity(center, freq, channel)
 
-                    ax2.plot(x_arr[0], y_arr[0], color='black',  label=f'negative {round(sum_negative, 7)}', alpha=1)
+                    ax2.plot(x_arr[0], y_arr[0], color='black', label=f'negative {round(sum_negative, 7)}', alpha=1)
                     for xi, yi in zip(x_arr, y_arr):
-                        ax2.plot(xi, yi, color='black',  alpha=1)
+                        ax2.plot(xi, yi, color='black', alpha=1)
 
                     ax2.legend()
 
@@ -352,9 +380,7 @@ class Window:
         slope, intercept, r_value, p_value, std_err = linregress([x1, x2], y)
         return [x1 / freq - center, x2 / freq - center], y, slope
 
-
     def _plot_signal_negativity(self, center: int, freq: int, channel: int):
-
         prev = self.filtered_data[channel].iloc[0]
         sum_negativity = 0
         res_x, res_y = [], []

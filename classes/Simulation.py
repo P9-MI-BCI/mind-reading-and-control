@@ -104,7 +104,6 @@ class Simulation:
             self.model = models
             get_logger().info(f'Loaded model: {models}')
 
-
     def simulate(self, real_time: bool, description: bool = True):
         assert bool(self.dataset)
 
@@ -162,10 +161,10 @@ class Simulation:
                         self.freeze_flag = True
 
                     # Insert sliding windows into sqlite db
-                    self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
-                                                                                              con=connex,
-                                                                                              index=False,
-                                                                                              if_exists='append')
+                    # self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
+                    #                                                                           con=connex,
+                    #                                                                           index=False,
+                    #                                                                           if_exists='append')
 
                     if self.concurrently_evaluation:
                         pass
