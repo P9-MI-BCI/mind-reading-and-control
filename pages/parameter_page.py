@@ -4,7 +4,7 @@ from dash import dcc
 from dash import html
 import utility.dash_util as drc
 
-from app import app
+from main import app
 
 layout = html.Div([
     html.H6("Parameters"),

@@ -3,10 +3,9 @@ from dash import dcc
 from dash import html
 from dash.dependencies import Input, Output
 from api import get_window_data, get_whole_data
-
 import dash_bootstrap_components as dbc
 
-from app import app
+from main import app
 
 layout = html.Div(
     [

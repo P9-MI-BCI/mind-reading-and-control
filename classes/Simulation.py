@@ -1,32 +1,36 @@
+import sys
+import time
+
+import flask
+import pandas as pd
 from tqdm import tqdm
 
 from classes.Dataset import Dataset
 from classes.Window import Window
-import time
-import pandas as pd
 
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.mrcp_detection import load_index_list, pair_index_list
 from data_training.measurements import accuracy, precision, recall, f1
 from utility.logger import get_logger
-from data_preprocessing.filters import butter_filter
 import datetime
 import collections
+from data_preprocessing.filters import butter_filter
 
+# Database imports
 from api import sql_create_windows_table, table_exist, truncate_table
 from definitions import DB_PATH
 import sqlite3
 
 
+# Database configuration
 connex = sqlite3.connect(DB_PATH)  # Opens file if exists, else creates file
 cur = connex.cursor()
 cur.execute(table_exist('Windows'))
-# Checks if Windows table exist, else create new Windows table
-if not cur.fetchone()[0] == 1:
+if not cur.fetchone()[0] == 1:  # Checks if Windows table exist, else create new Windows table
     cur.executescript(sql_create_windows_table())
-cur.execute(truncate_table('Windows'))  # Removes all records from table
-
+# cur.execute(truncate_table('Windows'))  # Removes all records in table from last run
+cur.close()
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -91,6 +95,7 @@ class Simulation:
         if analyse:
             self._analyse_dataset()
 
+    # TODO error handling with no models
     def load_models(self, models):
         if isinstance(models, list):
             self.model = models
@@ -98,6 +103,7 @@ class Simulation:
         else:
             self.model = models
             get_logger().info(f'Loaded model: {models}')
+
 
     def simulate(self, real_time: bool, description: bool = True):
         assert bool(self.dataset)
@@ -154,6 +160,12 @@ class Simulation:
                     # evaluate metrics (possibly every x iteration, possibly during freeze time?
                     if self.mrcp_detected:
                         self.freeze_flag = True
+
+                    # Insert sliding windows into sqlite db
+                    self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
+                                                                                              con=connex,
+                                                                                              index=False,
+                                                                                              if_exists='append')
 
                     if self.concurrently_evaluation:
                         pass
@@ -239,6 +251,7 @@ class Simulation:
         self.freeze_counter += 1
         self._eval_performance()
         self._apply_metrics()
+
         while self.freeze_time > temp_freeze_time:
             self.data_buffer = pd.concat(
                 [self.data_buffer, self.dataset.data_device1.iloc[self.iteration:self.iteration + self.step_size]],
