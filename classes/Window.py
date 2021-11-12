@@ -128,7 +128,7 @@ class Window:
         self._calc_negative_slope()
         self._calc_variability()
         self._calc_mean_amplitude()
-        self._calc_signal_negativity()
+        # self._calc_signal_negativity()
 
     def get_features(self):
         existing_features = []
@@ -143,7 +143,7 @@ class Window:
 
         return existing_features
 
-    def plot(self, sub_windows, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
+    def plot(self, sub_windows=None, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
              plot_windows: bool = False, save_fig: bool = False, overwrite: bool=False) -> plt.figure():
 
         fig = plt.figure(figsize=(5, 7))
@@ -156,16 +156,16 @@ class Window:
             if self.label == 1:
                 agg_strat = self.aggregate_strategy
 
-                emg_timestamp, tp_timestamp = self._timestamp_order(agg_strat)
-                y_t = ['EC'] * len(tp_timestamp)
+                emg_timestamp = self._timestamp_order(agg_strat)
+                # y_t = ['EC'] * len(tp_timestamp)
                 y_t2 = ['EMG'] * len(emg_timestamp)
 
-                gs = gridspec.GridSpec(ncols=1, nrows=6, figure=fig)
+                gs = gridspec.GridSpec(ncols=1, nrows=5, figure=fig)
 
                 # Adding raw data subplot
                 ax1 = fig.add_subplot(gs[:2, 0])
-                ax1.set_title(f' Channel: {channel + 1} - EEG {self.num_id} - Raw  - Blink: {self.blink}')
-                ax1.plot(x_seconds, self.data[channel], color='tomato')
+                ax1.set_title(f' Channel: {channel} - EEG {self.num_id} - Filtered EMG  - Blink: {self.blink}')
+                ax1.plot(x_seconds, self.filtered_data[12], color='tomato') # todo (easy to find) emg channel
                 ax1.axvline(x=0, color='black', ls='--')
 
                 # Adding filtered data subplot
@@ -234,10 +234,10 @@ class Window:
                 ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
                 # Adding execution cue interval subplot
-                ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
-                ax4.set_title('Execution Cue Interval')
-                ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
-                ax4.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
+                # ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
+                # ax4.set_title('Execution Cue Interval')
+                # ax4.plot(tp_timestamp, y_t, marker='o', color='royalblue')
+                # ax4.annotate('Execution Cue', xy=[tp_timestamp[0], y_t[0]])
 
             else:
                 gs = gridspec.GridSpec(ncols=1, nrows=2, figure=fig)
@@ -324,9 +324,9 @@ class Window:
                     self.timestamp['emg_peak'] - self.timestamp[agg_strat]).total_seconds(),
                              (self.timestamp['emg_end'] - self.timestamp[
                                  agg_strat]).total_seconds()]
-            tp_timestamp = [
-                (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
-                (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
+            # tp_timestamp = [
+            #     (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
+            #     (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
 
         elif agg_strat == 'emg_peak':
             emg_timestamp = [
@@ -343,7 +343,7 @@ class Window:
                 (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
                 (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
 
-        return emg_timestamp, tp_timestamp
+        return emg_timestamp # , tp_timestamp
 
     def _plot_features(self, center: int, freq: int, channel: int):
         x1, x2 = self.filtered_data[channel].idxmin(), self.filtered_data[channel].idxmax()

@@ -11,8 +11,7 @@ from utility.logger import get_logger
 # It starts with a very small time distance and increases the timespan between clusters until peaks_to_find is reached
 def emg_clustering(emg_data: pd.DataFrame, onsets: [int], freq: int, referencing: bool = True,
                    cluster_range: float = 0.05, peaks_to_find: int = 30, tp_table: pd.DataFrame = pd.DataFrame()) \
-                   -> [[int]]:
-
+        -> [[int]]:
     onset_clusters_array = []
     all_peaks = []
 
@@ -121,9 +120,9 @@ def onset_detection(dataset: Dataset, tp_table: pd.DataFrame, config, bipolar_mo
                                                    )
     else:
         filtered_data[EMG_CHANNEL] = butter_filter(data=dataset.data_device1[EMG_CHANNEL],
-                                                   order=config['emg_order'],
-                                                   cutoff=config['emg_cutoff'],
-                                                   btype=config['emg_btype'],
+                                                   order=config.emg_order,
+                                                   cutoff=config.emg_cutoff,
+                                                   btype=config.emg_btype,
                                                    )
 
     # Find onsets based on the filtered data
@@ -137,8 +136,8 @@ def onset_detection(dataset: Dataset, tp_table: pd.DataFrame, config, bipolar_mo
                                   freq=dataset.sample_rate,
                                   peaks_to_find=len(tp_table),
                                   tp_table=tp_table,
-                                  referencing=True,
-                                  cluster_range=0.5)
+                                  referencing=False,
+                                  cluster_range=0.05)
 
     return emg_clusters, filtered_data
 
@@ -175,3 +174,83 @@ def onset_threshold_detection(dataset: Dataset, tp_table: pd.DataFrame, config):
                                   cluster_range=0.05)
 
     return emg_clusters, filtered_data
+
+
+def onset_detection_calibration(dataset: Dataset, config, input_peaks, bipolar_mode: bool = False) -> [[int]]:
+    # Filter EMG Data with specified butterworth filter params from config
+    filtered_data = pd.DataFrame()
+    if bipolar_mode:
+        bipolar_emg = abs(dataset.data_device1[config.EMG_Channel] - dataset.data_device1[config.EMG_Channel + 1])
+        filtered_data[config.EMG_Channel] = butter_filter(data=bipolar_emg,
+                                                          order=config.emg_order,
+                                                          cutoff=config.emg_cutoff,
+                                                          btype=config.emg_btype,
+                                                          )
+    else:
+        filtered_data[config.EMG_Channel] = butter_filter(data=dataset.data_device1[config.EMG_Channel],
+                                                          order=config.emg_order,
+                                                          cutoff=config.emg_cutoff,
+                                                          btype=config.emg_btype,
+                                                          )
+
+    # Find onsets based on the filtered data
+    onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[config.EMG_Channel].to_numpy(),
+                                              sampling_rate=dataset.sample_rate,
+                                              )
+
+    # Group onsets based on time
+    emg_clusters = emg_clustering_calibration(emg_data=filtered_data[config.EMG_Channel],
+                                              onsets=onsets,
+                                              freq=dataset.sample_rate,
+                                              peaks_to_find=input_peaks,
+                                              cluster_range=0.05)
+
+    return emg_clusters, filtered_data
+
+
+def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], freq: int,
+                               cluster_range: float = 0.05, peaks_to_find: int = 30, ) -> [[int]]:
+    onset_clusters_array = []
+    all_peaks = []
+    round_counter = 0
+    prev = 0
+    while len(onset_clusters_array) != peaks_to_find:
+        temp = []
+        onset_clusters_array = []
+        window = cluster_range * freq
+
+        for i in onsets:
+            if len(temp) == 0:
+                temp.append(i)
+            elif abs(i - temp[-1]) < window:
+                temp.append(i)
+            else:
+                onset_clusters_array.append(temp)
+                temp = []
+
+        get_logger().debug(
+            f'Found {len(onset_clusters_array)} clusters, if this is more than {peaks_to_find} then increment.')
+        cluster_range += 0.01
+        if len(onset_clusters_array) == prev:
+            round_counter += 1
+        else:
+            prev = len(onset_clusters_array)
+            round_counter = 0
+        if round_counter >= 30:
+            break
+        if len(onset_clusters_array) == 0:
+            get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
+            exit()
+
+    for onset_cluster in onset_clusters_array:
+        highest = 0
+        index = 0
+        for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
+            if abs(emg_data[onset]) > highest:
+                highest = abs(emg_data[onset])
+                index = onset
+
+        # saving start, peak, and end.
+        all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+
+    return all_peaks

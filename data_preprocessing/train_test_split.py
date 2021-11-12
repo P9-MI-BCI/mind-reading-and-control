@@ -9,8 +9,8 @@ import pandas as pd
 def train_test_split_data(data: [pd.DataFrame], split_per: int = 10) -> ([pd.DataFrame], [pd.DataFrame]):
     dd = data_distribution(data)['expected_labeled_percent']
     isAcceptableDistribution = True
-    upper_bound = 1.20
-    lower_bound = 0.80
+    upper_bound = 1.10
+    lower_bound = 0.90
 
     counter = 0
     # continuously shuffles the data until the distribution of the train and test split is acceptable

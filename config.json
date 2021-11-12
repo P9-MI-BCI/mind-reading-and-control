@@ -1,47 +1,76 @@
 {
-  "cue_set0": {
-    "id": 0,
-    "start_time": 60000,
-    "emg_order": 5,
-    "emg_cutoff": 80,
-    "emg_btype": "highpass",
-
-    "eeg_order": 2,
-    "eeg_cutoff": [0.05, 5],
-    "eeg_btype": "bandpass",
-    "aggregate_strategy": "emg_start",
-
-    "emg_threshold": 2e-5,
-    "emg2_order": 4,
-    "emg2_cutoff": 5,
-    "emg2_btype": "lowpass"},
-
-  "cue_set1": {
-    "id": 1,
-    "start_time": 1000,
-
-    "emg_order": 5,
-    "emg_cutoff": 80,
-    "emg_btype": "highpass",
-
-    "eeg_order": 2,
-    "eeg_cutoff": [0.05, 5],
-    "eeg_btype": "bandpass",
-
-    "aggregate_strategy": "emg_start",
-
-    "emg_threshold": 3.58e-5,
-    "emg2_order": 4,
-    "emg2_cutoff": 5,
-    "emg2_btype": "lowpass",
-
-    "window_size": 2,
-    "filtering": 1,
-    "EEG_Channels": [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    "buffer_size": 10,
-    "step_size": 0.1
-  }
+    "cue_set0": {
+        "EEG_Channels": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ],
+        "aggregate_strategy": "emg_start",
+        "buffer_size": 10,
+        "cue_set_name": "cue_set0",
+        "eeg_btype": "bandpass",
+        "eeg_cutoff": [
+            0.05,
+            5
+        ],
+        "eeg_order": 2,
+        "emg2_btype": "lowpass",
+        "emg2_cutoff": 5,
+        "emg2_order": 4,
+        "emg_btype": "highpass",
+        "emg_cutoff": 80,
+        "emg_order": 5,
+        "emg_threshold": 2e-05,
+        "filtering": 1,
+        "freeze_time": 3,
+        "id": 0,
+        "index": "C:\\p9_data\\output\\cue_set0\\index",
+        "index_timestamp": 1636467994.4544325,
+        "start_time": 60000,
+        "step_size": 0.1,
+        "window_size": 2
+    },
+    "cue_set1": {
+        "EEG_Channels": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ],
+        "aggregate_strategy": "emg_start",
+        "buffer_size": 10,
+        "cue_set_name": "cue_set1",
+        "eeg_btype": "bandpass",
+        "eeg_cutoff": [
+            0.05,
+            5
+        ],
+        "eeg_order": 2,
+        "emg2_btype": "lowpass",
+        "emg2_cutoff": 5,
+        "emg2_order": 4,
+        "emg_btype": "highpass",
+        "emg_cutoff": 80,
+        "emg_order": 5,
+        "emg_threshold": 3.58e-05,
+        "filtering": 1,
+        "freeze_time": 3,
+        "id": 1,
+        "index": "C:\\p9_data\\output\\cue_set1\\index",
+        "index_timestamp": 1636546741.2559793,
+        "start_time": 1000,
+        "step_size": 0.1,
+        "window_size": 2
+    }
 }
-
-
-
