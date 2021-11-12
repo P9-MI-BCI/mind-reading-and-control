@@ -1,13 +1,19 @@
 # performs a grid search to cost minimize array.
 import json
+import sys
+
 import pandas as pd
 import numpy as np
+from sklearn import svm
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.neighbors import KNeighborsClassifier
 
 from data_preprocessing.mrcp_detection import mrcp_detection
 from data_preprocessing.eog_detection import blink_detection
 from data_training.KNN.knn_prediction import knn_classifier_loocv
 from data_training.LDA.lda_prediction import lda_classifier_loocv
 from data_training.SVM.svm_prediction import svm_classifier_loocv
+from data_training.scikit_classifiers import scikit_classifier_loocv_calibration
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel
 from utility.logger import get_logger
 from classes import Window, Dataset
@@ -305,3 +311,23 @@ def remove_windows_with_blink(data: pd.DataFrame, windows: [Window], sample_rate
         for index, window in enumerate(windows):
             if window.num_id == id:
                 del windows[index]
+
+
+def optimize_channels(data, model, channels):
+    feature = 'features'
+
+    if model == 'knn':
+        model = KNeighborsClassifier(n_neighbors=3)
+    elif model == 'svm':
+        model = svm.SVC()
+    elif model == 'lda':
+        model = LinearDiscriminantAnalysis()
+    else:
+        get_logger().info(f'Model is not supported {model}')
+
+    best_score_dict, best_model, best_channel_combination = scikit_classifier_loocv_calibration(model, data,
+                                                                                                channels=channels,
+                                                                                                features=feature,
+                                                                                                prediction='w')
+
+    return best_score_dict, best_model, best_channel_combination

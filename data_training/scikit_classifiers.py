@@ -4,6 +4,9 @@ import glob
 import pickle
 import os
 import pandas as pd
+from mne.decoding import CSP
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 from data_preprocessing.train_test_split import format_dataset
 from data_training.measurements import combine_predictions, precision, recall, f1, \
     get_confusion_matrix, combine_loocv_predictions
@@ -131,7 +134,7 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
                         if len(temp) == len(window.sub_windows):
                             break
                 sub_data.append(temp)
-
+    temp_model_arr = []
     for channel in channels:
         if prediction == 'majority' or prediction == 'm':
             sub_feats = []
@@ -173,12 +176,11 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
                     temp_pred.append(model.predict([x_t]).tolist()[0])
                 test_predictions.append(max(set(temp_pred), key=temp_pred.count))
 
-
                 counter = 0
                 train_preds = []
                 for x_tr in range(0, len(x_train_full_window)):
                     temp_pred_train = []
-                    for x in range(0, len(x_train) // len(x_train_full_window)): # 7 sub windows for  each windows
+                    for x in range(0, len(x_train) // len(x_train_full_window)):  # 7 sub windows for  each windows
                         temp_pred_train.append(model.predict([x_train[counter]]).tolist()[0])
                         counter += 1
                     train_preds.append(max(set(temp_pred_train), key=temp_pred.count))
@@ -217,6 +219,7 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
                              f1(test_labels, test_predictions),
                              ]
 
+        temp_model_arr.append(model)
         if save_model:
             path = os.path.join(OUTPUT_PATH, 'models', dir_name)
             create_dir(path, recursive=True)
@@ -239,4 +242,166 @@ def scikit_classifier_loocv(model, data: [Window], channels=None, features='raw'
                             f1(test_labels, ensemble_preds_test),
                             ]
 
-    return score_df
+    return score_df, temp_model_arr
+
+
+def scikit_classifier_loocv_csp(model, data: [Window], channels=None, save_model='None', dir_name='csp', prediction='w'):
+    if channels is None:
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
+    csp_train = np.zeros((len(data), len(channels), len(data[0].data)))
+    labels = []
+    for i, window in enumerate(data):
+        labels.append(window.label)
+        for channel in channels:
+            for index in range(0, len(window.data[channel])):
+                csp_train[i][channel][index] = window.data[channel].iloc[index]
+
+    csp = CSP(n_components=3, reg=None, log=True, norm_trace=False)
+    csp.fit_transform(csp_train, labels)
+
+    feats = []
+
+    train_predictions = []
+    train_labels = []
+    test_predictions = []
+    test_labels = []
+
+    for window in data:
+        test_vec = np.zeros((1, len(channels), len(window.data)))
+        for i in range(0, 1):
+            for channel in channels:
+                for x in range(0, len(window.data[channel])):
+                    test_vec[i][channel][x] = window.data[channel].iloc[x]
+        feats.append(csp.transform(test_vec)[0])
+
+    for sample in range(0, len(data)):
+        x_test = feats[sample]
+        y_test = labels[sample]
+        x_train = [x for i, x in enumerate(feats) if i != sample]
+        y_train = [x for i, x in enumerate(labels) if i != sample]
+
+        model.fit(x_train, y_train)
+        test_predictions.append(model.predict([x_test]).tolist()[0])
+        test_labels.append(y_test)
+
+    print("accuracy", accuracy(test_labels, test_predictions))
+    print("precision", precision(test_labels, test_predictions))
+    print("recall", recall(test_labels, test_predictions))
+    print("f1", f1(test_labels, test_predictions))
+
+
+def scikit_classifier_loocv_calibration(model, data: [Window], channels=None, features='raw', prediction='whole'):
+    if channels is None:
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
+    best_score = 0
+    best_model = 0
+    best_channel_combination = 0
+    best_score_dict = 0
+
+    # for channel in tqdm(channels[1:], file=sys.stdout):
+
+    pred_data = []
+    if prediction == 'whole' or prediction == 'w':
+        for window in data:
+            if not window.is_sub_window:
+                pred_data.append(window)
+    feats = []
+    labels = []
+    for channel in channels:
+        f, l = format_dataset(pred_data, channel=channel, features=features)
+        feats.append(f)
+        labels.append(l)
+
+    channels = list(power_set(channels))
+
+    cpu_threads = cpu_count() - 2
+
+    for channel_comb in channels[1:]:
+        temp_model_arr = []
+        score_df = pd.DataFrame()
+        score_df.index = ['accuracy_train',
+                          'accuracy_test',
+                          'precision_train',
+                          'precision_test',
+                          'recall_train',
+                          'recall_test',
+                          'f1_train',
+                          'f1_test']
+        ensemble_predictions_train = []
+        ensemble_predictions_test = []
+        for channel in channel_comb:
+            train_predictions = []
+            train_labels = []
+            test_predictions = []
+            test_labels = []
+
+            temp_scores = np.zeros((len(pred_data), 4))
+
+            for sample in range(0, len(pred_data)):
+                x_test = feats[channel][sample]
+                y_test = labels[channel][sample]
+                x_train = [x for i, x in enumerate(feats[channel]) if i != sample]
+                y_train = [x for i, x in enumerate(labels[channel]) if i != sample]
+
+                model.fit(x_train, y_train)
+                test_predictions.append(model.predict([x_test]).tolist()[0])
+
+                train_preds = model.predict(x_train)
+                train_predictions.append(train_preds.tolist())
+
+                train_labels.append(y_train)
+                test_labels.append(y_test)
+                temp_scores[sample, 0] = accuracy(y_train, train_preds)
+                temp_scores[sample, 1] = precision(y_train, train_preds)
+                temp_scores[sample, 2] = recall(y_train, train_preds)
+                temp_scores[sample, 3] = f1(y_train, train_preds)
+
+            ensemble_predictions_train.append(train_predictions)
+            ensemble_predictions_test.append(test_predictions)
+
+            score_df[channel] = [np.mean(temp_scores[:, 0]),
+                                 accuracy(test_labels, test_predictions),
+                                 np.mean(temp_scores[:, 1]),
+                                 precision(test_labels, test_predictions),
+                                 np.mean(temp_scores[:, 2]),
+                                 recall(test_labels, test_predictions),
+                                 np.mean(temp_scores[:, 3]),
+                                 f1(test_labels, test_predictions),
+                                 ]
+
+            temp_model_arr.append(model)
+
+        score_df['average'] = score_df.mean(numeric_only=True, axis=1)
+
+        ensemble_preds_test = combine_predictions(ensemble_predictions_test).astype(int)
+        ensemble_acc, ensemble_precision, ensemble_recall, ensemble_f1 = combine_loocv_predictions(train_labels,
+                                                                                                   ensemble_predictions_train)
+
+        score_df['ensemble'] = [ensemble_acc,
+                                accuracy(test_labels, ensemble_preds_test),
+                                ensemble_precision,
+                                precision(test_labels, ensemble_preds_test),
+                                ensemble_recall,
+                                recall(test_labels, ensemble_preds_test),
+                                ensemble_f1,
+                                f1(test_labels, ensemble_preds_test),
+                                ]
+
+        sum_score = sum(score_df['ensemble'].tolist())
+
+        if sum_score > best_score:
+            best_score = sum_score
+            best_model = temp_model_arr
+            best_channel_combination = channel_comb
+            best_score_dict = score_df
+
+    return best_score_dict, best_model, best_channel_combination
+
+
+def power_set(channels):
+    x = len(channels)
+    masks = [1 << i for i in range(x)]
+    for i in range(1 << x):
+        yield [ss for mask, ss in zip(masks, channels) if i & mask]

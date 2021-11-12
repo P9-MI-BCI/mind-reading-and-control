@@ -28,6 +28,9 @@ def offline(script_params, config, dataset):
         # Perform MRCP Detection and update trigger_table with EMG timestamps
         windows, trigger_table = mrcp_detection(data=dataset, tp_table=trigger_table, config=config)
 
+        avg_channels = average_channel(windows)
+        plot_average_channels(avg_channels, config)
+
         uniform_data = create_uniform_distribution(windows)
         train_data, test_data = train_test_split_data(uniform_data, split_per=20)
 

@@ -42,7 +42,7 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
 
 
 def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, sub_windows: bool = False, perfect_centering: bool = False) -> ([Window], Dataset):
+                     window_size: int, sub_windows: bool = False, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
 
@@ -103,20 +103,117 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         window0.is_sub_window = False
 
         list_of_windows.append(window0)
-        if sub_windows:
-            # create window size / sub_window_sz new windows
-            amount_sub_windows = int(len(window0.data) / sub_window_sz * 2 - 1)
-            sub_id = 0
-            sub_windows_ids = []
-            for sw in range(0, len(window0.data)-step_sz, step_sz):
-                sub_window_id = w0_id + f'.{sub_id}'
-                window_sw = create_sub_windows(window0, sw, sub_window_sz, sub_window_id)
-                list_of_windows.append(window_sw)
-                sub_windows_ids.append(sub_window_id)
-                sub_id += 1
-            assert len(sub_windows_ids) == amount_sub_windows
-            window0.sub_windows = sub_windows_ids
         id += 1
+
+        # if sub_windows:
+        #     # create window size / sub_window_sz new windows
+        #     amount_sub_windows = int(len(window0.data) / sub_window_sz * 2 - 1)
+        #     sub_id = 0
+        #     sub_windows_ids = []
+        #     for sw in range(0, len(window0.data)-step_sz, step_sz):
+        #         sub_window_id = w0_id + f'.{sub_id}'
+        #         window_sw = create_sub_windows(window0, sw, sub_window_sz, sub_window_id)
+        #         list_of_windows.append(window_sw)
+        #         sub_windows_ids.append(sub_window_id)
+        #         sub_id += 1
+        #     assert len(sub_windows_ids) == amount_sub_windows
+        #     window0.sub_windows = sub_windows_ids
+
+        indices_to_delete.append([center - window_sz, center + window_sz])
+
+    indices_to_delete.reverse()
+
+    for indices in indices_to_delete:
+        dataset.data_device1 = dataset.data_device1.drop(dataset.data_device1.index[indices[0]:indices[1]])
+        filtered_data = filtered_data.drop(filtered_data.index[indices[0]:indices[1]])
+
+    return list_of_windows
+
+
+def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
+                     window_size: int, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
+    list_of_windows = []
+    indices_to_delete = []
+    window_sz = window_size * dataset.sample_rate
+
+    # weights
+    weights = [1, 1, 0, 1, 1, 0, 1, 1]
+
+    # ids
+    id = 0
+    for i, row in tp_table.iterrows():
+        center = int(row[tt_column].total_seconds() * dataset.sample_rate)
+
+        window0 = Window()
+        window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
+
+        if perfect_centering:
+            adjustments = []
+            for column in window0.filtered_data.columns:
+                if column == 12 or column == 8:
+                    continue
+                distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
+                adjustments.append(distance)
+            negative_counter = 0
+            for d in adjustments:
+                if d <= 0:
+                    negative_counter += 1
+            if negative_counter > len(adjustments) / 2:
+                adjustments = [min(x, 0) for x in adjustments]
+            else:
+                adjustments = [max(x, 0) for x in adjustments]
+
+            adjustments = [i for i in adjustments if i != 0]
+            adjustments.sort()
+            temp_mean = int(median(adjustments))
+            if temp_mean > 0:
+                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+            else:
+                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+
+            if adjustments:
+                center = int(center + median(adjustments))
+
+        # [-1, 1]
+        w0_id = f'mrcp:{id}'
+        window0.data = dataset.data_device1.iloc[center - window_sz: center + window_sz]
+        window0.label = 1  # Movement phase
+        window0.timestamp = row
+        window0.frequency_range = [center - window_sz, center + window_sz]
+        window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
+        window0.filtered_data = window0.filtered_data.reset_index(drop=True)
+        window0.num_id = w0_id
+        window0.is_sub_window = False
+
+        list_of_windows.append(window0)
+        id += 1
+
+        if multiple_windows:
+            # [-1.1, 0.9]
+            w0_id = f'mrcp:{id}'
+            window0.data = dataset.data_device1.iloc[center - window_sz - 120: center + window_sz - 120]
+            window0.label = 1  # Movement phase
+            window0.timestamp = row
+            window0.frequency_range = [center - window_sz, center + window_sz]
+            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
+            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
+            window0.num_id = w0_id
+            window0.is_sub_window = True
+            list_of_windows.append(window0)
+            id += 1
+
+            # [-0.9, 1.1]
+            w0_id = f'mrcp:{id}'
+            window0.data = dataset.data_device1.iloc[center - window_sz + 120: center + window_sz + 120]
+            window0.label = 1  # Movement phase
+            window0.timestamp = row
+            window0.frequency_range = [center - window_sz, center + window_sz]
+            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
+            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
+            window0.num_id = w0_id
+            window0.is_sub_window = True
+            list_of_windows.append(window0)
+            id += 1
 
         indices_to_delete.append([center - window_sz, center + window_sz])
 
