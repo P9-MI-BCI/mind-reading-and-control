@@ -7,9 +7,8 @@ from tqdm import tqdm
 
 from classes.Dataset import Dataset
 from classes.Window import Window
-
+import numpy as np
 import time
-import pandas as pd
 import json
 from data_preprocessing.data_distribution import create_uniform_distribution
 
@@ -259,7 +258,7 @@ class Simulation:
 
                     if self.filtering:
                         self._filter_module()
-                        self.sliding_window.extract_features()
+                        self.sliding_window.create_feature_vector()
 
                         assert (len(self.sliding_window.filtered_data) == len(self.sliding_window.data))
                         # Remove the oldest prediction before making new prediction
@@ -437,10 +436,7 @@ class Simulation:
     def _prediction_module(self):
         predictions = []
         for channel in range(0, len(self.EEG_channels)):
-            feature_vector = []
-            for feature in self.sliding_window.get_features():
-                f = getattr(self.sliding_window, feature)
-                feature_vector.append(f[self.EEG_channels[channel]].item())
+            feature_vector = np.array(self.sliding_window.feature_vector[self.EEG_channels[channel]].iloc[0]).flatten()
 
             predictions.append(self.model[channel].predict([feature_vector]).tolist()[0])
 

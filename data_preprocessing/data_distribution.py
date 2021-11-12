@@ -134,7 +134,7 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
                      window_size: int, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
-    window_sz = window_size * dataset.sample_rate
+    window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # weights
     weights = [1, 1, 0, 1, 1, 0, 1, 1]
@@ -243,7 +243,7 @@ def create_sub_windows(window: Window, sw: int, sub_window_sz: int, id:str):
 def cut_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame,
                                window_size: int, freq: int) -> [Window]:
     list_of_windows = []
-    window_sz = window_size * freq * 2
+    window_sz = int(window_size * freq)
     i = 0
 
     id = 0

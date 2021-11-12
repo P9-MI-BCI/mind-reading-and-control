@@ -199,6 +199,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
         window.aggregate_strategy = config.aggregate_strategy
         window.extract_features()
         window.blink_detection(blinks)
+        window.create_feature_vector()
 
     return windows
 
