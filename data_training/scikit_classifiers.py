@@ -291,16 +291,9 @@ def scikit_classifier_loocv_csp(model, data: [Window], channels=None, save_model
     print("f1", f1(test_labels, test_predictions))
 
 
-def scikit_classifier_loocv_calibration(model, data: [Window], channels=None, features='raw', prediction='whole'):
+def _scikit_classifier_loocv_init(data: [Window], channels=None, prediction='whole', features='raw'):
     if channels is None:
         channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-
-    best_score = 0
-    best_model = 0
-    best_channel_combination = 0
-    best_score_dict = 0
-
-    # for channel in tqdm(channels[1:], file=sys.stdout):
 
     pred_data = []
     if prediction == 'whole' or prediction == 'w':
@@ -316,9 +309,15 @@ def scikit_classifier_loocv_calibration(model, data: [Window], channels=None, fe
 
     channels = list(power_set(channels))
 
-    cpu_threads = cpu_count() - 2
+    return pred_data, feats, labels, channels[1:]
 
-    for channel_comb in channels[1:]:
+
+def scikit_classifier_loocv_calibration(model, pred_data, feats, labels, channels=None, results=[]):
+    if channels is None:
+        channels = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        channels = list(power_set(channels))
+
+    for channel_comb in channels:
         temp_model_arr = []
         score_df = pd.DataFrame()
         score_df.index = ['accuracy_train',
@@ -391,13 +390,9 @@ def scikit_classifier_loocv_calibration(model, data: [Window], channels=None, fe
 
         sum_score = sum(score_df['ensemble'].tolist())
 
-        if sum_score > best_score:
-            best_score = sum_score
-            best_model = temp_model_arr
-            best_channel_combination = channel_comb
-            best_score_dict = score_df
+        temp = [sum_score, temp_model_arr, channel_comb, score_df]
 
-    return best_score_dict, best_model, best_channel_combination
+    return temp
 
 
 def power_set(channels):
