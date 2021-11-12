@@ -2,6 +2,6 @@
   "offline_mode": false,
   "online_mode": true,
 
-  "run_mrcp_detection": false,
-  "run_classification": false
+  "run_mrcp_detection": true,
+  "run_classification": true
 }

@@ -7,9 +7,9 @@ import time
 import pandas as pd
 from classes import Dataset
 from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
-    cut_mrcp_windows_rest_movement_phase
+    cut_mrcp_windows_rest_movement_phase, cut_mrcp_windows_calibration
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.emg_processing import onset_detection, onset_threshold_detection
+from data_preprocessing.emg_processing import onset_detection, onset_threshold_detection, onset_detection_calibration
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
 from utility.file_util import create_dir
@@ -17,7 +17,7 @@ from definitions import OUTPUT_PATH, CONFIG_PATH
 import json
 
 
-def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
+def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False, calibration:bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
@@ -25,10 +25,10 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     dataset_copy = copy.deepcopy(data)
 
     # Find EMG onsets and group onsets based on time
-    # emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
+    emg_clusters, filtered_data = onset_detection(dataset_copy, tp_table, config, bipolar_mode)
 
     # Find EMG onsets with a static threshold and group onsets based on time
-    emg_clusters, filtered_data = onset_threshold_detection(dataset=dataset_copy, tp_table=tp_table, config=config)
+    # emg_clusters, filtered_data = onset_threshold_detection(dataset=dataset_copy, tp_table=tp_table, config=config)
 
     # Filter EEG channels with a bandpass filter
     for i in EEG_CHANNELS:
@@ -54,7 +54,8 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    filtered_data=filtered_data,
                                                    dataset=dataset_copy,
                                                    window_size=WINDOW_SIZE,
-                                                   perfect_centering=True
+                                                   perfect_centering=True,
+                                                   multiple_windows=False
                                                    )
 
     # Cut the the remaining data
@@ -69,8 +70,9 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     filter_type_df[EEG_CHANNELS] = [config.eeg_btype] * len(EEG_CHANNELS)
     filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
 
-    index_list = data.data_device1.index.difference(dataset_copy.data_device1.index)
-    save_index_list(index_list, config)
+    if not calibration:
+        index_list = data.data_device1.index.difference(dataset_copy.data_device1.index)
+        save_index_list(index_list, config)
 
     # Find frequencies of all detected blinks from EOG channel 9
     blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
@@ -86,7 +88,8 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
         window.blink_detection(blinks)
         window.create_feature_vector()
 
-    update_config(config)
+    if not calibration:
+        update_config(config)
 
     return windows, tp_table
 
@@ -140,57 +143,64 @@ def pair_index_list(index: [int]):
     return pair_indexes
 
 
-def mrcp_detection_for_online_use(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False) -> (
+def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_mode: bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
-    EEG_CHANNELS = list(range(0, 9))
-    EMG_CHANNEL = 12
-    WINDOW_SIZE = 1  # seconds
-    dataset = copy.deepcopy(data)
+    dataset_copy = copy.deepcopy(data)
 
-    # Group onsets based on time
-    emg_clusters, filtered_data = onset_detection(dataset, tp_table, config, bipolar_mode)
+    # Find EMG onsets and group onsets based on time
+    emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks)
 
-    for i in EEG_CHANNELS:
-        filtered_data[i] = butter_filter(data=dataset.data_device1[i],
-                                         order=config['eeg_order'],
-                                         cutoff=config['eeg_cutoff'],
-                                         btype=config['eeg_btype']
+    # Filter EEG channels with a bandpass filter
+    for i in config.EEG_Channels:
+        filtered_data[i] = butter_filter(data=dataset_copy.data_device1[i],
+                                         order=config.eeg_order,
+                                         cutoff=config.eeg_cutoff,
+                                         btype=config.eeg_btype
                                          )
 
+    # Reshape filtered_data frame so EMG column is not first
+    filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+
     # Update trigger table and save filtered data
-    columns = ['emg_start', 'emg_peak', 'emg_end']
-    tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset.sample_rate)
-    tp_table = fix_time_table(tp_table)
     data.filtered_data = filtered_data
 
+    tp_table = pd.DataFrame(columns = ['emg_start', 'emg_peak', 'emg_end'])
+    tp_table[tp_table.columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
     # Cut windows based on aggregation strategy and window size
-    windows, filtered_data, dataset = cut_mrcp_windows(tp_table=tp_table,
-                                                       tt_column=config['aggregate_strategy'],
-                                                       dataset=dataset,
-                                                       filtered_data=filtered_data,
-                                                       window_size=WINDOW_SIZE
-                                                       )
+    windows = cut_mrcp_windows_calibration(tp_table=tp_table,
+                                           tt_column=config.aggregate_strategy,
+                                           filtered_data=filtered_data,
+                                           dataset=dataset_copy,
+                                           window_size=config.window_size,
+                                           perfect_centering=True,
+                                           multiple_windows=False
+                                           )
     # Cut the the remaining data
-    windows.extend(cut_and_label_idle_windows(data=dataset.data_device1,
+    windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
                                               filtered_data=filtered_data,
-                                              window_size=WINDOW_SIZE,
-                                              freq=dataset.sample_rate))
+                                              window_size=config.window_size,
+                                              freq=dataset_copy.sample_rate,
+                                              ))
 
     # Update information for each window in regards to ids, filter types, and extract features
-    filter_type_df = pd.DataFrame(columns=[EMG_CHANNEL], data=[config['emg_btype']])
-    filter_type_df[EEG_CHANNELS] = [config['eeg_btype']] * len(EEG_CHANNELS)
+    filter_type_df = pd.DataFrame(columns=[config.EMG_Channel], data=[config.emg_btype])
+    filter_type_df[config.EEG_Channels] = [config.eeg_btype] * len(config.EEG_Channels)
     filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
 
-    index_list = data.data_device1.index.difference(dataset.data_device1.index)
-    save_index_list(index_list)
+    # Find frequencies of all detected blinks from EOG channel 9
+    blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
 
-    for i in range(0, len(windows)):
-        windows[i].update_filter_type(filter_type_df)
-        windows[i].num_id = i
-        windows[i].aggregate_strategy = config['aggregate_strategy']
-        windows[i].extract_features()
+    # sort mrcp windows first, implicit knowledge used for other functionality later in code
+    windows.sort(key=operator.attrgetter('label'), reverse=True)
 
-    return windows, tp_table
+    # Updates each window with various information
+    for i, window in enumerate(windows):
+        window.update_filter_type(filter_type_df)
+        window.aggregate_strategy = config.aggregate_strategy
+        window.extract_features()
+        window.blink_detection(blinks)
+
+    return windows
 
 
 def surrogate_channels(data: pd.DataFrame):

@@ -8,20 +8,28 @@ from tqdm import tqdm
 from classes.Dataset import Dataset
 from classes.Window import Window
 
+import time
+import pandas as pd
+import json
+from data_preprocessing.data_distribution import create_uniform_distribution
+
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.mrcp_detection import load_index_list, pair_index_list
+from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, mrcp_detection, \
+    mrcp_detection_for_calibration
+from data_preprocessing.optimize_windows import optimize_channels
 from data_training.measurements import accuracy, precision, recall, f1
+from data_visualization.average_channels import average_channel, plot_average_channels
 from utility.logger import get_logger
 import datetime
 import collections
 from data_preprocessing.filters import butter_filter
+from classes.Dict import AttrDict
 
 # Database imports
 from api import sql_create_windows_table, table_exist, truncate_table
 from definitions import DB_PATH
 import sqlite3
-
 
 # Database configuration
 connex = sqlite3.connect(DB_PATH)  # Opens file if exists, else creates file
@@ -32,13 +40,15 @@ if not cur.fetchone()[0] == 1:  # Checks if Windows table exist, else create new
 # cur.execute(truncate_table('Windows'))  # Removes all records in table from last run
 cur.close()
 
+
+
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 
 
 class Simulation:
 
-    def __init__(self, config, dataset: Dataset = 0, real_time: bool = False):
+    def __init__(self, config, dataset: Dataset = 0, calibration_dataset: Dataset = 0, real_time: bool = False):
         self.time = time.time()
         self.iteration = 0
         self.real_time = real_time
@@ -50,7 +60,6 @@ class Simulation:
         self.freeze_flag = False
         self.freeze_counter = 0
         self.data_buffer_flag = True
-        self.concurrently_evaluation = False
         self.predictions = []
         self.prediction_frequency = []
         self.true_labels = []
@@ -74,14 +83,19 @@ class Simulation:
             self.freeze_time = config.freeze_time
             if config.index is not None:
                 self.index = config.index
+                self.index_time = config.index_timestamp
                 self._build_index()
                 self.index_position = 0
             else:
                 self.index = None
 
         if dataset:
-            self.dataset = dataset
+            self.dataset = None
             self.mount_dataset(dataset)
+        if calibration_dataset:
+            self.calibration_config = None
+            self.calibration_dataset = None
+            self.mount_calibration_dataset(calibration_dataset, config.calibration_dataset)
 
     def mount_dataset(self, dataset: Dataset, analyse: bool = False):
         assert isinstance(dataset, Dataset)
@@ -95,9 +109,110 @@ class Simulation:
         if analyse:
             self._analyse_dataset()
 
-    # TODO error handling with no models
+    def mount_calibration_dataset(self, dataset: Dataset, config='default'):
+        assert isinstance(dataset, Dataset)
+        self.calibration_dataset = dataset
+        get_logger().info('Calibration Dataset mounted.')
+        time.sleep(1)
+
+        if config == 'default':
+            with open('json_configs/default.json') as c_config:
+                self.calibration_config = AttrDict(json.load(c_config))
+                get_logger().info('No config was provided for calibration dataset - using default.')
+                self._print_config()
+        else:
+            self.calibration_config = AttrDict(config)
+            self._print_config()
+
+    def _print_config(self):
+        get_logger().info(f'Start time of dataset: frequency {self.calibration_config.start_time}')
+        get_logger().info(f'EMG channel is located at: {self.calibration_config.EMG_Channel}')
+        get_logger().info(f'EMG Filtering is performed using butterworth {self.calibration_config.emg_btype}')
+        get_logger().info(f'EMG Cutoff is {self.calibration_config.emg_cutoff} Hz')
+        get_logger().info(f'EMG Order is {self.calibration_config.emg_order}')
+        get_logger().info(f'EEG channels are located at: {self.calibration_config.EEG_Channels}')
+        get_logger().info(f'EEG Filtering us performed using butterworth {self.calibration_config.eeg_btype}')
+        get_logger().info(f'EEG Cutoff is {self.calibration_config.eeg_cutoff}')
+        get_logger().info(f'EEG Order is {self.calibration_config.eeg_order}')
+        get_logger().info(f'Window size is {self.calibration_config.window_size} seconds')
+
+    def calibrate(self):
+        assert self.calibration_dataset
+        assert self.calibration_config
+
+        get_logger().info(f'Shifting Dataset according to config.start_time ({self.calibration_config.start_time})')
+        self.calibration_dataset = shift_data(freq=self.calibration_config.start_time, dataset=self.calibration_dataset)
+
+        get_logger().info('Performing MRCP detection on calibration dataset.')
+
+        peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
+        windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+                                                 config=self.calibration_config)
+
+        get_logger().info('MRCP detection complete - displaying average for each channel.')
+        average = average_channel(windows)
+        plot_average_channels(average, self.calibration_config, layout='grid')
+
+        channel_choice = input('Choose channel to plot for window selecting.')
+        for window in windows:
+            if window.label == 1 and not window.is_sub_window:
+                window.plot(channel=int(channel_choice))
+
+        windows = self._select_windows(windows)
+
+        get_logger().info('MRCP Window selection is complete the new average channels are being created.')
+        average = average_channel(windows)
+        plot_average_channels(average, self.calibration_config, layout='grid')
+
+        get_logger().info('Creating uniform distributed dataset of labels')
+        uniform_data = create_uniform_distribution(windows)
+
+        model_selection = self._select_model()
+
+        self._optimize_channels(uniform_data, model_selection)
+        get_logger().info('Calibration is complete.')
+
+    def _select_model(self):
+        # todo check input is valid (len, availability...)
+        while True:
+            model_selection = input('Select model knn, svm, lda. \n')
+
+            answer = input(f'Are you sure you want to select {model_selection}? [Y/n]\n')
+            if answer.lower() == 'y':
+                get_logger().info(f'Selected Model for training and simulation {model_selection}')
+                return model_selection
+
+    def _select_windows(self, windows):
+        # todo check input is valid (len, availability...)
+        while True:
+
+            images_to_remove = str.split(input(
+                "Enter MRCP ids to remove windows using format '0 4 5'.. If no windows should be removed enter. \n"))
+            if images_to_remove:
+                images_to_remove = [int(x) for x in images_to_remove]
+            answer = input(f'Deleting {images_to_remove}, Correct? [Y/n]\n')
+
+            if answer.lower() == 'y':
+                if images_to_remove:
+                    assert isinstance(images_to_remove, list)
+                    images_to_remove.sort(reverse=True)
+                    for i in range(len(windows) - 1, -1, -1):
+                        if i in images_to_remove:
+                            del windows[i]
+                get_logger().info(f'Deleted {images_to_remove}')
+                return windows
+
+    def _optimize_channels(self, data, model):
+
+        self.calibration_score, model, self.EEG_channels = optimize_channels(data, model, self.calibration_config.EEG_Channels)
+
+        get_logger().info(f'The highest optimized score was \n {self.calibration_score}')
+        get_logger().info(f'Found using the EEG channels {self.EEG_channels}')
+        self.load_models(model)
+
     def load_models(self, models):
         if isinstance(models, list):
+            assert (len(models) == len(self.EEG_channels))
             self.model = models
             get_logger().info(f'Loaded models: {models[0]}')
         else:
@@ -166,16 +281,14 @@ class Simulation:
                     #                                                                           index=False,
                     #                                                                           if_exists='append')
 
-                    if self.concurrently_evaluation:
-                        pass
-
+          
                     # update time
                     self._time_module(pbar)
 
         self._post_simulation_analysis()
 
     # if metrics are provided, they must follow the convention (target 'arr-like', predictions 'arr-like')
-    def evaluation_metrics(self, metrics=None, concurrently: bool = False):
+    def evaluation_metrics(self, metrics=None):
         if self.index is None:
             get_logger().warning('No index specified for this dataset, metrics cannot be calculated.')
         else:
@@ -183,9 +296,6 @@ class Simulation:
                 self.metrics = [accuracy, precision, recall, f1]
             else:
                 self.metrics = metrics
-            if concurrently:
-                self.concurrently_evaluation = concurrently
-                get_logger().warning('Evaluating metrics concurrently can be detrimental to performance.')
 
     def _simulation_information(self):
         get_logger().info('-- # Simulation Description # --')
@@ -294,6 +404,7 @@ class Simulation:
         # 4 of the last 5 predictions are MRCP
         if sum(self.prev_pred_buffer) == 4:
             self.mrcp_detected = True
+
         # maybe also check if dip is y amplitude or something (hard to do because there are 9 channels to check through)
 
     def _analyse_dataset(self):
@@ -319,15 +430,17 @@ class Simulation:
         raw_index = load_index_list(self.index)
         pair_index = pair_index_list(raw_index)
         self.index = pair_index
-        get_logger().info('Index loaded')
+
+        get_logger().info(f'Index loaded for simulation dataset id: {self.cue_set}')
+        get_logger().info(f'The index was created on {datetime.datetime.fromtimestamp(self.index_time)}.')
 
     def _prediction_module(self):
         predictions = []
-        for channel in self.EEG_channels:
+        for channel in range(0, len(self.EEG_channels)):
             feature_vector = []
             for feature in self.sliding_window.get_features():
                 f = getattr(self.sliding_window, feature)
-                feature_vector.append(f[channel].item())
+                feature_vector.append(f[self.EEG_channels[channel]].item())
 
             predictions.append(self.model[channel].predict([feature_vector]).tolist()[0])
 
@@ -383,7 +496,8 @@ class Simulation:
         get_logger().info(
             f'Prediction lying furthest from MRCP windows {round(max(distances) / self.dataset.sample_rate, 2)} seconds.')
         get_logger().info(f'Mean time of distances from predictions to MRCP window: {round(mean_distance, 2)} seconds.')
-        get_logger().info(f'Mean time for missed predictions to nearest window: {round(mean_missed_distance, 2)} seconds.')
+        get_logger().info(
+            f'Mean time for missed predictions to nearest window: {round(mean_missed_distance, 2)} seconds.')
 
     def _furthest_prediction_from_mrcp(self):
         found_mrcp = []
@@ -422,5 +536,6 @@ class Simulation:
         get_logger().info(f'Data buffer removed {discard_counter} MRCP window(s) during building process.')
         get_logger().info(
             f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} MRCP Windows.')
-        get_logger().info(f'The most missed MRCP window had {round(max(furthest_distance)/self.dataset.sample_rate, 2)} seconds '
-                          f'to the nearest prediction.')
+        get_logger().info(
+            f'The most missed MRCP window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)} seconds '
+            f'to the nearest prediction.')

@@ -1,0 +1,26 @@
+{
+  "EEG_Channels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "EMG_Channel": 12,
+  "aggregate_strategy": "emg_start",
+  "eeg_btype": "bandpass",
+  "eeg_cutoff": [
+    0.05,
+    5
+  ],
+  "eeg_order": 2,
+  "emg_btype": "highpass",
+  "emg_cutoff": 80,
+  "emg_order": 5,
+  "start_time": 1200,
+  "window_size": 2
+}
