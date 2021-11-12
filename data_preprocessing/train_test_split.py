@@ -3,6 +3,7 @@ from data_preprocessing.data_distribution import data_distribution
 
 from utility.logger import get_logger
 import pandas as pd
+import numpy as np
 
 
 # Creates a test and train split with the same label distribution as the input data
@@ -77,6 +78,10 @@ def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
                 df = getattr(window, feat)
                 temp_features.append(df[channel].item())
             x.append(temp_features)
+    elif features == 'feature_vec':
+        for window in data:
+            y.append(window.label)
+            x.append(np.array(window.feature_vector[channel].iloc[0]).flatten())
 
     # data, target
     return x, y

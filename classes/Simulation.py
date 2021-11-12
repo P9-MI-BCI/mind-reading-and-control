@@ -1,13 +1,18 @@
 import sys
+import time
 
+import flask
+import pandas as pd
 from tqdm import tqdm
 
 from classes.Dataset import Dataset
 from classes.Window import Window
+
 import time
 import pandas as pd
 import json
 from data_preprocessing.data_distribution import create_uniform_distribution
+
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, mrcp_detection, \
@@ -16,10 +21,26 @@ from data_preprocessing.optimize_windows import optimize_channels
 from data_training.measurements import accuracy, precision, recall, f1
 from data_visualization.average_channels import average_channel, plot_average_channels
 from utility.logger import get_logger
-from data_preprocessing.filters import butter_filter
 import datetime
 import collections
+from data_preprocessing.filters import butter_filter
 from classes.Dict import AttrDict
+
+# Database imports
+from api import sql_create_windows_table, table_exist, truncate_table
+from definitions import DB_PATH
+import sqlite3
+
+# Database configuration
+connex = sqlite3.connect(DB_PATH)  # Opens file if exists, else creates file
+cur = connex.cursor()
+cur.execute(table_exist('Windows'))
+if not cur.fetchone()[0] == 1:  # Checks if Windows table exist, else create new Windows table
+    cur.executescript(sql_create_windows_table())
+# cur.execute(truncate_table('Windows'))  # Removes all records in table from last run
+cur.close()
+
+
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -254,6 +275,13 @@ class Simulation:
                     if self.mrcp_detected:
                         self.freeze_flag = True
 
+                    # Insert sliding windows into sqlite db
+                    # self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
+                    #                                                                           con=connex,
+                    #                                                                           index=False,
+                    #                                                                           if_exists='append')
+
+          
                     # update time
                     self._time_module(pbar)
 
@@ -332,6 +360,7 @@ class Simulation:
         self.freeze_counter += 1
         self._eval_performance()
         self._apply_metrics()
+
         while self.freeze_time > temp_freeze_time:
             self.data_buffer = pd.concat(
                 [self.data_buffer, self.dataset.data_device1.iloc[self.iteration:self.iteration + self.step_size]],
