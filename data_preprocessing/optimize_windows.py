@@ -13,7 +13,8 @@ from data_preprocessing.eog_detection import blink_detection
 from data_training.KNN.knn_prediction import knn_classifier_loocv
 from data_training.LDA.lda_prediction import lda_classifier_loocv
 from data_training.SVM.svm_prediction import svm_classifier_loocv
-from data_training.scikit_classifiers import scikit_classifier_loocv_calibration
+from data_training.scikit_classifiers import scikit_classifier_loocv_calibration, _scikit_classifier_loocv_init
+from data_training.util import multiproc_classifier
 from data_visualization.average_channels import windows_based_on_heuristic, average_channel
 from utility.logger import get_logger
 from classes import Window, Dataset
@@ -314,7 +315,7 @@ def remove_windows_with_blink(data: pd.DataFrame, windows: [Window], sample_rate
 
 
 def optimize_channels(data, model, channels):
-    feature = 'features'
+    feature = 'feature_vec'
 
     if model == 'knn':
         model = KNeighborsClassifier(n_neighbors=3)
@@ -325,9 +326,23 @@ def optimize_channels(data, model, channels):
     else:
         get_logger().info(f'Model is not supported {model}')
 
-    best_score_dict, best_model, best_channel_combination = scikit_classifier_loocv_calibration(model, data,
-                                                                                                channels=channels,
-                                                                                                features=feature,
-                                                                                                prediction='w')
+    preds_data, feats, labels, channels = _scikit_classifier_loocv_init(data=data,
+                                                              channels=channels,
+                                                              features=feature,
+                                                              prediction='w')
+
+    results = multiproc_classifier(model, scikit_classifier_loocv_calibration, channels, preds_data, feats, labels)
+
+    best_score = 0
+    best_score_dict = 0
+    best_model = 0
+    best_channel_combination = 0
+
+    for result in results:
+        if result[0] > best_score:
+            best_score = result[0]
+            best_model = result[1]
+            best_channel_combination = result[2]
+            best_score_dict = result[3]
 
     return best_score_dict, best_model, best_channel_combination
