@@ -28,7 +28,7 @@ def average_channel(windows: [Window], mrcp_windows: [int] = None) -> [Window]:
         i = 0
         mrcp_windows = []
         for window in windows:
-            if window.label == 1 and not window.is_sub_window:
+            if window.label == 1: # and not window.is_sub_window:
                 mrcp_windows.append(i)
             i += 1
 

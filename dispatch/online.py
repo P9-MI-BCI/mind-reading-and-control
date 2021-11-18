@@ -5,8 +5,9 @@ from data_preprocessing.init_dataset import init
 
 def online(config, dataset):
 
-    calibration_dataset = init(selected_cue_set=1)
+    calibration_dataset = init(selected_cue_set=0)
     dataset = init(selected_cue_set=config.id)
+
 
     # Load models
     # Create Simulation
@@ -15,5 +16,8 @@ def online(config, dataset):
     simulation.calibrate()
 
     simulation.mount_dataset(dataset)
+
+    # models = load_scikit_classifiers('lda')
+    # simulation.load_models(models)
     simulation.evaluation_metrics()
     simulation.simulate(real_time=False)

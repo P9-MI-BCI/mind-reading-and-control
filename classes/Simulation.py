@@ -14,7 +14,7 @@ from data_preprocessing.data_distribution import create_uniform_distribution
 
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, mrcp_detection, \
+from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, \
     mrcp_detection_for_calibration
 from data_preprocessing.optimize_windows import optimize_channels
 from data_training.measurements import accuracy, precision, recall, f1
@@ -63,6 +63,7 @@ class Simulation:
         self.prediction_frequency = []
         self.true_labels = []
         self.score = {}
+        self.normalization = None
 
         if config:
             self.window_size = config.window_size
@@ -130,7 +131,7 @@ class Simulation:
         get_logger().info(f'EMG Cutoff is {self.calibration_config.emg_cutoff} Hz')
         get_logger().info(f'EMG Order is {self.calibration_config.emg_order}')
         get_logger().info(f'EEG channels are located at: {self.calibration_config.EEG_Channels}')
-        get_logger().info(f'EEG Filtering us performed using butterworth {self.calibration_config.eeg_btype}')
+        get_logger().info(f'EEG Filtering is performed using butterworth {self.calibration_config.eeg_btype}')
         get_logger().info(f'EEG Cutoff is {self.calibration_config.eeg_cutoff}')
         get_logger().info(f'EEG Order is {self.calibration_config.eeg_order}')
         get_logger().info(f'Window size is {self.calibration_config.window_size} seconds')
@@ -145,14 +146,16 @@ class Simulation:
         get_logger().info('Performing MRCP detection on calibration dataset.')
 
         peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
-        windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+        windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
                                                  config=self.calibration_config)
+
+        self.normalization = scaler
 
         get_logger().info('MRCP detection complete - displaying average for each channel.')
         average = average_channel(windows)
         plot_average_channels(average, self.calibration_config, layout='grid')
 
-        channel_choice = input('Choose channel to plot for window selecting.')
+        channel_choice = input('Choose channel to plot for window selecting.\n')
         for window in windows:
             if window.label == 1 and not window.is_sub_window:
                 window.plot(channel=int(channel_choice))
@@ -335,6 +338,7 @@ class Simulation:
                     f'The previous iteration too more than {self.allowed_time} '
                     f'to process - increasing sliding window distance.')
                 self.step_size += TIME_PENALTY
+                self.allowed_time = self.step_size
             # set time again for next iteration
             self.time = time.time()
 
@@ -352,6 +356,7 @@ class Simulation:
                                                    btype=self.EEG_btype
                                                    )
 
+        filtered_data[self.EEG_channels] = self.normalization.transform(filtered_data[self.EEG_channels])
         self.sliding_window.filtered_data = filtered_data.iloc[-self.window_size:].reset_index(drop=True)
 
     def _freeze_module(self, pbar):

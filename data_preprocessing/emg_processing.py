@@ -5,6 +5,7 @@ from data_preprocessing.trigger_points import is_triggered
 from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
 from utility.logger import get_logger
+from statistics import mean, stdev, median
 
 
 # Clusters onsets based on time between each onset index.
@@ -125,19 +126,21 @@ def onset_detection(dataset: Dataset, tp_table: pd.DataFrame, config, bipolar_mo
                                                    btype=config.emg_btype,
                                                    )
 
+
     # Find onsets based on the filtered data
-    onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
-                                              sampling_rate=dataset.sample_rate,
-                                              )
+    onsets, threshold = biosppy.signals.emg.find_onsets(signal=filtered_data[EMG_CHANNEL].to_numpy(),
+                                                  sampling_rate=dataset.sample_rate,
+                                                  )
+
+    emg_rectified = np.abs(filtered_data[config.EMG_Channel]) > threshold
+
+    emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
 
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=filtered_data[EMG_CHANNEL],
-                                  onsets=onsets,
-                                  freq=dataset.sample_rate,
-                                  peaks_to_find=len(tp_table),
-                                  tp_table=tp_table,
-                                  referencing=False,
-                                  cluster_range=0.05)
+    emg_clusters = emg_clustering_calibration(emg_data=filtered_data[EMG_CHANNEL],
+                                              onsets=emg_onsets,
+                                              peaks_to_find=len(tp_table),
+                                             )
 
     return emg_clusters, filtered_data
 
@@ -192,55 +195,56 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks, bipolar_m
                                                           cutoff=config.emg_cutoff,
                                                           btype=config.emg_btype,
                                                           )
+    # emg_rectified = np.abs(filtered_data[config.EMG_Channel])
+    #
+    # filtered_data[config.EMG_Channel] = butter_filter(emg_rectified,
+    #                                                   order=3,
+    #                                                   cutoff=5,
+    #                                                   btype='lowpass')
 
+    # plt.plot(filtered_data[config.EMG_Channel])
     # Find onsets based on the filtered data
-    onsets, = biosppy.signals.emg.find_onsets(signal=filtered_data[config.EMG_Channel].to_numpy(),
-                                              sampling_rate=dataset.sample_rate,
-                                              )
+    onsets, threshold = biosppy.signals.emg.find_onsets(signal=filtered_data[config.EMG_Channel].to_numpy(),
+                                                       sampling_rate=dataset.sample_rate,
+                                                       )
+    # print(threshold)
+    #
+    #  = [threshold] * len(filtered_data[config.EMG_Channel])
+    # plt.plot(t)
+    emg_rectified = np.abs(filtered_data[config.EMG_Channel]) > threshold
+    # emg_onsets = filtered_data[filtered_data[config.EMG_Channel] > threshold].index.tolist()
+    # plt.plot(onsets[0])
 
+    # print(onsets[0])
+    emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
     # Group onsets based on time
     emg_clusters = emg_clustering_calibration(emg_data=filtered_data[config.EMG_Channel],
-                                              onsets=onsets,
-                                              freq=dataset.sample_rate,
+                                              onsets=emg_onsets,
                                               peaks_to_find=input_peaks,
-                                              cluster_range=0.05)
+                                              )
 
+    # print(emg_clusters)
     return emg_clusters, filtered_data
 
 
-def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], freq: int,
-                               cluster_range: float = 0.05, peaks_to_find: int = 30, ) -> [[int]]:
-    onset_clusters_array = []
+def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], peaks_to_find: int = 30) -> [[int]]:
     all_peaks = []
-    round_counter = 0
-    prev = 0
-    while len(onset_clusters_array) != peaks_to_find:
-        temp = []
-        onset_clusters_array = []
-        window = cluster_range * freq
-
-        for i in onsets:
-            if len(temp) == 0:
-                temp.append(i)
-            elif abs(i - temp[-1]) < window:
-                temp.append(i)
-            else:
-                onset_clusters_array.append(temp)
-                temp = []
-
-        get_logger().debug(
-            f'Found {len(onset_clusters_array)} clusters, if this is more than {peaks_to_find} then increment.')
-        cluster_range += 0.01
-        if len(onset_clusters_array) == prev:
-            round_counter += 1
+    clusters = []
+    temp_clusters = []
+    for idx in onsets:
+        if len(temp_clusters) == 0:
+            temp_clusters.append(idx)
+        elif abs(temp_clusters[-1] - idx) < 150:
+            temp_clusters.append(idx)
         else:
-            prev = len(onset_clusters_array)
-            round_counter = 0
-        if round_counter >= 30:
-            break
-        if len(onset_clusters_array) == 0:
-            get_logger().error('CLUSTERS COULD NOT BE CREATED PROBABLY CHANGE PARAMETERS.')
-            exit()
+            clusters.append(temp_clusters)
+            temp_clusters = [idx]
+    clusters.append(temp_clusters)
+    lengths = [len(x) for x in clusters]
+    lengths.sort()
+
+    mean_cluster_size = mean(lengths)
+    onset_clusters_array = [x for x in clusters if len(x) > mean_cluster_size]
 
     for onset_cluster in onset_clusters_array:
         highest = 0
@@ -251,6 +255,7 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], freq: int,
                 index = onset
 
         # saving start, peak, and end.
+        # fifth_percent = int(len(onset_cluster)*0.05)
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     return all_peaks

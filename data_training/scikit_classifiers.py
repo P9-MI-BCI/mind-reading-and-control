@@ -308,8 +308,11 @@ def _scikit_classifier_loocv_init(data: [Window], channels=None, prediction='who
         labels.append(l)
 
     channels = list(power_set(channels))
-
-    return pred_data, feats, labels, channels[1:]
+    temp = []
+    for channel in channels[1:]:
+        if not len(channel) % 2 == 0:
+            temp.append(channel)
+    return pred_data, feats, labels, [[0, 1, 2, 3, 4, 5, 6, 7, 8]]
 
 
 def scikit_classifier_loocv_calibration(model, pred_data, feats, labels, channels=None):

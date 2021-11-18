@@ -327,9 +327,9 @@ def optimize_channels(data, model, channels):
         get_logger().info(f'Model is not supported {model}')
 
     preds_data, feats, labels, channels = _scikit_classifier_loocv_init(data=data,
-                                                              channels=channels,
-                                                              features=feature,
-                                                              prediction='w')
+                                                                        channels=channels,
+                                                                        features=feature,
+                                                                        prediction='w')
 
     results = multiproc_classifier(model, scikit_classifier_loocv_calibration, channels, preds_data, feats, labels)
 

@@ -44,11 +44,11 @@ def offline(script_params, config, dataset):
 
         feature = 'feature_vec'
         get_logger().info('LOOCV with KNN. ')
-        knn_score = knn_classifier_loocv(train_data, features=feature, prediction='w')
+        knn_score, model = knn_classifier_loocv(train_data, features=feature, prediction='w')
         get_logger().info('LOOCV with SVM. ')
-        svm_score = svm_classifier_loocv(train_data, features=feature, prediction='w')
+        svm_score, model = svm_classifier_loocv(train_data, features=feature, prediction='w')
         get_logger().info('LOOCV with LDA. ')
-        lda_score = lda_classifier_loocv(train_data, features=feature, prediction='w')
+        lda_score, model = lda_classifier_loocv(train_data, features=feature, prediction='w')
 
         results = {
             'KNN_results': knn_score,

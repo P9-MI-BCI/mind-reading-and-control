@@ -19,7 +19,7 @@ pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas p
 
 def main():
     with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-        config = json.load(config_file)['cue_set0']  # Choose config
+        config = json.load(config_file)['cue_set1']  # Choose config
         script_params = json.load(script_parameters)  # Load script parameters
 
     script_params = AttrDict(script_params)

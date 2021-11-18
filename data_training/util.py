@@ -1,5 +1,8 @@
 import concurrent.futures
 import os
+
+from tqdm import tqdm
+
 from utility.logger import get_logger
 
 def chunks(lst, n):
@@ -14,7 +17,7 @@ def multiproc_classifier(model, target, channels, preds_data, feats, labels):
     get_logger().info(f"Chunking channel power set into {max_proc} chunks")
     results = []
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_proc) as executor:
         get_logger().info(f"Creating {max_proc} processes")
         finished_procs = [executor.submit(target, model=model, channels=chunk, pred_data=preds_data, feats=feats, labels=labels) for chunk in chunks_list]
         for f in concurrent.futures.as_completed(finished_procs):

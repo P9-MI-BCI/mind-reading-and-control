@@ -46,7 +46,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
     list_of_windows = []
     indices_to_delete = []
 
-    window_sz = window_size * dataset.sample_rate
+    window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # sub windows are half a second
     sub_window_sz = int(window_sz / 2)
@@ -190,29 +190,31 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
 
         if multiple_windows:
             # [-1.1, 0.9]
-            w0_id = f'mrcp:{id}'
-            window0.data = dataset.data_device1.iloc[center - window_sz - 120: center + window_sz - 120]
-            window0.label = 1  # Movement phase
-            window0.timestamp = row
-            window0.frequency_range = [center - window_sz, center + window_sz]
-            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
-            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
-            window0.num_id = w0_id
-            window0.is_sub_window = True
-            list_of_windows.append(window0)
+            w1_id = f'mrcp:{id}'
+            window1 = Window()
+            window1.data = dataset.data_device1.iloc[center - window_sz - 120: center + window_sz - 120]
+            window1.label = 1  # Movement phase
+            window1.timestamp = row
+            window1.frequency_range = [center - window_sz - 120, center + window_sz - 120]
+            window1.filtered_data = filtered_data.iloc[center - window_sz - 120: center + window_sz - 120]
+            window1.filtered_data = window1.filtered_data.reset_index(drop=True)
+            window1.num_id = w1_id
+            window1.is_sub_window = True
+            list_of_windows.append(window1)
             id += 1
 
             # [-0.9, 1.1]
-            w0_id = f'mrcp:{id}'
-            window0.data = dataset.data_device1.iloc[center - window_sz + 120: center + window_sz + 120]
-            window0.label = 1  # Movement phase
-            window0.timestamp = row
-            window0.frequency_range = [center - window_sz, center + window_sz]
-            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
-            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
-            window0.num_id = w0_id
-            window0.is_sub_window = True
-            list_of_windows.append(window0)
+            w2_id = f'mrcp:{id}'
+            window2 = Window()
+            window2.data = dataset.data_device1.iloc[center - window_sz + 120: center + window_sz + 120]
+            window2.label = 1  # Movement phase
+            window2.timestamp = row
+            window2.frequency_range = [center - window_sz + 120, center + window_sz + 120]
+            window2.filtered_data = filtered_data.iloc[center - window_sz + 120: center + window_sz + 120]
+            window2.filtered_data = window2.filtered_data.reset_index(drop=True)
+            window2.num_id = w2_id
+            window2.is_sub_window = True
+            list_of_windows.append(window2)
             id += 1
 
         indices_to_delete.append([center - window_sz, center + window_sz])

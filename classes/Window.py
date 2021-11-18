@@ -54,11 +54,16 @@ class Window:
                 freq_range = sw, sw + sub_window_sz
                 data = self.filtered_data.iloc[freq_range[0]:freq_range[1], :]
 
-                _, b = calc_best_fit_slope(data, channel)
-                var = calc_variability(data, channel)
-                mean_amp = calc_mean_amplitude(data, channel)
+                x = data[channel].index.values
+                y = data[channel].values
+                #
+                slope, intercept, r_value, p_value, std_err = linregress(x, y)
 
-                feature_vec.append([b, var, mean_amp])
+                # _, b = calc_best_fit_slope(data, channel)
+                var = data[channel].var()
+                mean_amp = data[channel].mean()
+
+                feature_vec.append([slope, var, mean_amp])
 
             self.feature_vector[channel] = [feature_vec]
 
@@ -186,7 +191,7 @@ class Window:
 
                 emg_timestamp = self._timestamp_order(agg_strat)
                 # y_t = ['EC'] * len(tp_timestamp)
-                y_t2 = ['EMG'] * len(emg_timestamp)
+                # y_t2 = ['EMG'] * len(emg_timestamp)
 
                 gs = gridspec.GridSpec(ncols=1, nrows=5, figure=fig)
 
@@ -256,10 +261,10 @@ class Window:
                     ax2.legend()
 
                 # Adding EMG start, peak, end subplot
-                ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
-                ax3.set_title('EMG Detection')
-                ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
-                ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
+                # ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
+                # ax3.set_title('EMG Detection')
+                # ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
+                # ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
                 # Adding execution cue interval subplot
                 # ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
@@ -360,9 +365,9 @@ class Window:
             emg_timestamp = [
                 (self.timestamp['emg_start'] - self.timestamp[agg_strat]).total_seconds(), 0,
                 (self.timestamp['emg_end'] - self.timestamp[agg_strat]).total_seconds()]
-            tp_timestamp = [
-                (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
-                (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
+            # tp_timestamp = [
+            #     (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
+            #     (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
         elif agg_strat == 'emg_end':
             emg_timestamp = [
                 (self.timestamp['emg_start'] - self.timestamp[agg_strat]).total_seconds(),

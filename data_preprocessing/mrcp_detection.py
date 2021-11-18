@@ -3,7 +3,7 @@ import os
 import copy
 import pickle
 import time
-
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
 from classes import Dataset
 from data_preprocessing.data_distribution import cut_mrcp_windows, cut_and_label_idle_windows, \
@@ -15,13 +15,14 @@ from data_preprocessing.filters import butter_filter
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH, CONFIG_PATH
 import json
+from utility.logger import get_logger
 
 
-def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False, calibration:bool = False) -> (
+def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False,
+                   calibration: bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
     EEG_CHANNELS = list(range(0, 9))
     EMG_CHANNEL = 12
-    WINDOW_SIZE = 1  # seconds
     dataset_copy = copy.deepcopy(data)
 
     # Find EMG onsets and group onsets based on time
@@ -41,10 +42,12 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
     # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
-    # Update trigger table and save filtered data
-    columns = ['emg_start', 'emg_peak', 'emg_end']
-    tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
-    tp_table = fix_time_table(tp_table)
+    # # Update trigger table and save filtered data
+    # columns = ['emg_start', 'emg_peak', 'emg_end']
+    # tp_table[columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
+    # tp_table = fix_time_table(tp_table)
+    tp_table = pd.DataFrame(columns=['emg_start', 'emg_peak', 'emg_end'])
+    tp_table[tp_table.columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
 
     data.filtered_data = filtered_data
 
@@ -53,15 +56,15 @@ def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: 
                                                    tt_column=config.aggregate_strategy,
                                                    filtered_data=filtered_data,
                                                    dataset=dataset_copy,
-                                                   window_size=WINDOW_SIZE,
-                                                   perfect_centering=True,
+                                                   window_size=config.window_size,
+                                                   perfect_centering=False,
                                                    multiple_windows=False
                                                    )
 
     # Cut the the remaining data
     windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
                                               filtered_data=filtered_data,
-                                              window_size=WINDOW_SIZE,
+                                              window_size=config.window_size,
                                               freq=dataset_copy.sample_rate,
                                               ))
 
@@ -109,7 +112,7 @@ def update_config(config):
     old_config[config.cue_set_name] = config
 
     with open(CONFIG_PATH, 'w') as writefile:
-        json.dump(old_config, writefile,  indent=4, sort_keys=True)
+        json.dump(old_config, writefile, indent=4, sort_keys=True)
 
 
 # Writes the indexes of windows with mrcp to a file
@@ -150,6 +153,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
     # Find EMG onsets and group onsets based on time
     emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks)
 
+    get_logger().info(f'Found {len(emg_clusters)} potential EMG onsets.')
     # Filter EEG channels with a bandpass filter
     for i in config.EEG_Channels:
         filtered_data[i] = butter_filter(data=dataset_copy.data_device1[i],
@@ -157,14 +161,17 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                          cutoff=config.eeg_cutoff,
                                          btype=config.eeg_btype
                                          )
-
     # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+    scaler = StandardScaler()
+    scaler.fit(filtered_data[config.EEG_Channels])
+
+    filtered_data[config.EEG_Channels] = scaler.transform(filtered_data[config.EEG_Channels])
 
     # Update trigger table and save filtered data
     data.filtered_data = filtered_data
 
-    tp_table = pd.DataFrame(columns = ['emg_start', 'emg_peak', 'emg_end'])
+    tp_table = pd.DataFrame(columns=['emg_start', 'emg_peak', 'emg_end'])
     tp_table[tp_table.columns] = emg_peaks_freq_to_datetime(emg_clusters, dataset_copy.sample_rate)
     # Cut windows based on aggregation strategy and window size
     windows = cut_mrcp_windows_calibration(tp_table=tp_table,
@@ -172,7 +179,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                            filtered_data=filtered_data,
                                            dataset=dataset_copy,
                                            window_size=config.window_size,
-                                           perfect_centering=True,
+                                           perfect_centering=False,
                                            multiple_windows=False
                                            )
     # Cut the the remaining data
@@ -201,7 +208,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
         window.blink_detection(blinks)
         window.create_feature_vector()
 
-    return windows
+    return windows, scaler
 
 
 def surrogate_channels(data: pd.DataFrame):
