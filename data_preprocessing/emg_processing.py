@@ -6,7 +6,7 @@ from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
 from utility.logger import get_logger
 from statistics import mean, stdev, median
-
+import matplotlib.pyplot as plt
 
 # Clusters onsets based on time between each onset index.
 # It starts with a very small time distance and increases the timespan between clusters until peaks_to_find is reached
@@ -209,12 +209,14 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks, bipolar_m
                                                        )
     # print(threshold)
     #
-    #  = [threshold] * len(filtered_data[config.EMG_Channel])
-    # plt.plot(t)
+    t = [threshold] * len(filtered_data[config.EMG_Channel])
     emg_rectified = np.abs(filtered_data[config.EMG_Channel]) > threshold
     # emg_onsets = filtered_data[filtered_data[config.EMG_Channel] > threshold].index.tolist()
-    # plt.plot(onsets[0])
+    # plt.plot(emg_rectified)
+    plt.plot(filtered_data[config.EMG_Channel])
+    plt.plot(t)
 
+    plt.show()
     # print(onsets[0])
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
     # Group onsets based on time
@@ -223,7 +225,17 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks, bipolar_m
                                               peaks_to_find=input_peaks,
                                               )
 
-    # print(emg_clusters)
+    plot_arr = []
+    for cluster in emg_clusters:
+        plot_arr.append(filtered_data[config.EMG_Channel].iloc[cluster[0]:cluster[2]])
+
+    plt.plot(filtered_data[config.EMG_Channel], color='black')
+    for vals in plot_arr:
+        plt.plot(vals)
+
+    plt.plot(t)
+    plt.show()
+
     return emg_clusters, filtered_data
 
 

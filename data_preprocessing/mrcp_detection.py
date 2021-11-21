@@ -163,6 +163,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                          )
     # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+
     scaler = StandardScaler()
     scaler.fit(filtered_data[config.EEG_Channels])
 
