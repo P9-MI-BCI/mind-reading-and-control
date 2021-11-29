@@ -10,7 +10,7 @@ import dash_bootstrap_components as dbc
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
-pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
+# pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
 
 # server = Flask(__name__)
 # app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], server=server, url_base_pathname='/simulation/',

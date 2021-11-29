@@ -147,7 +147,7 @@ class Simulation:
 
         peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
         windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
-                                                 config=self.calibration_config)
+                                                 config=self.calibration_config, bipolar_mode=True)
 
         self.normalization = scaler
 

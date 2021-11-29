@@ -239,14 +239,16 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks, bipolar_m
     return emg_clusters, filtered_data
 
 
-def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], peaks_to_find: int = 30) -> [[int]]:
+def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], distance=None, peaks_to_find: int = 30) -> [[int]]:
     all_peaks = []
     clusters = []
     temp_clusters = []
+    if distance is None:
+        distance = 100
     for idx in onsets:
         if len(temp_clusters) == 0:
             temp_clusters.append(idx)
-        elif abs(temp_clusters[-1] - idx) < 150:
+        elif abs(temp_clusters[-1] - idx) < distance:
             temp_clusters.append(idx)
         else:
             clusters.append(temp_clusters)
@@ -258,6 +260,11 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], peaks_to_f
     mean_cluster_size = mean(lengths)
     onset_clusters_array = [x for x in clusters if len(x) > mean_cluster_size]
 
+    # if too many clusters are found, slowly increase the distance to reduce amount of clusters.
+    if not len(onset_clusters_array) == peaks_to_find:
+        get_logger().info(f'Current amount clusters found {len(onset_clusters_array)}')
+        return emg_clustering_calibration(emg_data, onsets, distance+10, peaks_to_find)
+
     for onset_cluster in onset_clusters_array:
         highest = 0
         index = 0
@@ -267,7 +274,7 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], peaks_to_f
                 index = onset
 
         # saving start, peak, and end.
-        # fifth_percent = int(len(onset_cluster)*0.05)
-        all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+        first_percent = int(len(onset_cluster)*0.01)
+        all_peaks.append([onset_cluster[first_percent], index, onset_cluster[-1]])
 
     return all_peaks

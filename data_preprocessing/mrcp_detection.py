@@ -151,7 +151,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
     dataset_copy = copy.deepcopy(data)
 
     # Find EMG onsets and group onsets based on time
-    emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks)
+    emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks, bipolar_mode=bipolar_mode)
 
     get_logger().info(f'Found {len(emg_clusters)} potential EMG onsets.')
     # Filter EEG channels with a bandpass filter
@@ -194,6 +194,10 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
     filter_type_df = pd.DataFrame(columns=[config.EMG_Channel], data=[config.emg_btype])
     filter_type_df[config.EEG_Channels] = [config.eeg_btype] * len(config.EEG_Channels)
     filter_type_df = filter_type_df.reindex(sorted(filter_type_df.columns), axis=1)
+
+    # this code will not work if the config does not have a cue_set_name field set.
+    # index_list = data.data_device1.index.difference(dataset_copy.data_device1.index)
+    # save_index_list(index_list, config)
 
     # Find frequencies of all detected blinks from EOG channel 9
     blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)

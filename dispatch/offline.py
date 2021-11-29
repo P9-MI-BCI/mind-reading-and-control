@@ -8,6 +8,7 @@ from data_preprocessing.trigger_points import trigger_time_table
 from data_training.KNN.knn_prediction import knn_classifier_loocv
 from data_training.LDA.lda_prediction import lda_classifier_loocv
 from data_training.SVM.svm_prediction import svm_classifier_loocv
+from data_training.TCN.TCN_training import data_preparation
 from data_visualization.average_channels import average_channel, plot_average_channels
 from data_visualization.visualize_windows import visualize_labeled_windows, visualize_windows, \
     visualize_window_all_channels
@@ -58,3 +59,7 @@ def offline(script_params, config, dataset):
 
         # Writes the test and train window plots + classifier score tables to pdf file
         save_results_to_pdf_2(train_data, results, file_name='yxtest_eeg_overview.pdf', save_fig=False)
+
+    if script_params.run_tcn:
+
+        data_preparation(dataset, config)
