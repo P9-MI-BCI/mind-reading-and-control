@@ -179,7 +179,7 @@ class Window:
     def plot(self, sub_windows=None, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
              plot_windows: bool = False, save_fig: bool = False, overwrite: bool=False) -> plt.figure():
 
-        fig = plt.figure(figsize=(5, 7))
+        fig = plt.figure(figsize=(5, 5))
         center = (len(self.data) / 2) / freq
         x_seconds = []
         for i, row in self.filtered_data[channel].items():  # converts the window.data freqs to seconds
@@ -193,12 +193,12 @@ class Window:
                 # y_t = ['EC'] * len(tp_timestamp)
                 # y_t2 = ['EMG'] * len(emg_timestamp)
 
-                gs = gridspec.GridSpec(ncols=1, nrows=5, figure=fig)
+                gs = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
 
                 # Adding raw data subplot
                 ax1 = fig.add_subplot(gs[:2, 0])
-                ax1.set_title(f' Channel: {channel} - EEG {self.num_id} - Filtered EMG  - Blink: {self.blink}')
-                ax1.plot(x_seconds, self.filtered_data[12], color='tomato') # todo (easy to find) emg channel
+                ax1.set_title(f' Channel: {channel} - {self.num_id} - Filtered EMG - Blink: {self.blink}')
+                ax1.plot(x_seconds, self.filtered_data[12], color='blue') # todo (easy to find) emg channel
                 ax1.axvline(x=0, color='black', ls='--')
 
                 # Adding filtered data subplot

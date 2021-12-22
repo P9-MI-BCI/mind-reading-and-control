@@ -56,7 +56,7 @@ def data_preparation(dataset: Dataset, config):
 
     # data_centers = data[data['label'] == 1].iloc[:,config.EEG_Channels].values
 
-    step_size = dataset.sample_rate / 10
+    step_size = int(dataset.sample_rate / 10)
 
     window_size = dataset.sample_rate
 
@@ -102,45 +102,85 @@ def data_preparation(dataset: Dataset, config):
     print(f'validation distribution: {num_val_labels[1]/sum(num_val_labels)}')
     print(f'test distribution: {num_test_labels[1]/sum(num_test_labels)}')
 
-    train_dataset = keras.utils.timeseries_dataset_from_array(
-        data[:],
-        targets=labels[:],
-        sampling_rate=sampling_rate,
-        sequence_stride=step_size,
-        sequence_length=sequence_length,
-        shuffle=False,
-        batch_size=batch_size,
-        start_index=0,
-        seed=seed,
-        end_index=num_training_samples)
+    def create_dataset(in_data, in_labels, s_size):
+        vecs = []
+        labls = []
+        for d in range(0, len(in_data), s_size):
+            vecs.append(in_data[d:d+sequence_length])
+            labls.append(in_labels[d])
 
-    val_dataset = keras.utils.timeseries_dataset_from_array(
-        data[:],
-        targets=labels[:],
-        sampling_rate=sampling_rate,
-        sequence_stride=step_size,
-        sequence_length=sequence_length,
-        shuffle=False,
-        batch_size=batch_size,
-        seed=seed,
-        start_index=num_training_samples,
-        end_index=num_training_samples + num_validation_samples)
+        np.random.shuffle(vecs)
+        np.random.shuffle(labls)
 
-    test_dataset = keras.utils.timeseries_dataset_from_array(
-        data[:],
-        targets=labels[:],
-        sampling_rate=sampling_rate,
-        sequence_stride=step_size,
-        sequence_length=sequence_length,
-        shuffle=False,
-        batch_size=batch_size,
-        seed=seed,
-        start_index=num_training_samples + num_validation_samples)
+        dis_vecs = []
+        dis_labels = []
+        for y in range(len(labls)):
+            if labls[y] == 1:
+                dis_vecs.append(vecs[y])
+                dis_labels.append(labls[y])
 
-    for samples, targets in train_dataset:
-        print("samples shape:", samples.shape)
-        print("targets shape:", targets.shape)
-        break
+        for i in range(len(dis_labels)):
+            for x in range(len(labls)):
+                if labls[x] == 0:
+                    dis_vecs.append(vecs[x])
+                    dis_labels.append(labls[x])
+
+                    del vecs[x]
+                    del labls[x]
+                    break
+
+        return dis_vecs, dis_labels
+
+    x, y = create_dataset(data, labels, step_size)
+
+    np.random.shuffle(x)
+    np.random.shuffle(y)
+    x = np.array(x)
+    y = np.array(y)
+    num_training_samples = int(len(x) * 0.8)
+    num_validation_samples = int(len(x) * 0.1)
+    num_test_samples = len(x) - num_validation_samples - num_training_samples
+
+    # train_dataset = keras.utils.timeseries_dataset_from_array(
+    #     data[:],
+    #     targets=labels[:],
+    #     sampling_rate=sampling_rate,
+    #     sequence_stride=step_size,
+    #     sequence_length=sequence_length,
+    #     shuffle=True,
+    #     batch_size=batch_size,
+    #     start_index=0,
+    #     seed=seed,
+    #     end_index=num_training_samples)
+    #
+    # val_dataset = keras.utils.timeseries_dataset_from_array(
+    #     data[:],
+    #     targets=labels[:],
+    #     sampling_rate=sampling_rate,
+    #     sequence_stride=step_size,
+    #     sequence_length=sequence_length,
+    #     shuffle=True,
+    #     batch_size=batch_size,
+    #     seed=seed,
+    #     start_index=num_training_samples,
+    #     end_index=num_training_samples + num_validation_samples)
+    #
+    # test_dataset = keras.utils.timeseries_dataset_from_array(
+    #     data[:],
+    #     targets=labels[:],
+    #     sampling_rate=sampling_rate,
+    #     sequence_stride=step_size,
+    #     sequence_length=sequence_length,
+    #     shuffle=True,
+    #     batch_size=batch_size,
+    #     seed=seed,
+    #     start_index=num_training_samples + num_validation_samples)
+    #
+    # for samples, targets in train_dataset:
+    #     print(targets)
+    #     print("samples shape:", samples.shape)
+    #     print("targets shape:", targets.shape)
+    #     break
 
     tcn_layer1 = TCN(nb_filters=128,
                      kernel_size=9,
@@ -176,15 +216,18 @@ def data_preparation(dataset: Dataset, config):
     ])
 
     model.compile(optimizer="adam", loss='binary_crossentropy', metrics=["accuracy"])
-    history = model.fit(train_dataset,
+    history = model.fit(x,
+                        y,
+                        batch_size=16,
                         epochs=50,
-                        validation_data=val_dataset,
+                        validation_split=0.2,
+                        shuffle=True,
                         callbacks=callbacks)
 
     # model = keras.models.load_model("jena_dense.keras")
-    print(f"Test accuracy: {model.evaluate(test_dataset)[1]:.2f}")
+    print(f"Test accuracy: {model.evaluate(x[num_test_samples:])[1]:.2f}")
 
-    print(model.predict(test_dataset)[0])
+    print(model.predict(x[num_test_samples:])[0])
     loss = history.history["accuracy"]
     val_loss = history.history["val_accuracy"]
     epochs = range(1, len(loss) + 1)

@@ -180,7 +180,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                            filtered_data=filtered_data,
                                            dataset=dataset_copy,
                                            window_size=config.window_size,
-                                           perfect_centering=False,
+                                           perfect_centering=True,
                                            multiple_windows=False
                                            )
     # Cut the the remaining data

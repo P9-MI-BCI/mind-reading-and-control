@@ -54,7 +54,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
     step_sz = int(sub_window_sz / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1]
+    weights = [1, 1, 0, 1, 1, 0, 1, 1, 1]
 
     # ids
     id = 0
@@ -67,7 +67,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         if perfect_centering:
             adjustments = []
             for column in window0.filtered_data.columns:
-                if column == 12 or column == 8:
+                if column == 12 or column == 9:
                     continue
                 distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
                 adjustments.append(distance)
@@ -137,7 +137,7 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
     window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1]
+    weights = [1, 1, 0, 1, 1, 0, 1, 1, 1]
 
     # ids
     id = 0
@@ -150,9 +150,9 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         if perfect_centering:
             adjustments = []
             for column in window0.filtered_data.columns:
-                if column == 12 or column == 8:
+                if column == 12 or column == 9:
                     continue
-                distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
+                distance = (window0.filtered_data[column].iloc[500:-500].idxmin() - center) * weights[column]
                 adjustments.append(distance)
             negative_counter = 0
             for d in adjustments:
