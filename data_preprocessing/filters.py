@@ -1,5 +1,5 @@
 import pandas as pd
-from scipy.signal import butter, filtfilt, lfilter
+from scipy.signal import butter, filtfilt, lfilter, iirnotch
 from utility.logger import get_logger
 
 
@@ -22,6 +22,10 @@ def butter_lowpass(order, cutoff, freq):
     return butter(order, normal_cutoff, analog=False, btype='lowpass', output='ba')
 
 
+def notch(freq, remove_freq, quality_factor=30):
+    return iirnotch(remove_freq, quality_factor, freq)
+
+
 def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int = 1200):
 
     if btype == 'highpass':
@@ -36,5 +40,9 @@ def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int 
         b, a = butter_lowpass(order, cutoff, freq)
         return filtfilt(b, a, data)
 
+    elif btype =='notch':
+        b, a = notch(freq, cutoff)
+        return filtfilt(b, a, data)
     else:
         get_logger().error('Error in filter type or len(cutoff), check params', btype)
+

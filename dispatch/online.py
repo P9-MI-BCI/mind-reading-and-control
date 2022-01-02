@@ -15,9 +15,9 @@ def online(config, dataset):
     simulation.mount_calibration_dataset(calibration_dataset)
     simulation.calibrate()
 
-    simulation.mount_dataset(dataset)
+    # simulation.mount_dataset(dataset)
 
     # models = load_scikit_classifiers('lda')
     # simulation.load_models(models)
-    simulation.evaluation_metrics()
-    simulation.simulate(real_time=False)
+    # simulation.evaluation_metrics()
+    # simulation.simulate(real_time=False)

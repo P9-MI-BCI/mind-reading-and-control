@@ -12,7 +12,7 @@ def chunks(lst, n):
 
 def multiproc_classifier(model, target, channels, preds_data, feats, labels):
 
-    max_proc = os.cpu_count()-2
+    max_proc = os.cpu_count()-10
     chunks_list = chunks(channels, int(max_proc))
     get_logger().info(f"Chunking channel power set into {max_proc} chunks")
     results = []
@@ -22,6 +22,7 @@ def multiproc_classifier(model, target, channels, preds_data, feats, labels):
         finished_procs = [executor.submit(target, model=model, channels=chunk, pred_data=preds_data, feats=feats, labels=labels) for chunk in chunks_list]
         for f in concurrent.futures.as_completed(finished_procs):
             results.append(f.result())
+        # executor.shutdown()
     get_logger().info("Done with multiprocessing, joining parent")
 
     return results

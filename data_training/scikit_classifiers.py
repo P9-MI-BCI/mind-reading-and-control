@@ -312,7 +312,7 @@ def _scikit_classifier_loocv_init(data: [Window], channels=None, prediction='who
     for channel in channels[1:]:
         if not len(channel) % 2 == 0:
             temp.append(channel)
-    return pred_data, feats, labels, [[0, 1, 2, 3, 4, 5, 6, 7, 8]]
+    return pred_data, feats, labels, temp
 
 
 def scikit_classifier_loocv_calibration(model, pred_data, feats, labels, channels=None):

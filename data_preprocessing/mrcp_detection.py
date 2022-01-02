@@ -12,11 +12,13 @@ from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.emg_processing import onset_detection, onset_threshold_detection, onset_detection_calibration
 from data_preprocessing.eog_detection import blink_detection
 from data_preprocessing.filters import butter_filter
+from data_visualization.visualize_windows import visualize_window_all_channels
 from utility.file_util import create_dir
 from definitions import OUTPUT_PATH, CONFIG_PATH
 import json
 from utility.logger import get_logger
-
+from scipy.special import softmax
+from scipy.stats import zscore
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False,
                    calibration: bool = False) -> (
@@ -146,12 +148,22 @@ def pair_index_list(index: [int]):
     return pair_indexes
 
 
-def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_mode: bool = False) -> (
+def channel_weights_calculation(average_channels):
+    negativity_distance = [0] * len(average_channels)
+    center = int(len(average_channels[0].data) / 2)
+    for channel in range(0, len(average_channels)):
+        negativity_distance[channel] = abs(average_channels[channel].data.idxmin() - center)
+
+    normalized = zscore(negativity_distance)
+    return softmax(normalized)
+
+
+def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_centering: bool, weights=None) -> (
         [pd.DataFrame], pd.DataFrame):
     dataset_copy = copy.deepcopy(data)
 
     # Find EMG onsets and group onsets based on time
-    emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks, bipolar_mode=bipolar_mode)
+    emg_clusters, filtered_data = onset_detection_calibration(dataset_copy, config, input_peaks=input_peaks)
 
     get_logger().info(f'Found {len(emg_clusters)} potential EMG onsets.')
     # Filter EEG channels with a bandpass filter
@@ -161,6 +173,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                          cutoff=config.eeg_cutoff,
                                          btype=config.eeg_btype
                                          )
+
     # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
@@ -180,9 +193,18 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, bipolar_m
                                            filtered_data=filtered_data,
                                            dataset=dataset_copy,
                                            window_size=config.window_size,
-                                           perfect_centering=True,
+                                           weights=weights,
+                                           perfect_centering=perfect_centering,
                                            multiple_windows=False
                                            )
+    # counter = 0
+    # for window in windows:
+    #     if counter == 10:
+    #         break
+    #     else:
+    #         window.plot_window_for_all_channels()
+    #         counter +=1
+
     # Cut the the remaining data
     windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
                                               filtered_data=filtered_data,

@@ -15,7 +15,7 @@ from data_preprocessing.data_distribution import create_uniform_distribution
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, \
-    mrcp_detection_for_calibration
+    mrcp_detection_for_calibration, channel_weights_calculation
 from data_preprocessing.optimize_windows import optimize_channels
 from data_training.measurements import accuracy, precision, recall, f1
 from data_visualization.average_channels import average_channel, plot_average_channels
@@ -38,8 +38,6 @@ if not cur.fetchone()[0] == 1:  # Checks if Windows table exist, else create new
     cur.executescript(sql_create_windows_table())
 # cur.execute(truncate_table('Windows'))  # Removes all records in table from last run
 cur.close()
-
-
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -136,35 +134,49 @@ class Simulation:
         get_logger().info(f'EEG Order is {self.calibration_config.eeg_order}')
         get_logger().info(f'Window size is {self.calibration_config.window_size} seconds')
 
-    def calibrate(self):
+    def calibrate(self, centering = False):
         assert self.calibration_dataset
         assert self.calibration_config
 
         get_logger().info(f'Shifting Dataset according to config.start_time ({self.calibration_config.start_time})')
-        self.calibration_dataset = shift_data(freq=self.calibration_config.start_time, dataset=self.calibration_dataset)
+
+        if self.calibration_config.start_time > 0:
+            self.calibration_dataset = shift_data(freq=self.calibration_config.start_time,
+                                                  dataset=self.calibration_dataset)
 
         get_logger().info('Performing MRCP detection on calibration dataset.')
 
         peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
         windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
-                                                 config=self.calibration_config, bipolar_mode=False)
-
-        self.normalization = scaler
+                                                         config=self.calibration_config, perfect_centering=False)
 
         get_logger().info('MRCP detection complete - displaying average for each channel.')
         average = average_channel(windows)
-        plot_average_channels(average, self.calibration_config, layout='grid')
+        # plot_average_channels(average, self.calibration_config, layout='grid')
 
-        channel_choice = input('Choose channel to plot for window selecting.\n')
-        for window in windows:
-            if window.label == 1 and not window.is_sub_window:
-                window.plot(channel=int(channel_choice))
+        ######### perfect centering module ############
 
-        windows = self._select_windows(windows)
+        if centering:
+            channel_weights = 1 - np.array(channel_weights_calculation(average))
 
-        get_logger().info('MRCP Window selection is complete the new average channels are being created.')
-        average = average_channel(windows)
-        plot_average_channels(average, self.calibration_config, layout='grid')
+            windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+                                                             config=self.calibration_config, perfect_centering=True,
+                                                             weights=channel_weights)
+            average = average_channel(windows)
+            plot_average_channels(average, self.calibration_config, layout='grid', weights=channel_weights)
+
+        self.normalization = scaler
+
+        ### Single Sample plotting ###
+        # channel_choice = input('Choose channel to plot for window selecting.\n')
+        # for window in windows:
+        #     if window.label == 1 and not window.is_sub_window:
+        #         window.plot(channel=int(channel_choice))
+        # windows = self._select_windows(windows)
+        #
+        # get_logger().info('MRCP Window selection is complete the new average channels are being created.')
+        # average = average_channel(windows)
+        # plot_average_channels(average, self.calibration_config, layout='grid')
 
         get_logger().info('Creating uniform distributed dataset of labels')
         uniform_data = create_uniform_distribution(windows)
@@ -173,6 +185,19 @@ class Simulation:
 
         self._optimize_channels(uniform_data, model_selection)
         get_logger().info('Calibration is complete.')
+
+        # temp for testing  remove after #
+        channel_weights = 1 - np.array(channel_weights_calculation(average))
+
+        windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+                                                         config=self.calibration_config, perfect_centering=True,
+                                                         weights=channel_weights)
+        # average = average_channel(windows)
+        # plot_average_channels(average, self.calibration_config, layout='grid', weights=channel_weights)
+        uniform_data = create_uniform_distribution(windows)
+
+        self._optimize_channels(uniform_data, model_selection)
+
 
     def _select_model(self):
         # todo check input is valid (len, availability...)
@@ -206,7 +231,8 @@ class Simulation:
 
     def _optimize_channels(self, data, model):
 
-        self.calibration_score, model, self.EEG_channels = optimize_channels(data, model, self.calibration_config.EEG_Channels)
+        self.calibration_score, model, self.EEG_channels = optimize_channels(data, model,
+                                                                             self.calibration_config.EEG_Channels)
 
         get_logger().info(f'The highest optimized score was \n {self.calibration_score}')
         get_logger().info(f'Found using the EEG channels {self.EEG_channels}')
@@ -283,7 +309,6 @@ class Simulation:
                     #                                                                           index=False,
                     #                                                                           if_exists='append')
 
-          
                     # update time
                     self._time_module(pbar)
 

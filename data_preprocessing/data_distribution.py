@@ -131,13 +131,14 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
 
 
 def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
+                     window_size: int, weights=None, multiple_windows:bool = True, perfect_centering: bool = False, ) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
     window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1, 1]
+    if weights is None:
+        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     # ids
     id = 0
@@ -152,13 +153,18 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
             for column in window0.filtered_data.columns:
                 if column == 12 or column == 9:
                     continue
-                distance = (window0.filtered_data[column].iloc[500:-500].idxmin() - center) * weights[column]
+                distance = (window0.filtered_data[column].idxmin() - center)
                 adjustments.append(distance)
-            negative_counter = 0
-            for d in adjustments:
-                if d <= 0:
-                    negative_counter += 1
-            if negative_counter > len(adjustments) / 2:
+            negative_votes = 0
+            positive_votes = 0
+
+            for d in range(0, len(adjustments)):
+                if adjustments[d] <= 0:
+                    negative_votes += weights[d]
+                else:
+                    positive_votes += weights[d]
+
+            if negative_votes > positive_votes:
                 adjustments = [min(x, 0) for x in adjustments]
             else:
                 adjustments = [max(x, 0) for x in adjustments]

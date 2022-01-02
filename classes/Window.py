@@ -197,14 +197,17 @@ class Window:
 
                 # Adding raw data subplot
                 ax1 = fig.add_subplot(gs[:2, 0])
-                ax1.set_title(f' Channel: {channel} - {self.num_id} - Filtered EMG - Blink: {self.blink}')
+                # ax1.set_title(f' Channel: {channel} - {self.num_id} - Filtered EMG - Blink: {self.blink}')
                 ax1.plot(x_seconds, self.filtered_data[12], color='blue') # todo (easy to find) emg channel
                 ax1.axvline(x=0, color='black', ls='--')
+                ax1.set_ylabel('mV', labelpad=-1)
 
                 # Adding filtered data subplot
                 ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
-                ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
+                # ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
                 ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+                ax2.set_xlabel('time (s)')
+                ax2.set_ylabel('μV', labelpad=-1)
                 ax2.axvline(x=0, color='black', ls='--')
 
                 # Showing span of each sub-window on filtered data subplot
@@ -319,7 +322,7 @@ class Window:
 
     def plot_window_for_all_channels(self, freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
         # Finds a list of all EEG channels by checking their filter type
-        eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
+        # eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
         fig = plt.figure(figsize=(14, 10))
 
         x_seconds = []
@@ -328,13 +331,17 @@ class Window:
         for i, row in self.filtered_data[0].items():  # converts the window.data freqs to seconds
             x_seconds.append(i / freq - center)
 
-        for channel in eeg_channels:
+        for channel in range(9):
             ax = fig.add_subplot(3, 3, channel + 1)
             ax.set_title(f'Channel: {channel + 1}')
+            if channel == 3:
+                ax.set_ylabel('μV (Filtered)')
+            if channel == 7:
+                ax.set_xlabel('time (s)')
             ax.plot(x_seconds, self.filtered_data[channel], label='Filtered data')
             ax.axvline(x=0, color='black', ls='--')
 
-        fig.suptitle(f'Window {self.num_id}', fontsize=16)
+        # fig.suptitle(f'Window {self.num_id}', fontsize=16)
         plt.tight_layout()
 
         if save_fig:

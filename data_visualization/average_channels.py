@@ -47,10 +47,10 @@ def average_channel(windows: [Window], mrcp_windows: [int] = None) -> [Window]:
 
 
 def plot_average_channels(avg_channels: [Window], config, freq: int = 1200, layout: str = 'separate',
-                          save_fig: bool = False, overwrite: bool = False):
+                          save_fig: bool = False, overwrite: bool = False, weights = None):
 
     agg_strat = config['aggregate_strategy']
-    fig = plt.figure(figsize=(12,10))
+    fig = plt.figure(figsize=(10,10))
     for channel in range(0, len(avg_channels)):
         x = []
         y = []
@@ -65,16 +65,25 @@ def plot_average_channels(avg_channels: [Window], config, freq: int = 1200, layo
         if layout == 'separate':
             fig = plt.figure()
             plt.axvline(x=0, color='black', ls='--')
-            plt.title(f'Channel: {channel + 1} - Agg. Strat: {agg_strat}')
+            # plt.title(f'Channel: {channel + 1} - Agg. Strat: {agg_strat}')
+            plt.ylabel('μV (Filtered)')
+            # if channel == 7:
+            plt.xlabel('time (s)')
             plt.plot(x, y)
 
         # Makes a grid plot of all eeg channels
         elif layout == 'grid':
             ax = fig.add_subplot(3, 3, channel + 1)
             plt.axvline(x=0, color='black', ls='--')
-            ax.set_title(f'Channel {channel + 1}')
+            if weights is None:
+                ax.set_title(f'Channel {channel + 1}')
+            else:
+                ax.set_title(f'Channel {channel +1} - Weight {round(weights[channel], 2)}')
+            if channel == 3:
+                ax.set_ylabel('μV (Filtered)')
+            if channel == 7:
+                ax.set_xlabel('time (s)')
             ax.plot(x, y)
-            fig.suptitle(f'Average of EEG channels - Agg. Strat: {agg_strat}', fontsize=16)
             plt.tight_layout()
 
         if save_fig:

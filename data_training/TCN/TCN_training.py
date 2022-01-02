@@ -16,7 +16,7 @@ import tensorflow as tf
 
 import wandb
 
-wandb.init(project="my-test-project", entity="cryppen")
+# wandb.init(project="my-test-project", entity="cryppen")
 
 
 wandb.config = {
