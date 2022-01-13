@@ -3,6 +3,7 @@ import time
 
 import flask
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from classes.Dataset import Dataset
@@ -24,20 +25,6 @@ import datetime
 import collections
 from data_preprocessing.filters import butter_filter
 from classes.Dict import AttrDict
-
-# Database imports
-from api import sql_create_windows_table, table_exist, truncate_table
-from definitions import DB_PATH
-import sqlite3
-
-# Database configuration
-connex = sqlite3.connect(DB_PATH)  # Opens file if exists, else creates file
-cur = connex.cursor()
-cur.execute(table_exist('Windows'))
-if not cur.fetchone()[0] == 1:  # Checks if Windows table exist, else create new Windows table
-    cur.executescript(sql_create_windows_table())
-# cur.execute(truncate_table('Windows'))  # Removes all records in table from last run
-cur.close()
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -102,7 +89,10 @@ class Simulation:
         self.step_size = int(self.step_size * dataset.sample_rate)
         self.freeze_time = self.freeze_time * dataset.sample_rate
         self.buffer_size = self.buffer_size * dataset.sample_rate
-        self.dataset = shift_data(self.start_time, dataset)
+        if self.start_time > 0:
+            self.dataset = shift_data(self.start_time, dataset)
+        else:
+            self.dataset = dataset
 
         if analyse:
             self._analyse_dataset()
@@ -134,7 +124,7 @@ class Simulation:
         get_logger().info(f'EEG Order is {self.calibration_config.eeg_order}')
         get_logger().info(f'Window size is {self.calibration_config.window_size} seconds')
 
-    def calibrate(self, centering = False):
+    def calibrate(self, centering=False):
         assert self.calibration_dataset
         assert self.calibration_config
 
@@ -147,7 +137,7 @@ class Simulation:
         get_logger().info('Performing MRCP detection on calibration dataset.')
 
         peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
-        windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+        windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
                                                          config=self.calibration_config, perfect_centering=False)
 
         get_logger().info('MRCP detection complete - displaying average for each channel.')
@@ -155,28 +145,26 @@ class Simulation:
         # plot_average_channels(average, self.calibration_config, layout='grid')
 
         ######### perfect centering module ############
-
         if centering:
             channel_weights = 1 - np.array(channel_weights_calculation(average))
 
-            windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
+            windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
                                                              config=self.calibration_config, perfect_centering=True,
                                                              weights=channel_weights)
             average = average_channel(windows)
             plot_average_channels(average, self.calibration_config, layout='grid', weights=channel_weights)
 
-        self.normalization = scaler
 
         ### Single Sample plotting ###
-        # channel_choice = input('Choose channel to plot for window selecting.\n')
-        # for window in windows:
-        #     if window.label == 1 and not window.is_sub_window:
-        #         window.plot(channel=int(channel_choice))
-        # windows = self._select_windows(windows)
-        #
-        # get_logger().info('MRCP Window selection is complete the new average channels are being created.')
-        # average = average_channel(windows)
-        # plot_average_channels(average, self.calibration_config, layout='grid')
+        channel_choice = input('Choose channel to plot for window selecting.\n')
+        for window in windows:
+            if window.label == 1 and not window.is_sub_window:
+                window.plot(channel=int(channel_choice))
+        windows = self._select_windows(windows)
+
+        get_logger().info('MRCP Window selection is complete the new average channels are being created.')
+        average = average_channel(windows)
+        plot_average_channels(average, self.calibration_config, layout='grid')
 
         get_logger().info('Creating uniform distributed dataset of labels')
         uniform_data = create_uniform_distribution(windows)
@@ -186,21 +174,26 @@ class Simulation:
         self._optimize_channels(uniform_data, model_selection)
         get_logger().info('Calibration is complete.')
 
-        # temp for testing  remove after #
-        channel_weights = 1 - np.array(channel_weights_calculation(average))
+        self.normalization = self._create_scaler_for_optimized_channels()
 
-        windows, scaler = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
-                                                         config=self.calibration_config, perfect_centering=True,
-                                                         weights=channel_weights)
-        # average = average_channel(windows)
-        # plot_average_channels(average, self.calibration_config, layout='grid', weights=channel_weights)
-        uniform_data = create_uniform_distribution(windows)
+    def _create_scaler_for_optimized_channels(self):
+        filtered_data = pd.DataFrame()
+        for i in self.calibration_config.EEG_Channels:
+            filtered_data[i] = butter_filter(data=self.calibration_dataset.data_device1[i],
+                                             order=self.calibration_config.eeg_order,
+                                             cutoff=self.calibration_config.eeg_cutoff,
+                                             btype=self.calibration_config.eeg_btype
+                                             )
 
-        self._optimize_channels(uniform_data, model_selection)
+        # Reshape filtered_data frame so EMG column is not first
+        filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
+
+        scaler = StandardScaler()
+        scaler.fit(filtered_data[self.EEG_channels])
+        return scaler
 
 
     def _select_model(self):
-        # todo check input is valid (len, availability...)
         while True:
             model_selection = input('Select model knn, svm, lda. \n')
 
@@ -210,7 +203,6 @@ class Simulation:
                 return model_selection
 
     def _select_windows(self, windows):
-        # todo check input is valid (len, availability...)
         while True:
 
             images_to_remove = str.split(input(
@@ -303,12 +295,6 @@ class Simulation:
                     if self.mrcp_detected:
                         self.freeze_flag = True
 
-                    # Insert sliding windows into sqlite db
-                    # self.sliding_window.data.iloc[-self.step_size:, self.EEG_channels].to_sql(name=f'Windows',
-                    #                                                                           con=connex,
-                    #                                                                           index=False,
-                    #                                                                           if_exists='append')
-
                     # update time
                     self._time_module(pbar)
 
@@ -342,7 +328,7 @@ class Simulation:
             f'Dataset takes estimated: '
             f'{datetime.timedelta(seconds=round(len(self.dataset.data_device1) / self.dataset.sample_rate))} to simulate.')
         get_logger().info(f'Dataset is sampled at: {self.dataset.sample_rate} frequency.')
-        get_logger().info(f'Dataset contains: {(len(self.dataset.TriggerPoint)) // 2} cue onsets.')
+        # get_logger().info(f'Dataset contains: {(len(self.dataset.TriggerPoint)) // 2} cue onsets.')
 
     def _build_data_buffer(self, bpbar, pbar):
         self.data_buffer = pd.concat(

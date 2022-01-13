@@ -54,7 +54,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
     step_sz = int(sub_window_sz / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1, 1]
+    weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     # ids
     id = 0
@@ -104,20 +104,6 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
 
         list_of_windows.append(window0)
         id += 1
-
-        # if sub_windows:
-        #     # create window size / sub_window_sz new windows
-        #     amount_sub_windows = int(len(window0.data) / sub_window_sz * 2 - 1)
-        #     sub_id = 0
-        #     sub_windows_ids = []
-        #     for sw in range(0, len(window0.data)-step_sz, step_sz):
-        #         sub_window_id = w0_id + f'.{sub_id}'
-        #         window_sw = create_sub_windows(window0, sw, sub_window_sz, sub_window_id)
-        #         list_of_windows.append(window_sw)
-        #         sub_windows_ids.append(sub_window_id)
-        #         sub_id += 1
-        #     assert len(sub_windows_ids) == amount_sub_windows
-        #     window0.sub_windows = sub_windows_ids
 
         indices_to_delete.append([center - window_sz, center + window_sz])
 

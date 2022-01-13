@@ -8,7 +8,7 @@ from matplotlib import gridspec
 from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
 import os
-
+import numpy as np
 from data_preprocessing.feature_extraction import calc_best_fit_slope, calc_variability, calc_mean_amplitude
 
 
@@ -62,7 +62,6 @@ class Window:
                 # _, b = calc_best_fit_slope(data, channel)
                 var = data[channel].var()
                 mean_amp = data[channel].mean()
-
                 feature_vec.append([slope, var, mean_amp])
 
             self.feature_vector[channel] = [feature_vec]

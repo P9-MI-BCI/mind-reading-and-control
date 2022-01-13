@@ -222,12 +222,13 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks) -> [[int]
     for cluster in emg_clusters:
         plot_arr.append(filtered_data[config.EMG_Channel].iloc[cluster[0]:cluster[2]])
 
-    plt.plot(filtered_data[config.EMG_Channel], color='black')
+    plt.plot(np.abs(filtered_data[config.EMG_Channel]), color='black')
     for vals in plot_arr:
-        plt.plot(vals)
+        plt.plot(np.abs(vals))
 
-    plt.xlabel('Frequency')
-    plt.ylabel('mV (Filtered)', labelpad=-5)
+    plt.xlabel('Time (s)')
+    # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
+    plt.ylabel('mV (Filtered)', labelpad=-2)
     plt.plot(t, '--', color='black')
     plt.autoscale()
     plt.show()

@@ -24,8 +24,6 @@ from tqdm import tqdm
 find_best_config_params is a deprecated method. It was used for grid search of filter parameters.
 '''
 
-
-# todo change sample indexes to be ids of the windows instead
 # test distance from minimum to middle
 # what sample has the biggest negative influence on the average
 def find_best_config_params(data, trigger_table, config):

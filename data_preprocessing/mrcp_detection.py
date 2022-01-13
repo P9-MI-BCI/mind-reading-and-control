@@ -20,6 +20,7 @@ from utility.logger import get_logger
 from scipy.special import softmax
 from scipy.stats import zscore
 
+
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False,
                    calibration: bool = False) -> (
         [pd.DataFrame], pd.DataFrame):
@@ -197,13 +198,6 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_c
                                            perfect_centering=perfect_centering,
                                            multiple_windows=False
                                            )
-    # counter = 0
-    # for window in windows:
-    #     if counter == 10:
-    #         break
-    #     else:
-    #         window.plot_window_for_all_channels()
-    #         counter +=1
 
     # Cut the the remaining data
     windows.extend(cut_and_label_idle_windows(data=dataset_copy.data_device1,
@@ -235,7 +229,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_c
         window.blink_detection(blinks)
         window.create_feature_vector()
 
-    return windows, scaler
+    return windows
 
 
 def surrogate_channels(data: pd.DataFrame):
