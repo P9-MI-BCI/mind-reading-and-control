@@ -11,8 +11,9 @@ from classes.Window import Window
 import numpy as np
 import time
 import json
-from data_preprocessing.data_distribution import create_uniform_distribution
-
+from data_preprocessing.data_distribution import create_uniform_distribution, z_score_normalization
+from scipy.special import softmax
+from scipy.stats import zscore
 from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, \
@@ -130,9 +131,9 @@ class Simulation:
 
         get_logger().info(f'Shifting Dataset according to config.start_time ({self.calibration_config.start_time})')
 
-        if self.calibration_config.start_time > 0:
-            self.calibration_dataset = shift_data(freq=self.calibration_config.start_time,
-                                                  dataset=self.calibration_dataset)
+        # if self.calibration_config.start_time > 0:
+        #     self.calibration_dataset = shift_data(freq=self.calibration_config.start_time,
+        #                                           dataset=self.calibration_dataset)
 
         get_logger().info('Performing MRCP detection on calibration dataset.')
 
@@ -142,7 +143,18 @@ class Simulation:
 
         get_logger().info('MRCP detection complete - displaying average for each channel.')
         average = average_channel(windows)
-        # plot_average_channels(average, self.calibration_config, layout='grid')
+        plot_average_channels(average, self.calibration_config, layout='grid')
+        for window in range(len(windows)):
+            # if window.label == 1 and not window.is_sub_window:
+            if window == 15:
+                windows[window].plot_window_for_all_channels()
+
+                lmd_vec = []
+                for column in windows[window].filtered_data.columns:
+                    if column == 12 or column == 9:
+                        continue
+                    distance = (windows[window].filtered_data[column].idxmin() - 1200)
+                    lmd_vec.append(distance)
 
         ######### perfect centering module ############
         if centering:
@@ -157,9 +169,21 @@ class Simulation:
 
         ### Single Sample plotting ###
         channel_choice = input('Choose channel to plot for window selecting.\n')
-        for window in windows:
-            if window.label == 1 and not window.is_sub_window:
-                window.plot(channel=int(channel_choice))
+        for window in range(len(windows)):
+            # if window.label == 1 and not window.is_sub_window:
+            if window == 15:
+                windows[window].plot_window_for_all_channels()
+
+                lmd_vec = []
+                for column in windows[window].filtered_data.columns:
+                    if column == 12 or column == 9:
+                        continue
+                    distance = (windows[window].filtered_data[column].idxmin() - 1200)
+                    lmd_vec.append(distance)
+                print(lmd_vec)
+                print(zscore(lmd_vec))
+                print(softmax(zscore(lmd_vec)))
+                print(1 - softmax(zscore(lmd_vec)))
         windows = self._select_windows(windows)
 
         get_logger().info('MRCP Window selection is complete the new average channels are being created.')

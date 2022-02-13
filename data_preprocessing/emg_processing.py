@@ -227,7 +227,7 @@ def onset_detection_calibration(dataset: Dataset, config, input_peaks) -> [[int]
         plt.plot(np.abs(vals))
 
     plt.xlabel('Time (s)')
-    # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
+    plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
     plt.ylabel('mV (Filtered)', labelpad=-2)
     plt.plot(t, '--', color='black')
     plt.autoscale()
@@ -242,7 +242,7 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], distance=N
     clusters = []
     temp_clusters = []
     if distance is None:
-        distance = 100
+        distance = 30
     for idx in onsets:
         if len(temp_clusters) == 0:
             temp_clusters.append(idx)
@@ -261,11 +261,36 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], distance=N
     if len(onset_clusters_array) < peaks_to_find:
         pass
     # if too many clusters are found, slowly increase the distance to reduce amount of clusters.
-    elif not len(onset_clusters_array) == peaks_to_find:
+    elif len(onset_clusters_array) > peaks_to_find:
         get_logger().info(f'Current amount clusters found {len(onset_clusters_array)}')
         return emg_clustering_calibration(emg_data, onsets, distance + 10, peaks_to_find)
 
-    for onset_cluster in onset_clusters_array:
+    prev_cluster = []
+    distance += 20
+
+    while True:
+        clusters = []
+        temp_clusters = []
+        for idx in onsets:
+            if len(temp_clusters) == 0:
+                temp_clusters.append(idx)
+            elif abs(temp_clusters[-1] - idx) < distance:
+                temp_clusters.append(idx)
+            else:
+                clusters.append(temp_clusters)
+                temp_clusters = [idx]
+        clusters.append(temp_clusters)
+
+        if clusters == prev_cluster and len(prev_cluster) == len(onset_clusters_array):
+            break
+        elif len(clusters) < len(onset_clusters_array):
+            break
+        else:
+            prev_cluster = clusters
+
+        distance += 120
+
+    for onset_cluster in prev_cluster:
         highest = 0
         index = 0
         for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
@@ -273,8 +298,6 @@ def emg_clustering_calibration(emg_data: pd.DataFrame, onsets: [int], distance=N
                 highest = abs(emg_data[onset])
                 index = onset
 
-        # saving start, peak, and end.
-        # first_percent = int(len(onset_cluster) * 0.01)
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
     return all_peaks

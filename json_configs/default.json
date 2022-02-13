@@ -15,12 +15,13 @@
   "eeg_btype": "bandpass",
   "eeg_cutoff": [
     0.05,
-    5
+    3
   ],
   "eeg_order": 2,
   "emg_btype": "highpass",
   "emg_cutoff": 80,
   "emg_order": 5,
   "start_time": 1200,
-  "window_size": 2
+  "window_size": 2,
+  "sample_rate": 1200
 }

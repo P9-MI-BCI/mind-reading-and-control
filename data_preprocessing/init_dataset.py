@@ -1,9 +1,12 @@
 import glob
 import pandas as pd
 import scipy.io
-
+import mne
+import numpy as np
+import os
 from classes.Dataset import Dataset
 from data_preprocessing.date_freq_convertion import convert_mat_date_to_python_date
+from data_preprocessing.filters import butter_filter
 from data_preprocessing.trigger_points import covert_trigger_points_to_pd
 from definitions import DATASET_PATH
 
@@ -44,3 +47,48 @@ def init(selected_cue_set: int = 0):
     dataset.data_device1 = pd.DataFrame(cue_set['data_device1'])
 
     return dataset
+
+
+def load_data_to_mne_epoch(dataset_path, config):
+    data = []
+
+    for file in glob.glob(dataset_path, recursive=True):
+        data.append(scipy.io.loadmat(file))
+
+    if len(data) == 1:
+        data = data[0]
+    else:
+        # todo handle multiple training datasets
+        return 0
+
+    filtered_data = pd.DataFrame()
+    for i in config.EEG_Channels:
+        filtered_data[i] = butter_filter(data=data['data_device1'][:,i],
+                                         order=config.eeg_order,
+                                         cutoff=config.eeg_cutoff,
+                                         btype=config.eeg_btype
+                                         )
+
+    ch_names = ['T7', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'T8']
+    ch_types = ['eeg'] * len(config.EEG_Channels)
+
+    info = mne.create_info(ch_names=ch_names, ch_types=ch_types, sfreq=config.sample_rate)
+    info.set_montage('standard_1020')
+
+    raw_data = mne.io.RawArray(np.transpose(filtered_data[config.EEG_Channels]), info)
+    raw_data.plot()
+    raw_data.plot_sensors(kind='3d', ch_type='all')
+    return raw_data
+
+
+def get_datasets(subject_id: int, config):
+    dwell_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'dwell_tuning/*')
+    online_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'online_test/*')
+    training_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*')
+
+    training_dataset = load_data_to_mne_epoch(training_p, config)
+    dwell_dataset = load_data_to_mne_epoch(dwell_p, config)
+    online_dataset = load_data_to_mne_epoch(online_p, config)
+    # training_dataset = load_data_to_mne_epoch(training_p, config)
+
+    return dwell_dataset, online_dataset, training_dataset

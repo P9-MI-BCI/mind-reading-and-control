@@ -325,10 +325,11 @@ class Window:
         fig = plt.figure(figsize=(14, 10))
 
         x_seconds = []
-        center = (len(self.data) / 2) / freq
+        center = (len(self.data) / 2) # / freq
 
         for i, row in self.filtered_data[0].items():  # converts the window.data freqs to seconds
-            x_seconds.append(i / freq - center)
+            # x_seconds.append(i / freq - center)
+            x_seconds.append(i - freq)
 
         for channel in range(9):
             ax = fig.add_subplot(3, 3, channel + 1)
