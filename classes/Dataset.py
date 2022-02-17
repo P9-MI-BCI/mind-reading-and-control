@@ -1,4 +1,4 @@
-from utility.save_figure import save_figure
+#from utility.save_figure import save_figure
 from utility.logger import get_logger
 from definitions import OUTPUT_PATH
 import matplotlib.pyplot as plt
@@ -50,7 +50,8 @@ class Dataset:
                 path = f'{OUTPUT_PATH}/plots/raw_filtered_data/channel{channel + 1}.png'
                 file = os.path.split(path)[1]
                 try:
-                    save_figure(path, fig, overwrite=overwrite)
+                    pass
+                    # save_figure(path, fig, overwrite=overwrite)
                 except FileExistsError:
                     get_logger().exception(f'Found file already exists: {file} you can '
                                            f'overwrite the file by setting overwrite=True')

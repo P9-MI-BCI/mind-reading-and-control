@@ -19,6 +19,7 @@ import json
 from utility.logger import get_logger
 from scipy.special import softmax
 from scipy.stats import zscore
+from scipy.signal import decimate
 
 
 def mrcp_detection(data: Dataset, tp_table: pd.DataFrame, config, bipolar_mode: bool = False,
@@ -175,6 +176,7 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_c
                                          btype=config.eeg_btype
                                          )
 
+
     # Reshape filtered_data frame so EMG column is not first
     filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
 
@@ -215,9 +217,6 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_c
     # index_list = data.data_device1.index.difference(dataset_copy.data_device1.index)
     # save_index_list(index_list, config)
 
-    # Find frequencies of all detected blinks from EOG channel 9
-    blinks = blink_detection(data=data.data_device1, sample_rate=data.sample_rate)
-
     # sort mrcp windows first, implicit knowledge used for other functionality later in code
     windows.sort(key=operator.attrgetter('label'), reverse=True)
 
@@ -226,7 +225,6 @@ def mrcp_detection_for_calibration(data: Dataset, config, input_peaks, perfect_c
         window.update_filter_type(filter_type_df)
         window.aggregate_strategy = config.aggregate_strategy
         window.extract_features()
-        window.blink_detection(blinks)
         window.create_feature_vector()
 
     return windows

@@ -40,7 +40,7 @@ def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int 
         b, a = butter_lowpass(order, cutoff, freq)
         return filtfilt(b, a, data)
 
-    elif btype =='notch':
+    elif btype == 'notch':
         b, a = notch(freq, cutoff)
         return filtfilt(b, a, data)
     else:

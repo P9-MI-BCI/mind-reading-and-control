@@ -4,7 +4,6 @@ import glob
 import pickle
 import os
 import pandas as pd
-from mne.decoding import CSP
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 from data_preprocessing.train_test_split import format_dataset
@@ -257,8 +256,8 @@ def scikit_classifier_loocv_csp(model, data: [Window], channels=None, save_model
             for index in range(0, len(window.data[channel])):
                 csp_train[i][channel][index] = window.data[channel].iloc[index]
 
-    csp = CSP(n_components=3, reg=None, log=True, norm_trace=False)
-    csp.fit_transform(csp_train, labels)
+    # csp = CSP(n_components=3, reg=None, log=True, norm_trace=False)
+    # csp.fit_transform(csp_train, labels)
 
     feats = []
 
@@ -273,7 +272,7 @@ def scikit_classifier_loocv_csp(model, data: [Window], channels=None, save_model
             for channel in channels:
                 for x in range(0, len(window.data[channel])):
                     test_vec[i][channel][x] = window.data[channel].iloc[x]
-        feats.append(csp.transform(test_vec)[0])
+        # feats.append(csp.transform(test_vec)[0])
 
     for sample in range(0, len(data)):
         x_test = feats[sample]
