@@ -31,7 +31,7 @@ def import_dataset():
 
 
 if __name__ == "__main__":
-    with open('lab_config.json') as config_file:
+    with open('json_configs/lab_config.json') as config_file:
         config = json.load(config_file)
 
     config = AttrDict(config)

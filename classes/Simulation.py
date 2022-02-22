@@ -145,6 +145,13 @@ class Simulation:
         average = average_channel(windows)
         plot_average_channels(average, self.calibration_config, layout='grid')
         for window in range(len(windows)):
+            if windows[window].label == 1:
+                mne_plot(window)
+
+        def mne_plot(window):
+            data_df = window.filtered_data[self.calibration_config.EEG_Channels]
+
+
             # if window.label == 1 and not window.is_sub_window:
             if window == 15:
                 windows[window].plot_window_for_all_channels()

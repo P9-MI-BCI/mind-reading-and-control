@@ -1,13 +1,21 @@
-from data_preprocessing.init_dataset import init
-from dispatch.offline import offline
-from dispatch.online import online
+from data_preprocessing.emg_processing import onset_detection, multi_dataset_onset_detection
+from data_preprocessing.filters import data_filtering, multi_dataset_filtering
+from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
 
 
-def dispatch(script_params, config):
+def dispatch(subject_id, config):
 
-    dataset = init(selected_cue_set=config.id)
+    training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id)
 
-    if script_params.offline_mode:
-        offline(script_params, config, dataset)
-    elif script_params.online_mode:
-        online(config, dataset)
+    # consists of list of training dataset
+    training_data = create_dataset(training_dataset_path, config)
+
+    online_data = create_dataset(online_dataset_path, config)
+    dwell_data = create_dataset(dwell_dataset_path, config)
+
+    multi_dataset_onset_detection(training_data, config)
+
+    filtered_training_data = multi_dataset_filtering(config.DELTA_BAND, config, training_data)
+    filtered_online_data = data_filtering(config.DELTA_BAND, config, online_data)
+    filtered_dwell_data = data_filtering(config.DELTA_BAND, config, dwell_data)
+

@@ -1,5 +1,7 @@
 import pandas as pd
 from scipy.signal import butter, filtfilt, lfilter, iirnotch
+
+from classes.Dataset import Dataset
 from utility.logger import get_logger
 
 
@@ -27,7 +29,6 @@ def notch(freq, remove_freq, quality_factor=30):
 
 
 def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int = 1200):
-
     if btype == 'highpass':
         b, a = butter_highpass(order, cutoff, freq)
         return filtfilt(b, a, data)
@@ -46,3 +47,29 @@ def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int 
     else:
         get_logger().error('Error in filter type or len(cutoff), check params', btype)
 
+
+def data_filtering(filter_range, config, dataset: Dataset):
+    try:
+        assert dataset
+
+        filtered_data = pd.DataFrame()
+        for channel in config.EEG_CHANNELS:
+            filtered_data[channel] = butter_filter(data=dataset.data[channel],
+                                                   order=config.EEG_ORDER,
+                                                   cutoff=filter_range,
+                                                   btype=config.EEG_BTYPE,
+                                                   freq=dataset.sample_rate)
+    except AssertionError:
+        get_logger().exception(f'{data_filtering.__name__} received an empty dataset.')
+        return None
+    return filtered_data
+
+
+def multi_dataset_filtering(filter_range, config, datasets):
+    filtered_datasets = []
+    if len(datasets) > 1:
+        for dataset in datasets:
+            filtered_datasets.append(data_filtering(filter_range, config, dataset))
+        return filtered_datasets
+    else:
+        return data_filtering(filter_range, config, datasets)
