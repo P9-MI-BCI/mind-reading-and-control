@@ -4,7 +4,6 @@ import pandas as pd
 import sys
 from statistics import mean, stdev, median
 from data_preprocessing.eog_detection import blink_detection
-from data_preprocessing.trigger_points import is_triggered
 from classes.Window import Window
 from classes import Dataset
 import numpy as np
@@ -180,35 +179,6 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         list_of_windows.append(window0)
         id += 1
 
-        if multiple_windows:
-            # [-1.1, 0.9]
-            w1_id = f'mrcp:{id}'
-            window1 = Window()
-            window1.data = dataset.data_device1.iloc[center - window_sz - 120: center + window_sz - 120]
-            window1.label = 1  # Movement phase
-            window1.timestamp = row
-            window1.frequency_range = [center - window_sz - 120, center + window_sz - 120]
-            window1.filtered_data = filtered_data.iloc[center - window_sz - 120: center + window_sz - 120]
-            window1.filtered_data = window1.filtered_data.reset_index(drop=True)
-            window1.num_id = w1_id
-            window1.is_sub_window = True
-            list_of_windows.append(window1)
-            id += 1
-
-            # [-0.9, 1.1]
-            w2_id = f'mrcp:{id}'
-            window2 = Window()
-            window2.data = dataset.data_device1.iloc[center - window_sz + 120: center + window_sz + 120]
-            window2.label = 1  # Movement phase
-            window2.timestamp = row
-            window2.frequency_range = [center - window_sz + 120, center + window_sz + 120]
-            window2.filtered_data = filtered_data.iloc[center - window_sz + 120: center + window_sz + 120]
-            window2.filtered_data = window2.filtered_data.reset_index(drop=True)
-            window2.num_id = w2_id
-            window2.is_sub_window = True
-            list_of_windows.append(window2)
-            id += 1
-
         indices_to_delete.append([center - window_sz, center + window_sz])
 
     indices_to_delete.reverse()
@@ -218,20 +188,6 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         filtered_data = filtered_data.drop(filtered_data.index[indices[0]:indices[1]])
 
     return list_of_windows
-
-
-def create_sub_windows(window: Window, sw: int, sub_window_sz: int, id:str):
-    window_sw = Window()
-    window_sw.data = window.data.iloc[sw: sw + sub_window_sz]
-    window_sw.label = window.label
-    window_sw.timestamp = window.timestamp
-    window_sw.frequency_range = [window.frequency_range[0] + sw, window.frequency_range[0] + sw + sub_window_sz]
-    window_sw.filtered_data = window.filtered_data.iloc[sw: sw + sub_window_sz]
-    window_sw.filtered_data = window_sw.filtered_data.reset_index(drop=True)
-    window_sw.num_id = id
-    window_sw.is_sub_window = True
-
-    return window_sw
 
 
 def cut_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame,

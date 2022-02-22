@@ -14,7 +14,6 @@ import json
 from data_preprocessing.data_distribution import create_uniform_distribution, z_score_normalization
 from scipy.special import softmax
 from scipy.stats import zscore
-from data_preprocessing.data_shift import shift_data
 from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
 from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, \
     mrcp_detection_for_calibration, channel_weights_calculation
@@ -144,24 +143,7 @@ class Simulation:
         get_logger().info('MRCP detection complete - displaying average for each channel.')
         average = average_channel(windows)
         plot_average_channels(average, self.calibration_config, layout='grid')
-        for window in range(len(windows)):
-            if windows[window].label == 1:
-                mne_plot(window)
 
-        def mne_plot(window):
-            data_df = window.filtered_data[self.calibration_config.EEG_Channels]
-
-
-            # if window.label == 1 and not window.is_sub_window:
-            if window == 15:
-                windows[window].plot_window_for_all_channels()
-
-                lmd_vec = []
-                for column in windows[window].filtered_data.columns:
-                    if column == 12 or column == 9:
-                        continue
-                    distance = (windows[window].filtered_data[column].idxmin() - 1200)
-                    lmd_vec.append(distance)
 
         ######### perfect centering module ############
         if centering:
@@ -544,7 +526,7 @@ class Simulation:
 
     def _furthest_prediction_from_mrcp(self):
         found_mrcp = []
-        discarded_mrcp = self.buffer_size + self.start_time
+        discarded_mrcp = self.buffer_size
         furthest_distance = []
 
         for pair in self.index:

@@ -1,6 +1,4 @@
 import pandas as pd
-
-from data_preprocessing.eog_detection import blink_detection
 from utility.logger import get_logger
 from scipy.stats import linregress
 import matplotlib.pyplot as plt

@@ -1,11 +1,8 @@
 import biosppy
 import numpy as np
 import pandas as pd
-from data_preprocessing.trigger_points import is_triggered
 from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
-from utility.logger import get_logger
-from statistics import mean, stdev, median
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
 
@@ -30,30 +27,28 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=filtered_data[config.EMG_CHANNEL],
-                                  onsets=emg_onsets,
-                                 )
+    emg_clusters = emg_clustering(onsets=emg_onsets)
 
     plot_arr = []
     for cluster in emg_clusters:
-        plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[2]])
+        plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
     plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
     for vals in plot_arr:
         plt.plot(np.abs(vals))
 
     plt.xlabel('Time (s)')
-    plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
+    # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
     plt.ylabel('mV (Filtered)', labelpad=-2)
     plt.plot(t, '--', color='black')
     plt.autoscale()
     plt.show()
 
-    return emg_clusters, filtered_data
+    dataset.onsets_index = emg_clusters
+    return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data: pd.DataFrame, onsets: [int], distance=None) -> [
-    [int]]:
+def emg_clustering(onsets: [int], distance=None) -> [[int]]:
     all_peaks = []
     if distance is None:
         distance = 100
@@ -93,19 +88,11 @@ def emg_clustering(emg_data: pd.DataFrame, onsets: [int], distance=None) -> [
         distance += 200
 
     for onset_cluster in clusters:
-        highest = 0
-        index = 0
-        for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
-            if abs(emg_data[onset]) > highest:
-                highest = abs(emg_data[onset])
-                index = onset
-
-        all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+        all_peaks.append([onset_cluster[0], onset_cluster[-1]])
 
     return all_peaks
 
 
 def multi_dataset_onset_detection(datasets, config):
     for dataset in datasets:
-        onset_detection(dataset, config)
-
+        dataset.filtered_data = onset_detection(dataset, config)
