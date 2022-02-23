@@ -1,6 +1,7 @@
 from data_preprocessing.emg_processing import onset_detection, multi_dataset_onset_detection
 from data_preprocessing.filters import data_filtering, multi_dataset_filtering
 from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
+from data_preprocessing.downsampling import downsample
 
 
 def dispatch(subject_id, config):
@@ -21,9 +22,15 @@ def dispatch(subject_id, config):
     multi_dataset_onset_detection(training_data, config)
 
     """
+    Downsample testing
+    """
+    downsample(training_data, config)
+
+    """
     Modules to filter the data, functions can take variety of default frequency bands annotated in the 
     json_config/default.json file. Method include possibility of handling multiple datasets at once. 
     """
+
     multi_dataset_filtering(config.DELTA_BAND, config, training_data)
     data_filtering(config.DELTA_BAND, config, online_data)
     data_filtering(config.DELTA_BAND, config, dwell_data)
