@@ -3,7 +3,6 @@ import random
 import pandas as pd
 import sys
 from statistics import mean, stdev, median
-from data_preprocessing.eog_detection import blink_detection
 from classes.Window import Window
 from classes import Dataset
 import numpy as np
@@ -282,3 +281,22 @@ def blinks_in_list(windows: [Window]) -> int:
             counter += 1
 
     return counter
+
+
+def data_preparation(datasets, config):
+    X = []
+    Y = []
+
+    for dataset in datasets:
+        for cluster in dataset.onsets_index:
+            if cluster[0]-config.window_padding*dataset.sample_rate < 0:
+                continue
+            X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                     cluster[0]-config.window_padding*dataset.sample_rate:
+                     cluster[0]+config.window_padding*dataset.sample_rate].to_numpy())
+            Y.append(dataset.label)
+    shuffler = np.random.permutation(len(X))
+    X = np.array(X)[shuffler]
+    Y = np.array(Y)[shuffler]
+
+    return X, Y

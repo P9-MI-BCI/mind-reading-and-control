@@ -27,7 +27,7 @@
   "EMG_BTYPE": "highpass",
   "EMG_CUTOFF": 80,
   "EMG_ORDER": 5,
-  "window_size": 2,
+  "window_padding": 1,
   "step_size": 0.1,
-  "downsample_rate": 5
+  "downsample_rate": 10
 }

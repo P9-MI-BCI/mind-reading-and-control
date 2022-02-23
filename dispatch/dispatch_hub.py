@@ -1,6 +1,9 @@
 from data_preprocessing.emg_processing import onset_detection, multi_dataset_onset_detection
 from data_preprocessing.filters import data_filtering, multi_dataset_filtering
 from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
+from data_preprocessing.data_distribution import data_preparation
+from data_training.EEGModels.training import EEGModels_training_hub
+from data_visualization.mne_visualization import visualize_mne
 from data_preprocessing.downsampling import downsample
 
 
@@ -22,11 +25,6 @@ def dispatch(subject_id, config):
     multi_dataset_onset_detection(training_data, config)
 
     """
-    Downsample testing
-    """
-    downsample(training_data, config)
-
-    """
     Modules to filter the data, functions can take variety of default frequency bands annotated in the 
     json_config/default.json file. Method include possibility of handling multiple datasets at once. 
     """
@@ -35,4 +33,16 @@ def dispatch(subject_id, config):
     data_filtering(config.DELTA_BAND, config, online_data)
     data_filtering(config.DELTA_BAND, config, dwell_data)
 
-    
+    """
+    Down sample testing
+    """
+    downsample(training_data, config)
+
+    # visualize_mne(training_data, config)
+    """
+    Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
+    into a sliding window defined by the config.window_padding parameter. The data is shuffled during creation
+    """
+    X, Y = data_preparation(training_data, config)
+
+    EEGModels_training_hub(X, Y)

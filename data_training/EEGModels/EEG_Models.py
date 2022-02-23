@@ -150,7 +150,7 @@ def EEGNet(nb_classes, Chans=64, Samples=128,
 
     dense = Dense(nb_classes, name='dense',
                   kernel_constraint=max_norm(norm_rate))(flatten)
-    softmax = Activation('softmax', name='softmax')(dense)
+    softmax = Activation('sigmoid', name='sigmoid')(dense)
 
     return Model(inputs=input1, outputs=softmax)
 
@@ -339,9 +339,9 @@ def DeepConvNet(nb_classes, Chans=64, Samples=256,
     flatten = Flatten()(block4)
 
     dense = Dense(nb_classes, kernel_constraint=max_norm(0.5))(flatten)
-    softmax = Activation('softmax')(dense)
+    sigmoid = Activation('sigmoid')(dense)
 
-    return Model(inputs=input_main, outputs=softmax)
+    return Model(inputs=input_main, outputs=sigmoid)
 
 
 # need these for ShallowConvNet
@@ -392,6 +392,6 @@ def ShallowConvNet(nb_classes, Chans=64, Samples=128, dropoutRate=0.5):
     block1 = Dropout(dropoutRate)(block1)
     flatten = Flatten()(block1)
     dense = Dense(nb_classes, kernel_constraint=max_norm(0.5))(flatten)
-    softmax = Activation('softmax')(dense)
+    sigmoid = Activation('sigmoid')(dense)
 
-    return Model(inputs=input_main, outputs=softmax)
+    return Model(inputs=input_main, outputs=sigmoid)
