@@ -1,5 +1,6 @@
 def downsample(datasets, config):
     for dataset in datasets:
+        dataset.data = dataset.data.iloc[::config.downsample_rate].reset_index(drop=True)
         dataset.filtered_data = dataset.filtered_data.iloc[::config.downsample_rate].reset_index(drop=True)
 
         for onsets in dataset.onsets_index:
