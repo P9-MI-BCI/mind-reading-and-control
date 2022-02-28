@@ -4,6 +4,7 @@ Prepare data format for using the EEG models and set up dispatch functions for t
 import numpy as np
 from utility.logger import get_logger
 from data_training.EEGModels.EEG_Models import EEGNet, DeepConvNet, ShallowConvNet
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 kernels = 1
 
@@ -61,9 +62,11 @@ def run_EEGNet(X, Y):
                   metrics=['accuracy'])
     numParams = model.count_params()
 
+    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
+                                   save_best_only=True)
     model.fit(X_train, Y_train, batch_size=16, epochs=300,
               verbose=2, validation_data=(X_val, Y_val),
-              )
+              callbacks=[checkpointer])
 
     print(model.predict(X_test))
     print(Y_test)
@@ -83,9 +86,11 @@ def run_DeepConvNet(X, Y):
                   metrics=['accuracy'])
     numParams = model.count_params()
 
+    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
+                                   save_best_only=True)
     model.fit(X_train, Y_train, batch_size=16, epochs=300,
               verbose=2, validation_data=(X_val, Y_val),
-              )
+              callbacks=[checkpointer])
 
     print(model.predict(X_test))
     print(Y_test)
@@ -105,9 +110,11 @@ def run_ShallowConvNet(X, Y):
                   metrics=['accuracy'])
     numParams = model.count_params()
 
+    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
+                                   save_best_only=True)
     model.fit(X_train, Y_train, batch_size=16, epochs=300,
               verbose=2, validation_data=(X_val, Y_val),
-              )
+              callbacks=[checkpointer])
 
     print(model.predict(X_test))
     print(Y_test)

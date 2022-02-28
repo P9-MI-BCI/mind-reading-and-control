@@ -23,6 +23,7 @@ def dispatch(subject_id, config):
     of movement and end of movement. 
     """
     multi_dataset_onset_detection(training_data, config)
+    onset_detection(online_data, config)
 
     """
     Modules to filter the data, functions can take variety of default frequency bands annotated in the 
@@ -36,9 +37,10 @@ def dispatch(subject_id, config):
     """
     Down sample testing
     """
-    downsample(training_data, config)
 
+    # downsample(training_data, config)
     # visualize_mne(training_data, config)
+
     """
     Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
     into a sliding window defined by the config.window_padding parameter. The data is shuffled during creation

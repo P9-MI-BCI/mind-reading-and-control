@@ -54,10 +54,10 @@ def data_filtering(filter_range, config, dataset: Dataset):
         filtered_data = pd.DataFrame()
         for channel in config.EEG_CHANNELS:
             filtered_data[channel] = butter_filter(data=dataset.data[channel],
-                                                           order=config.EEG_ORDER,
-                                                           cutoff=filter_range,
-                                                           btype=config.EEG_BTYPE,
-                                                           freq=dataset.sample_rate)
+                                                   order=config.EEG_ORDER,
+                                                   cutoff=filter_range,
+                                                   btype=config.EEG_BTYPE,
+                                                   freq=dataset.sample_rate)
 
         return filtered_data
     except AssertionError:
