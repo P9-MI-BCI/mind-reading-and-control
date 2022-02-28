@@ -5,6 +5,7 @@ from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
+from utility.logger import get_logger
 
 
 def onset_detection(dataset: Dataset, config) -> [[int]]:
@@ -37,12 +38,13 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     for vals in plot_arr:
         plt.plot(np.abs(vals))
 
-    plt.xlabel('Time (s)')
-    # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
-    plt.ylabel('mV (Filtered)', labelpad=-2)
-    plt.plot(t, '--', color='black')
-    plt.autoscale()
-    plt.show()
+    if get_logger().level == 10:
+        plt.xlabel('Time (s)')
+        # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
+        plt.ylabel('mV (Filtered)', labelpad=-2)
+        plt.plot(t, '--', color='black')
+        plt.autoscale()
+        plt.show()
 
     dataset.onsets_index = emg_clusters
     return filtered_data[config.EMG_CHANNEL]
