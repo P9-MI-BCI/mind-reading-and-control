@@ -1,3 +1,4 @@
+from math import floor, ceil
 import biosppy
 import numpy as np
 import pandas as pd
@@ -85,8 +86,8 @@ def emg_clustering(emg_data, onsets: [int], distance=None) -> [[int]]:
                 highest = abs(emg_data[onset])
                 index = onset
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
-
-    return remove_outliers_by_peak_activity(all_peaks, emg_data)
+    return remove_outliers_by_x_axis_distance(all_peaks)
+    #return remove_outliers_by_peak_activity(all_peaks, emg_data)
 
 
 # Compare all peaks and remove outliers below Q1
@@ -104,9 +105,46 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     for cluster in clusters:
         if Q1 - iqr_val*0.7 < emg_data[cluster[1]]:
             t_clusters.append(cluster)
-
+    print(len(t_clusters))
     return t_clusters
 
+
+# Removes any emg clusters that are if < 5*fs or < x*mean/median from the next cluster
+# TODO: Decrease naivness, right now it only looks at the cluster ahead of the nth cluster, without any regard for
+#       the previous one, and also in a iterative fashion starting from the first cluster.
+def remove_outliers_by_x_axis_distance(clusters):
+    t_clusters = []
+    temp = 0
+    temp_arr = []
+    x = 0.4
+
+    # Find distance between emg cluster peaks and calculate mean
+    for i in range(0, len(clusters)-1):
+        temp_arr.append(abs(clusters[i][1] - clusters[i+1][1]))
+        temp = temp + abs(clusters[i][1] - clusters[i+1][1])
+    mean = temp/len(clusters)
+    temp_arr.sort()
+
+    # Get median of distance between emg cluster peaks
+    if len(temp_arr) % 2 == 0:
+        median = temp_arr[floor((len(temp_arr)-1)/2)] + temp_arr[ceil((len(temp_arr)-1)/2)] / 2
+    else:
+        median = temp_arr[(len(temp_arr)-1)//2]
+
+    # Include only clusters which peaks are 5*sample_rate and x*mean/median frequencies apart
+    for i in range(0, len(clusters)-1):
+        if abs(clusters[i][1] - clusters[i+1][1]) > 5*1200 and abs(clusters[i][1] - clusters[i+1][1]) > x*median: # TODO: Change 1200 to dataset fs
+            t_clusters.append(clusters[i])
+
+    # Handle 'edge' case for last element of array
+    if abs(clusters[-1][1] - clusters[-2][1]) > 5*1200 and abs(clusters[-1][1] - clusters[-2][1]) > x*median:
+        t_clusters.append(clusters[-1])
+
+    print(len(t_clusters))
+    return t_clusters
+
+# TODO: 2d outlier detection (width of cluster, height of cluster)
+#       Signal to noise ratio.
 
 def multi_dataset_onset_detection(datasets, config):
     for dataset in datasets:
