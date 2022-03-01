@@ -4,118 +4,96 @@ Prepare data format for using the EEG models and set up dispatch functions for t
 import numpy as np
 from utility.logger import get_logger
 from data_training.EEGModels.EEG_Models import EEGNet, DeepConvNet, ShallowConvNet
-from tensorflow.keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
+from sklearn.model_selection import StratifiedKFold
+from tqdm.keras import TqdmCallback
+from keras.callbacks import EarlyStopping
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import pandas as pd
+import seaborn as sn
 
 kernels = 1
 
 
-def EEGModels_training_hub(X, Y):
-    run_EEGNet(X, Y)
-    run_DeepConvNet(X, Y)
-    run_ShallowConvNet(X, Y)
+def EEGModels_training_hub(X, Y, online_X, online_Y):
+    eeg_net = get_EEGNet(X)
+    deep_conv_net = get_DeepConvNet(X)
+    shallow_conv_net = get_ShallowConvNet(X)
+
+    stratified_kfold_cv(X, Y, eeg_net, online_X, online_Y)
+    stratified_kfold_cv(X, Y, deep_conv_net, online_X, online_Y)
+    stratified_kfold_cv(X, Y, shallow_conv_net, online_X, online_Y)
 
 
-"""
-Given shuffled data and labels split the data int
-70% training data
-15% validation data
-15% test data
-while retaining same label distribution.
-"""
+# Creates a stratified-k-fold cross validation object that splits the data and shuffles it.
+def stratified_kfold_cv(X, Y, model, online_X, online_Y):
+    skf = StratifiedKFold(n_splits=5, shuffle=True)
+    # The initial weights are saved in order to reset the model between k-fold cv iterations
+    model.save_weights('initial_weights.h5')
+    for train_index, val_index in skf.split(X, Y):
+        model.load_weights('initial_weights.h5')
+        # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
+        X_reshaped = X[train_index].reshape((X[train_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
+        X_val_reshaped = X[val_index].reshape((X[val_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
+        history = model.fit(X_reshaped, Y[train_index], batch_size=8, epochs=300,
+                            verbose=0, validation_data=(X_val_reshaped, Y[val_index]),
+                            callbacks=[TqdmCallback(verbose=0),
+                                       EarlyStopping(monitor='val_loss', patience=30)])
+
+    X_reshaped = X.reshape((X.shape[0], X[0].shape[1], X[0].shape[0], kernels))
+    X_online_reshaped = online_X.reshape((online_X.shape[0], online_X[0].shape[1], online_X[0].shape[0], kernels))
+
+    get_logger().info(f'Cross Validation Finished -- Training using entire dataset')
+    history = model.fit(X_reshaped, Y, batch_size=8, epochs=300,verbose=0,
+                        validation_data=(X_online_reshaped, online_Y),
+                        callbacks=[TqdmCallback(verbose=0),
+                        EarlyStopping(monitor='val_loss', patience=50)])
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.show()
+
+    Y_hat = model.predict(X_online_reshaped)
+    Y_hat = Y_hat.reshape((len(Y_hat),))
+    plot_confusion_matrix(online_Y, Y_hat)
 
 
-def train_val_test_split(X, Y):
-    try:
-        X_train, Y_train = [], []
-        X_val, Y_val = [], []
-        X_test, Y_test = [], []
-
-        for x, y in zip(X, Y):
-            if len(X_train) < len(X) * 0.7:
-                X_train.append(x)
-                Y_train.append(y)
-            elif len(X_val) < len(X) * 0.15:
-                X_val.append(x)
-                Y_val.append(y)
-            else:
-                X_test.append(x)
-                Y_test.append(y)
-
-        return np.array(X_train), np.array(Y_train), np.array(X_val), np.array(Y_val), np.array(X_test), np.array(
-            Y_test)
-    except AssertionError:
-        get_logger().error('The dataset does not contain an even distribution. Unable to split the dataset evenly')
-
-
-def run_EEGNet(X, Y):
-    X_train, Y_train, X_val, Y_val, X_test, Y_test = train_val_test_split(X, Y)
-
-    # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
-    X_train = X_train.reshape((X_train.shape[0], X_train[0].shape[1], X_train[0].shape[0], kernels))
-    X_val = X_val.reshape((X_val.shape[0], X_val[0].shape[1], X_val[0].shape[0], kernels))
-    X_test = X_test.reshape((X_test.shape[0], X_test[0].shape[1], X_test[0].shape[0], kernels))
-
-    model = EEGNet(nb_classes=1, Chans=X_train[0].shape[0], Samples=X_train[0].shape[1], dropoutRate=0.5, kernLength=32,
+def get_EEGNet(X):
+    model = EEGNet(nb_classes=1, Chans=X[0].shape[1], Samples=X[0].shape[0], dropoutRate=0.5, kernLength=32,
                    F1=8, D=2, F2=16, dropoutType='Dropout')
 
     model.compile(loss='binary_crossentropy', optimizer='adam',
                   metrics=['accuracy'])
-    numParams = model.count_params()
 
-    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
-                                   save_best_only=True)
-    model.fit(X_train, Y_train, batch_size=16, epochs=300,
-              verbose=2, validation_data=(X_val, Y_val),
-              callbacks=[checkpointer])
-
-    print(model.predict(X_test))
-    print(Y_test)
+    return model
 
 
-def run_DeepConvNet(X, Y):
-    X_train, Y_train, X_val, Y_val, X_test, Y_test = train_val_test_split(X, Y)
-
-    # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
-    X_train = X_train.reshape((X_train.shape[0], X_train[0].shape[1], X_train[0].shape[0], kernels))
-    X_val = X_val.reshape((X_val.shape[0], X_val[0].shape[1], X_val[0].shape[0], kernels))
-    X_test = X_test.reshape((X_test.shape[0], X_test[0].shape[1], X_test[0].shape[0], kernels))
-
-    model = DeepConvNet(nb_classes=1, Chans=X_train[0].shape[0], Samples=X_train[0].shape[1], dropoutRate=0.5)
+def get_DeepConvNet(X):
+    model = DeepConvNet(nb_classes=1, Chans=X[0].shape[1], Samples=X[0].shape[0], dropoutRate=0.5)
 
     model.compile(loss='binary_crossentropy', optimizer='adam',
                   metrics=['accuracy'])
-    numParams = model.count_params()
 
-    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
-                                   save_best_only=True)
-    model.fit(X_train, Y_train, batch_size=16, epochs=300,
-              verbose=2, validation_data=(X_val, Y_val),
-              callbacks=[checkpointer])
+    return model
 
-    print(model.predict(X_test))
-    print(Y_test)
-
-
-def run_ShallowConvNet(X, Y):
-    X_train, Y_train, X_val, Y_val, X_test, Y_test = train_val_test_split(X, Y)
-
-    # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
-    X_train = X_train.reshape((X_train.shape[0], X_train[0].shape[1], X_train[0].shape[0], kernels))
-    X_val = X_val.reshape((X_val.shape[0], X_val[0].shape[1], X_val[0].shape[0], kernels))
-    X_test = X_test.reshape((X_test.shape[0], X_test[0].shape[1], X_test[0].shape[0], kernels))
-
-    model = ShallowConvNet(nb_classes=1, Chans=X_train[0].shape[0], Samples=X_train[0].shape[1], dropoutRate=0.5)
+def get_ShallowConvNet(X):
+    model = ShallowConvNet(nb_classes=1, Chans=X[0].shape[1], Samples=X[0].shape[0], dropoutRate=0.5)
 
     model.compile(loss='binary_crossentropy', optimizer='adam',
                   metrics=['accuracy'])
-    numParams = model.count_params()
 
-    checkpointer = ModelCheckpoint(filepath='/tmp/checkpoint.h5', verbose=1,
-                                   save_best_only=True)
-    model.fit(X_train, Y_train, batch_size=16, epochs=300,
-              verbose=2, validation_data=(X_val, Y_val),
-              callbacks=[checkpointer])
+    return model
 
-    print(model.predict(X_test))
-    print(Y_test)
 
+def plot_confusion_matrix(Y, Y_hat):
+    Y_hat = [round(y_hat) for y_hat in Y_hat]
+    labels = ['close', 'open']
+    conf_matrix = confusion_matrix(Y, Y_hat)
+
+    df_cm = pd.DataFrame(conf_matrix)
+
+    sn.set(font_scale=1.4)  # for label size
+    sn.heatmap(df_cm, annot=True, annot_kws={"size": 16})  # font size
+
+    plt.show()

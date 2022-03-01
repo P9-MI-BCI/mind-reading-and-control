@@ -6,8 +6,7 @@ from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
 
-
-def onset_detection(dataset: Dataset, config) -> [[int]]:
+def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -27,7 +26,7 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets)
+    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, is_online=is_online)
 
     plot_arr = []
     for cluster in emg_clusters:
@@ -48,7 +47,7 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None) -> [[int]]:
+def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:
     all_peaks = []
     if distance is None:
         distance = 100
@@ -84,7 +83,10 @@ def emg_clustering(emg_data, onsets: [int], distance=None) -> [[int]]:
                 index = onset
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
 
-    return remove_outliers_by_peak_activity(all_peaks, emg_data)
+    if is_online:
+        return all_peaks
+    else:
+        return remove_outliers_by_peak_activity(all_peaks, emg_data)
 
 
 # Compare all peaks and remove outliers below Q1

@@ -6,6 +6,8 @@ from statistics import mean, stdev, median
 from classes.Window import Window
 from classes import Dataset
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 
 
 # Finds the start of TriggerPoints and converts it to frequency and takes the window_size (in seconds) and cuts each
@@ -292,9 +294,50 @@ def data_preparation(datasets, config):
             if cluster[0]-config.window_padding*dataset.sample_rate < 0:
                 continue
             X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                     cluster[0]-config.window_padding*dataset.sample_rate:
-                     cluster[0]+config.window_padding*dataset.sample_rate].to_numpy())
+                     cluster[0]-int(config.window_padding*dataset.sample_rate):
+                     cluster[0]+int(config.window_padding*dataset.sample_rate)].to_numpy())
             Y.append(dataset.label)
+    shuffler = np.random.permutation(len(X))
+    X = np.array(X)[shuffler]
+    Y = np.array(Y)[shuffler]
+
+    return X, Y
+
+
+def normalization(X):
+    scaler = StandardScaler()
+
+    flat_x = np.concatenate((X), axis=0)
+    scaler.fit(flat_x)
+    transformed_x = []
+    for x in X:
+        transformed_x.append(scaler.transform(x))
+
+    return np.array(transformed_x), scaler
+
+
+# This is a temporary method for testing, does not handle the labeling properly!
+def online_data_labeling(dataset, config, scaler):
+    X = []
+    Y = []
+    label_determiner = 0
+
+    for cluster in dataset.onsets_index:
+        if cluster[0] - config.window_padding * dataset.sample_rate < 0:
+            continue
+        X.append(
+            scaler.transform(
+                dataset.data[config.EEG_CHANNELS].iloc[
+                 cluster[0] - int(config.window_padding * dataset.sample_rate):
+                 cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy()
+            )
+        )
+        if label_determiner % 2 == 0:
+            Y.append(0)
+        else:
+            Y.append(1)
+        label_determiner += 1
+
     shuffler = np.random.permutation(len(X))
     X = np.array(X)[shuffler]
     Y = np.array(Y)[shuffler]
