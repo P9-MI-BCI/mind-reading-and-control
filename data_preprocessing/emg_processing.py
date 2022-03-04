@@ -6,15 +6,35 @@ from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
 
+def emg_amplitude_tkeo(filtered_data):
+
+    tkeo = np.zeros((len(filtered_data),))
+
+    for i in range(1, len(tkeo) - 1):
+        tkeo[i] = (filtered_data[i] * filtered_data[i] - filtered_data[i - 1] * filtered_data[i + 1])
+
+    return tkeo
+
+
 def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
     # highpass filter to determine onsets
     filtered_data[config.EMG_CHANNEL] = butter_filter(data=dataset.data[config.EMG_CHANNEL],
-                                                      order=config.EMG_ORDER,
-                                                      cutoff=config.EMG_CUTOFF,
-                                                      btype=config.EMG_BTYPE,
+                                                      order=6,
+                                                      cutoff=[30, 300],
+                                                      btype='bandpass',
+                                                      )
+
+    tkeo = emg_amplitude_tkeo(filtered_data[config.EMG_CHANNEL].to_numpy())
+
+    tkeo_rectified = np.abs(tkeo)
+
+    filtered_data[config.EMG_CHANNEL] = butter_filter(data=tkeo_rectified,
+                                                      order=2,
+                                                      cutoff=50,
+                                                      btype='lowpass',
                                                       )
 
     # Find onsets based on the filtered data
