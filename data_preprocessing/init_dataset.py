@@ -29,16 +29,23 @@ def create_dataset(path: str, config):
     data = []
     names = []
     for file in glob.glob(path, recursive=True):
-        data.append(scipy.io.loadmat(file))
-        if 'close' in file:
-            names.append(0)
-        elif 'open' in file:
-            names.append(1)
+        if file.lower().endswith('.mat'):
+            data.append(scipy.io.loadmat(file))
+            if 'close' in file:
+                names.append(0)
+            elif 'open' in file:
+                names.append(1)
 
     if len(data) == 0:
         get_logger().error(f'No files found in {path}')
     elif len(data) == 1:
+        # Dwell data
         return init(data[0], config)
+    elif len(data) == 2:
+        online_test_data = []
+        for dataset in data:
+            online_test_data.append(init(dataset, config))
+        return online_test_data
     else:
         train_data = []
         assert len(data) == len(names)

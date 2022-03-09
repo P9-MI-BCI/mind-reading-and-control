@@ -1,13 +1,16 @@
 import collections
 import random
 import pandas as pd
-import sys
-from statistics import mean, stdev, median
-from classes.Window import Window
-from classes import Dataset
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+import sys
+import os
+import json
 
+from statistics import mean, stdev, median
+from classes import Window, Dataset
+from sklearn.preprocessing import StandardScaler
+from utility.file_util import file_exist
+from definitions import DATASET_PATH
 
 
 # Finds the start of TriggerPoints and converts it to frequency and takes the window_size (in seconds) and cuts each
@@ -41,8 +44,10 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
     return list_of_mrcp_windows, filtered_data, dataset
 
 
-def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, sub_windows: bool = False, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
+def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame,
+                                         dataset: Dataset,
+                                         window_size: int, sub_windows: bool = False, multiple_windows: bool = True,
+                                         perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
 
@@ -84,9 +89,9 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
             adjustments.sort()
             temp_mean = int(median(adjustments))
             if temp_mean > 0:
-                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 > i]
             else:
-                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 < i]
 
             if adjustments:
                 center = int(center + median(adjustments))
@@ -117,7 +122,8 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
 
 
 def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, weights=None, multiple_windows:bool = True, perfect_centering: bool = False, ) -> ([Window], Dataset):
+                                 window_size: int, weights=None, multiple_windows: bool = True,
+                                 perfect_centering: bool = False, ) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
     window_sz = int((window_size * dataset.sample_rate) / 2)
@@ -159,9 +165,9 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
             adjustments.sort()
             temp_mean = int(median(adjustments))
             if temp_mean > 0:
-                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 > i]
             else:
-                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 < i]
 
             if adjustments:
                 center = int(center + median(adjustments))
@@ -291,11 +297,11 @@ def data_preparation(datasets, config):
 
     for dataset in datasets:
         for cluster in dataset.onsets_index:
-            if cluster[0]-config.window_padding*dataset.sample_rate < 0:
+            if cluster[0] - config.window_padding * dataset.sample_rate < 0:
                 continue
             X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                     cluster[0]-int(config.window_padding*dataset.sample_rate):
-                     cluster[0]+int(config.window_padding*dataset.sample_rate)].to_numpy())
+                     cluster[0] - int(config.window_padding * dataset.sample_rate):
+                     cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy())
             Y.append(dataset.label)
     shuffler = np.random.permutation(len(X))
     X = np.array(X)[shuffler]
@@ -316,30 +322,62 @@ def normalization(X):
     return np.array(transformed_x), scaler
 
 
-# This is a temporary method for testing, does not handle the labeling properly!
-def online_data_labeling(dataset, config, scaler):
+def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
+    online_data_labels = get_online_data_labels(subject_id)
     X = []
     Y = []
     label_determiner = 0
 
-    for cluster in dataset.onsets_index:
-        if cluster[0] - config.window_padding * dataset.sample_rate < 0:
-            continue
-        X.append(
-            scaler.transform(
-                dataset.data[config.EEG_CHANNELS].iloc[
-                 cluster[0] - int(config.window_padding * dataset.sample_rate):
-                 cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy()
+    for dataset in datasets:
+        for cluster in dataset.onsets_index:
+            if cluster[0] - config.window_padding * dataset.sample_rate < 0:
+                continue
+            X.append(
+                scaler.transform(
+                    dataset.data[config.EEG_CHANNELS].iloc[
+                    cluster[0] - int(config.window_padding * dataset.sample_rate):
+                    cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy()
+                )
             )
-        )
-        if label_determiner % 2 == 0:
-            Y.append(0)
-        else:
-            Y.append(1)
-        label_determiner += 1
+
+            if label_determiner % 2 == 0:
+                Y.append(0)
+            else:
+                Y.append(1)
+            label_determiner += 1
+
+    if len(online_data_labels) == 1:
+        if online_data_labels[0][1] == 1:
+            for index, label in enumerate(online_data_labels[0][0]):
+                Y[index] = label
+        if online_data_labels[0][1] == 2:
+            for i in range(len(online_data_labels[0][0])):
+                Y[-i] = online_data_labels[0][0][-i]
+    if len(online_data_labels) == 2:
+        Y = online_data_labels[0][0].extend(online_data_labels[1][0])
 
     shuffler = np.random.permutation(len(X))
     X = np.array(X)[shuffler]
     Y = np.array(Y)[shuffler]
 
     return X, Y
+
+
+def get_online_data_labels(subject_id: int):
+    paths = [os.path.join(DATASET_PATH, f'subject_{subject_id}', 'online_test', 'online_01_labels.txt'),
+             os.path.join(DATASET_PATH, f'subject_{subject_id}', 'online_test', 'online_02_labels.txt')]
+
+    test_data_labels = []
+    if file_exist(paths[0]):
+        test_data_id = 1
+        with open(paths[test_data_id - 1], encoding='utf-8') as f:
+            labels = json.loads(f.read())
+            test_data_labels.append([labels, test_data_id])
+
+    if file_exist(paths[1]):
+        test_data_id = 2
+        with open(paths[test_data_id - 1], encoding='utf-8') as f:
+            labels = json.loads(f.read())
+            test_data_labels.append([labels, test_data_id])
+
+    return test_data_labels
