@@ -15,14 +15,14 @@ from utility.logger import get_logger
 
 # Makes sure the default config and online label config files exist.
 def check_config_files():
-    default_config_path = os.path.join(ROOT_PATH, 'json_configs/default.json')
-    label_config_path = os.path.join(ROOT_PATH, 'json_configs/file_management.json')
+    default_config_path = os.path.join(ROOT_PATH, 'json_configs', 'default.json')
+    label_config_path = os.path.join(ROOT_PATH, 'json_configs', 'file_management.json')
 
     try:
         with open(default_config_path, 'r') as default_c, open(label_config_path) as label_c:
             return AttrDict(json.load(default_c)), AttrDict(json.load(label_c))
-    except FileNotFoundError as e:
-        get_logger().error(f'Config file missing at: {e.strerror}')
+    except OSError as e:
+        get_logger().error(f'Config file missing at: {e.filename}')
 
 
 # Data for 10 subjects should exist - creates folders for each subject if none yet exist.
