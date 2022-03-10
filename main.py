@@ -1,10 +1,7 @@
-import json
 import logging
-from classes.Dict import AttrDict
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
 from dispatch import preliminary
-import os
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
@@ -13,13 +10,9 @@ valid_subjects = list(range(9))
 
 
 def main():
+    config, label_config = preliminary.check_config_files()
     preliminary.check_data_folders()
-
-    dirname = os.path.dirname(__file__)
-    filename = os.path.join(dirname, 'json_configs/default.json')
-
-    with open(filename) as c_config:
-        config = AttrDict(json.load(c_config))
+    preliminary.check_for_label_files(label_config)
 
     subject = int(input('Choose subject 0-8\n'))
 
