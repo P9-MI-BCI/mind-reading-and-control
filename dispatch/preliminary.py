@@ -41,7 +41,7 @@ def check_for_label_files(label_config):
     for k, v in label_config.items():
         path = os.path.join(DATASET_PATH, k, 'online_test')
         try:
-            if not np.all(list(map(os.path.exists, [os.path.join(path, i) for i in v]))):
+            if not np.all(list(map(os.path.exists, [os.path.join(path, i) for i in v['label_files']]))):
                 raise FileNotFoundError(f'Label file missing at {k}')
         except FileNotFoundError as e:
             get_logger().error(e)
