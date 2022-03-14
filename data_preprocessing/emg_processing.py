@@ -129,6 +129,6 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     return t_clusters
 
 
-def multi_dataset_onset_detection(datasets, config):
+def multi_dataset_onset_detection(datasets, config, is_online=False):
     for dataset in datasets:
-        dataset.filtered_data = onset_detection(dataset, config)
+        dataset.filtered_data = onset_detection(dataset, config, is_online)

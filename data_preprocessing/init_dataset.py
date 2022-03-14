@@ -46,7 +46,13 @@ def create_dataset(path: str, config):
     if len(data) == 0:
         get_logger().error(f'No files found in {path}')
     elif len(data) == 1:
+        # Dwell data
         return init(data[0], config)
+    elif len(data) == 2:
+        online_test_data = []
+        for dataset in data:
+            online_test_data.append(init(dataset, config))
+        return online_test_data
     else:
         assert len(data) == len(names)
         for dataset, label in zip(data, names):

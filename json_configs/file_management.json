@@ -1,0 +1,6 @@
+{
+  "subject_1": {
+    "label_files": ["online_02_labels.txt"],
+    "emg_outliers": []
+  }
+}
