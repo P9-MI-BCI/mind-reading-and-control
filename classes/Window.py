@@ -1,6 +1,4 @@
 import pandas as pd
-
-from data_preprocessing.eog_detection import blink_detection
 from utility.logger import get_logger
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
@@ -8,7 +6,7 @@ from matplotlib import gridspec
 from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
 import os
-
+import numpy as np
 from data_preprocessing.feature_extraction import calc_best_fit_slope, calc_variability, calc_mean_amplitude
 
 
@@ -54,11 +52,15 @@ class Window:
                 freq_range = sw, sw + sub_window_sz
                 data = self.filtered_data.iloc[freq_range[0]:freq_range[1], :]
 
-                _, b = calc_best_fit_slope(data, channel)
-                var = calc_variability(data, channel)
-                mean_amp = calc_mean_amplitude(data, channel)
+                x = data[channel].index.values
+                y = data[channel].values
+                #
+                slope, intercept, r_value, p_value, std_err = linregress(x, y)
 
-                feature_vec.append([b, var, mean_amp])
+                # _, b = calc_best_fit_slope(data, channel)
+                var = data[channel].var()
+                mean_amp = data[channel].mean()
+                feature_vec.append([slope, var, mean_amp])
 
             self.feature_vector[channel] = [feature_vec]
 
@@ -174,7 +176,7 @@ class Window:
     def plot(self, sub_windows=None, channel: int = 4, freq: int = 1200, show: bool = True, plot_features: bool = False,
              plot_windows: bool = False, save_fig: bool = False, overwrite: bool=False) -> plt.figure():
 
-        fig = plt.figure(figsize=(5, 7))
+        fig = plt.figure(figsize=(5, 5))
         center = (len(self.data) / 2) / freq
         x_seconds = []
         for i, row in self.filtered_data[channel].items():  # converts the window.data freqs to seconds
@@ -186,20 +188,23 @@ class Window:
 
                 emg_timestamp = self._timestamp_order(agg_strat)
                 # y_t = ['EC'] * len(tp_timestamp)
-                y_t2 = ['EMG'] * len(emg_timestamp)
+                # y_t2 = ['EMG'] * len(emg_timestamp)
 
-                gs = gridspec.GridSpec(ncols=1, nrows=5, figure=fig)
+                gs = gridspec.GridSpec(ncols=1, nrows=4, figure=fig)
 
                 # Adding raw data subplot
                 ax1 = fig.add_subplot(gs[:2, 0])
-                ax1.set_title(f' Channel: {channel} - EEG {self.num_id} - Filtered EMG  - Blink: {self.blink}')
-                ax1.plot(x_seconds, self.filtered_data[12], color='tomato') # todo (easy to find) emg channel
+                # ax1.set_title(f' Channel: {channel} - {self.num_id} - Filtered EMG - Blink: {self.blink}')
+                ax1.plot(x_seconds, self.filtered_data[12], color='blue') # todo (easy to find) emg channel
                 ax1.axvline(x=0, color='black', ls='--')
+                ax1.set_ylabel('mV', labelpad=-1)
 
                 # Adding filtered data subplot
                 ax2 = fig.add_subplot(gs[2:4, 0], sharex=ax1)
-                ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
+                # ax2.set_title(f'Filter: {self.filter_type[channel].iloc[0]}')
                 ax2.plot(x_seconds, self.filtered_data[channel], color='tomato', label='filtered data')
+                ax2.set_xlabel('time (s)')
+                ax2.set_ylabel('μV', labelpad=-1)
                 ax2.axvline(x=0, color='black', ls='--')
 
                 # Showing span of each sub-window on filtered data subplot
@@ -256,10 +261,10 @@ class Window:
                     ax2.legend()
 
                 # Adding EMG start, peak, end subplot
-                ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
-                ax3.set_title('EMG Detection')
-                ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
-                ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
+                # ax3 = fig.add_subplot(gs[4, 0], sharex=ax1)
+                # ax3.set_title('EMG Detection')
+                # ax3.plot(emg_timestamp, y_t2, marker='^', color='limegreen')
+                # ax3.annotate('Peak', xy=[emg_timestamp[1], y_t2[1]])
 
                 # Adding execution cue interval subplot
                 # ax4 = fig.add_subplot(gs[5, 0], sharex=ax1)
@@ -314,22 +319,27 @@ class Window:
 
     def plot_window_for_all_channels(self, freq: int = 1200, save_fig: bool = False, overwrite: bool = False):
         # Finds a list of all EEG channels by checking their filter type
-        eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
+        # eeg_channels = self.filter_type.apply(lambda row: row[row == 'bandpass'].index, axis=1)[0].tolist()
         fig = plt.figure(figsize=(14, 10))
 
         x_seconds = []
-        center = (len(self.data) / 2) / freq
+        center = (len(self.data) / 2) # / freq
 
         for i, row in self.filtered_data[0].items():  # converts the window.data freqs to seconds
-            x_seconds.append(i / freq - center)
+            # x_seconds.append(i / freq - center)
+            x_seconds.append(i - freq)
 
-        for channel in eeg_channels:
+        for channel in range(9):
             ax = fig.add_subplot(3, 3, channel + 1)
             ax.set_title(f'Channel: {channel + 1}')
+            if channel == 3:
+                ax.set_ylabel('μV (Filtered)')
+            if channel == 7:
+                ax.set_xlabel('time (s)')
             ax.plot(x_seconds, self.filtered_data[channel], label='Filtered data')
             ax.axvline(x=0, color='black', ls='--')
 
-        fig.suptitle(f'Window {self.num_id}', fontsize=16)
+        # fig.suptitle(f'Window {self.num_id}', fontsize=16)
         plt.tight_layout()
 
         if save_fig:
@@ -360,9 +370,9 @@ class Window:
             emg_timestamp = [
                 (self.timestamp['emg_start'] - self.timestamp[agg_strat]).total_seconds(), 0,
                 (self.timestamp['emg_end'] - self.timestamp[agg_strat]).total_seconds()]
-            tp_timestamp = [
-                (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
-                (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
+            # tp_timestamp = [
+            #     (self.timestamp['tp_start'] - self.timestamp[agg_strat]).total_seconds(),
+            #     (self.timestamp['tp_end'] - self.timestamp[agg_strat]).total_seconds()]
         elif agg_strat == 'emg_end':
             emg_timestamp = [
                 (self.timestamp['emg_start'] - self.timestamp[agg_strat]).total_seconds(),

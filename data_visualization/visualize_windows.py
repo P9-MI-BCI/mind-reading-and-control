@@ -72,18 +72,22 @@ def visualize_labeled_windows(data: Dataset, windows: [Window], channel: int = 4
 
 
 # Visualizes a single window for all channels
-def visualize_window_all_channels(data: Dataset, windows: [Window], window_id: int, savefig: bool = False,
+def visualize_window_all_channels(filtered_data, window: Window, window_id: int, savefig: bool = False,
                                   overwrite: bool = False):
     fig = plt.figure(figsize=(12, 10))
 
-    start = windows[window_id].frequency_range[0]
-    end = windows[window_id].frequency_range[-1]
+    start = 0
+    end = 2400
 
     for channel in range(9):
         ax = fig.add_subplot(3, 3, channel + 1)
-        ax.axvspan(start, end, color='grey', alpha=0.5, label=f'Window {window_id}')
+        ax.axvspan(start, end, color='grey', alpha=0.5)
         ax.set_title(f'Channel {channel + 1}')
-        ax.plot(data.filtered_data[channel])
+        ax.plot(window.filtered_data[channel])
+        if channel == 3:
+            ax.set_ylabel('μV (Filtered)')
+        if channel == 7:
+            ax.set_xlabel('time (s)')
 
     plt.tight_layout()
 

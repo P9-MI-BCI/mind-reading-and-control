@@ -1,13 +1,16 @@
 import collections
 import random
 import pandas as pd
-import sys
-from statistics import mean, stdev, median
-from data_preprocessing.eog_detection import blink_detection
-from data_preprocessing.trigger_points import is_triggered
-from classes.Window import Window
-from classes import Dataset
 import numpy as np
+import sys
+import os
+import json
+
+from statistics import mean, stdev, median
+from classes import Window, Dataset
+from sklearn.preprocessing import StandardScaler
+from utility.file_util import file_exist
+from definitions import DATASET_PATH
 
 
 # Finds the start of TriggerPoints and converts it to frequency and takes the window_size (in seconds) and cuts each
@@ -41,12 +44,14 @@ def cut_mrcp_windows(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.D
     return list_of_mrcp_windows, filtered_data, dataset
 
 
-def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, sub_windows: bool = False, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
+def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame,
+                                         dataset: Dataset,
+                                         window_size: int, sub_windows: bool = False, multiple_windows: bool = True,
+                                         perfect_centering: bool = False) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
 
-    window_sz = window_size * dataset.sample_rate
+    window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # sub windows are half a second
     sub_window_sz = int(window_sz / 2)
@@ -54,7 +59,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
     step_sz = int(sub_window_sz / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1]
+    weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     # ids
     id = 0
@@ -67,7 +72,7 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
         if perfect_centering:
             adjustments = []
             for column in window0.filtered_data.columns:
-                if column == 12 or column == 8:
+                if column == 12 or column == 9:
                     continue
                 distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
                 adjustments.append(distance)
@@ -84,9 +89,9 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
             adjustments.sort()
             temp_mean = int(median(adjustments))
             if temp_mean > 0:
-                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 > i]
             else:
-                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 < i]
 
             if adjustments:
                 center = int(center + median(adjustments))
@@ -104,20 +109,6 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
 
         list_of_windows.append(window0)
         id += 1
-
-        # if sub_windows:
-        #     # create window size / sub_window_sz new windows
-        #     amount_sub_windows = int(len(window0.data) / sub_window_sz * 2 - 1)
-        #     sub_id = 0
-        #     sub_windows_ids = []
-        #     for sw in range(0, len(window0.data)-step_sz, step_sz):
-        #         sub_window_id = w0_id + f'.{sub_id}'
-        #         window_sw = create_sub_windows(window0, sw, sub_window_sz, sub_window_id)
-        #         list_of_windows.append(window_sw)
-        #         sub_windows_ids.append(sub_window_id)
-        #         sub_id += 1
-        #     assert len(sub_windows_ids) == amount_sub_windows
-        #     window0.sub_windows = sub_windows_ids
 
         indices_to_delete.append([center - window_sz, center + window_sz])
 
@@ -131,13 +122,15 @@ def cut_mrcp_windows_rest_movement_phase(tp_table: pd.DataFrame, tt_column: str,
 
 
 def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtered_data: pd.DataFrame, dataset: Dataset,
-                     window_size: int, multiple_windows:bool = True, perfect_centering: bool = False) -> ([Window], Dataset):
+                                 window_size: int, weights=None, multiple_windows: bool = True,
+                                 perfect_centering: bool = False, ) -> ([Window], Dataset):
     list_of_windows = []
     indices_to_delete = []
     window_sz = int((window_size * dataset.sample_rate) / 2)
 
     # weights
-    weights = [1, 1, 0, 1, 1, 0, 1, 1]
+    if weights is None:
+        weights = [1, 1, 1, 1, 1, 1, 1, 1, 1]
 
     # ids
     id = 0
@@ -150,15 +143,20 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         if perfect_centering:
             adjustments = []
             for column in window0.filtered_data.columns:
-                if column == 12 or column == 8:
+                if column == 12 or column == 9:
                     continue
-                distance = (window0.filtered_data[column].idxmin() - center) * weights[column]
+                distance = (window0.filtered_data[column].idxmin() - center)
                 adjustments.append(distance)
-            negative_counter = 0
-            for d in adjustments:
-                if d <= 0:
-                    negative_counter += 1
-            if negative_counter > len(adjustments) / 2:
+            negative_votes = 0
+            positive_votes = 0
+
+            for d in range(0, len(adjustments)):
+                if adjustments[d] <= 0:
+                    negative_votes += weights[d]
+                else:
+                    positive_votes += weights[d]
+
+            if negative_votes > positive_votes:
                 adjustments = [min(x, 0) for x in adjustments]
             else:
                 adjustments = [max(x, 0) for x in adjustments]
@@ -167,9 +165,9 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
             adjustments.sort()
             temp_mean = int(median(adjustments))
             if temp_mean > 0:
-                adjustments = [i for i in adjustments if temp_mean*1.5 > i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 > i]
             else:
-                adjustments = [i for i in adjustments if temp_mean*1.5 < i]
+                adjustments = [i for i in adjustments if temp_mean * 1.5 < i]
 
             if adjustments:
                 center = int(center + median(adjustments))
@@ -188,33 +186,6 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         list_of_windows.append(window0)
         id += 1
 
-        if multiple_windows:
-            # [-1.1, 0.9]
-            w0_id = f'mrcp:{id}'
-            window0.data = dataset.data_device1.iloc[center - window_sz - 120: center + window_sz - 120]
-            window0.label = 1  # Movement phase
-            window0.timestamp = row
-            window0.frequency_range = [center - window_sz, center + window_sz]
-            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
-            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
-            window0.num_id = w0_id
-            window0.is_sub_window = True
-            list_of_windows.append(window0)
-            id += 1
-
-            # [-0.9, 1.1]
-            w0_id = f'mrcp:{id}'
-            window0.data = dataset.data_device1.iloc[center - window_sz + 120: center + window_sz + 120]
-            window0.label = 1  # Movement phase
-            window0.timestamp = row
-            window0.frequency_range = [center - window_sz, center + window_sz]
-            window0.filtered_data = filtered_data.iloc[center - window_sz: center + window_sz]
-            window0.filtered_data = window0.filtered_data.reset_index(drop=True)
-            window0.num_id = w0_id
-            window0.is_sub_window = True
-            list_of_windows.append(window0)
-            id += 1
-
         indices_to_delete.append([center - window_sz, center + window_sz])
 
     indices_to_delete.reverse()
@@ -224,20 +195,6 @@ def cut_mrcp_windows_calibration(tp_table: pd.DataFrame, tt_column: str, filtere
         filtered_data = filtered_data.drop(filtered_data.index[indices[0]:indices[1]])
 
     return list_of_windows
-
-
-def create_sub_windows(window: Window, sw: int, sub_window_sz: int, id:str):
-    window_sw = Window()
-    window_sw.data = window.data.iloc[sw: sw + sub_window_sz]
-    window_sw.label = window.label
-    window_sw.timestamp = window.timestamp
-    window_sw.frequency_range = [window.frequency_range[0] + sw, window.frequency_range[0] + sw + sub_window_sz]
-    window_sw.filtered_data = window.filtered_data.iloc[sw: sw + sub_window_sz]
-    window_sw.filtered_data = window_sw.filtered_data.reset_index(drop=True)
-    window_sw.num_id = id
-    window_sw.is_sub_window = True
-
-    return window_sw
 
 
 def cut_and_label_idle_windows(data: pd.DataFrame, filtered_data: pd.DataFrame,
@@ -332,3 +289,115 @@ def blinks_in_list(windows: [Window]) -> int:
             counter += 1
 
     return counter
+
+
+def data_preparation(datasets, config):
+    X = []
+    Y = []
+
+    if config.rest_classification:
+        for dataset in datasets:
+            for cluster in dataset.onsets_index:
+                if cluster[0]-config.window_padding*dataset.sample_rate * 3 < 0:
+                    continue
+                # movement
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate):
+                         cluster[0]+int(config.window_padding*dataset.sample_rate)
+                         ].to_numpy())
+                # rest before movement
+                Y.append(dataset.label)
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate * 3):
+                         cluster[0]-int(config.window_padding*dataset.sample_rate)
+                         ].to_numpy())
+                Y.append(0)
+
+    elif not config.rest_classification:
+        for dataset in datasets:
+            for cluster in dataset.onsets_index:
+                if cluster[0]-config.window_padding*dataset.sample_rate < 0:
+                    continue
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate):
+                         cluster[0]+int(config.window_padding*dataset.sample_rate)].to_numpy())
+                Y.append(dataset.label)
+
+    shuffler = np.random.permutation(len(X))
+    X = np.array(X)[shuffler]
+    Y = np.array(Y)[shuffler]
+
+    return X, Y
+
+
+def normalization(X):
+    scaler = StandardScaler()
+
+    flat_x = np.concatenate((X), axis=0)
+    scaler.fit(flat_x)
+    transformed_x = []
+    for x in X:
+        transformed_x.append(scaler.transform(x))
+
+    return np.array(transformed_x), scaler
+
+
+def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
+    online_data_labels = get_online_data_labels(subject_id)
+    X = []
+    Y = []
+    label_determiner = 0
+
+    for dataset in datasets:
+        for cluster in dataset.onsets_index:
+            if cluster[0] - config.window_padding * dataset.sample_rate < 0:
+                continue
+            X.append(
+                scaler.transform(
+                    dataset.data[config.EEG_CHANNELS].iloc[
+                    cluster[0] - int(config.window_padding * dataset.sample_rate):
+                    cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy()
+                )
+            )
+
+            if label_determiner % 2 == 0:
+                Y.append(0)
+            else:
+                Y.append(1)
+            label_determiner += 1
+
+    if len(online_data_labels) == 1:
+        if online_data_labels[0][1] == 1:
+            for index, label in enumerate(online_data_labels[0][0]):
+                Y[index] = label
+        if online_data_labels[0][1] == 2:
+            for i in range(len(online_data_labels[0][0])):
+                Y[-i] = online_data_labels[0][0][-i]
+    if len(online_data_labels) == 2:
+        Y = online_data_labels[0][0].extend(online_data_labels[1][0])
+
+    shuffler = np.random.permutation(len(X))
+    X = np.array(X)[shuffler]
+    Y = np.array(Y)[shuffler]
+
+    return X, Y
+
+
+def get_online_data_labels(subject_id: int):
+    paths = [os.path.join(DATASET_PATH, f'subject_{subject_id}', 'online_test', 'online_01_labels.txt'),
+             os.path.join(DATASET_PATH, f'subject_{subject_id}', 'online_test', 'online_02_labels.txt')]
+
+    test_data_labels = []
+    if file_exist(paths[0]):
+        test_data_id = 1
+        with open(paths[test_data_id - 1], encoding='utf-8') as f:
+            labels = json.loads(f.read())
+            test_data_labels.append([labels, test_data_id])
+
+    if file_exist(paths[1]):
+        test_data_id = 2
+        with open(paths[test_data_id - 1], encoding='utf-8') as f:
+            labels = json.loads(f.read())
+            test_data_labels.append([labels, test_data_id])
+
+    return test_data_labels
