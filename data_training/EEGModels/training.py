@@ -36,19 +36,21 @@ def stratified_kfold_cv(X, Y, model, online_X, online_Y):
         # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
         X_reshaped = X[train_index].reshape((X[train_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
         X_val_reshaped = X[val_index].reshape((X[val_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
-        history = model.fit(X_reshaped, Y[train_index], batch_size=8, epochs=300,
-                            verbose=0, validation_data=(X_val_reshaped, Y[val_index]),
-                            callbacks=[TqdmCallback(verbose=0),
-                                       EarlyStopping(monitor='val_loss', patience=30)])
+        model.fit(X_reshaped, Y[train_index], batch_size=8, epochs=300,
+                  verbose=0, validation_data=(X_val_reshaped, Y[val_index]),
+                  callbacks=[TqdmCallback(verbose=0),
+                             EarlyStopping(monitor='val_loss', patience=30)])
 
+    # reset the model before training
+    model.load_weights('initial_weights.h5')
     X_reshaped = X.reshape((X.shape[0], X[0].shape[1], X[0].shape[0], kernels))
     X_online_reshaped = online_X.reshape((online_X.shape[0], online_X[0].shape[1], online_X[0].shape[0], kernels))
 
     get_logger().info(f'Cross Validation Finished -- Training using entire dataset')
-    history = model.fit(X_reshaped, Y, batch_size=8, epochs=300,verbose=0,
+    history = model.fit(X_reshaped, Y, batch_size=16, epochs=300, verbose=0,
                         validation_data=(X_online_reshaped, online_Y),
                         callbacks=[TqdmCallback(verbose=0),
-                        EarlyStopping(monitor='val_loss', patience=50)])
+                                   ])
 
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
@@ -76,6 +78,7 @@ def get_DeepConvNet(X):
                   metrics=['accuracy'])
 
     return model
+
 
 def get_ShallowConvNet(X):
     model = ShallowConvNet(nb_classes=1, Chans=X[0].shape[1], Samples=X[0].shape[0], dropoutRate=0.5)

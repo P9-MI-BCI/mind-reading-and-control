@@ -295,14 +295,34 @@ def data_preparation(datasets, config):
     X = []
     Y = []
 
-    for dataset in datasets:
-        for cluster in dataset.onsets_index:
-            if cluster[0] - config.window_padding * dataset.sample_rate < 0:
-                continue
-            X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                     cluster[0] - int(config.window_padding * dataset.sample_rate):
-                     cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy())
-            Y.append(dataset.label)
+    if config.rest_classification:
+        for dataset in datasets:
+            for cluster in dataset.onsets_index:
+                if cluster[0]-config.window_padding*dataset.sample_rate * 3 < 0:
+                    continue
+                # movement
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate):
+                         cluster[0]+int(config.window_padding*dataset.sample_rate)
+                         ].to_numpy())
+                # rest before movement
+                Y.append(dataset.label)
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate * 3):
+                         cluster[0]-int(config.window_padding*dataset.sample_rate)
+                         ].to_numpy())
+                Y.append(0)
+
+    elif not config.rest_classification:
+        for dataset in datasets:
+            for cluster in dataset.onsets_index:
+                if cluster[0]-config.window_padding*dataset.sample_rate < 0:
+                    continue
+                X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                         cluster[0]-int(config.window_padding*dataset.sample_rate):
+                         cluster[0]+int(config.window_padding*dataset.sample_rate)].to_numpy())
+                Y.append(dataset.label)
+
     shuffler = np.random.permutation(len(X))
     X = np.array(X)[shuffler]
     Y = np.array(Y)[shuffler]

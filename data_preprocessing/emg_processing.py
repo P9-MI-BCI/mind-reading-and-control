@@ -1,3 +1,4 @@
+from math import floor, ceil
 import biosppy
 import numpy as np
 import pandas as pd
@@ -5,6 +6,17 @@ from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
+from utility.logger import get_logger
+
+
+def emg_amplitude_tkeo(filtered_data):
+
+    tkeo = np.zeros((len(filtered_data),))
+
+    for i in range(1, len(tkeo) - 1):
+        tkeo[i] = (filtered_data[i] * filtered_data[i] - filtered_data[i - 1] * filtered_data[i + 1])
+
+    return tkeo
 
 def emg_amplitude_tkeo(filtered_data):
 
@@ -42,9 +54,11 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
                                                         sampling_rate=dataset.sample_rate,
                                                         )
 
-    t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
+    # emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
+    t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
+
     # Group onsets based on time
     emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, is_online=is_online)
 
@@ -56,14 +70,14 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     for vals in plot_arr:
         plt.plot(np.abs(vals))
 
-    #TODO: add plt.title() with filename for easy outlier detect
-    plt.title(dataset.filename)
-    plt.xlabel('Time (s)')
-    # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
-    plt.ylabel('mV (Filtered)', labelpad=-2)
-    plt.plot(t, '--', color='black')
-    plt.autoscale()
-    plt.show()
+    if get_logger().level == 10:
+        plt.title(dataset.filename)
+        plt.xlabel('Time (s)')
+        # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
+        plt.ylabel('mV (Filtered)', labelpad=-2)
+        plt.plot(t, '--', color='black')
+        plt.autoscale()
+        plt.show()
 
     dataset.onsets_index = emg_clusters
     return filtered_data[config.EMG_CHANNEL]
@@ -108,8 +122,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [
     if is_online:
         return all_peaks
     else:
-        return all_peaks
-        #return remove_outliers_by_peak_activity(all_peaks, emg_data)
+        return remove_outliers_by_peak_activity(all_peaks, emg_data)
 
 
 # Compare all peaks and remove outliers below Q1
