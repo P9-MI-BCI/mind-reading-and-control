@@ -56,6 +56,8 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     for vals in plot_arr:
         plt.plot(np.abs(vals))
 
+    #TODO: add plt.title() with filename for easy outlier detect
+    plt.title(dataset.filename)
     plt.xlabel('Time (s)')
     # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
     plt.ylabel('mV (Filtered)', labelpad=-2)
@@ -106,7 +108,8 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [
     if is_online:
         return all_peaks
     else:
-        return remove_outliers_by_peak_activity(all_peaks, emg_data)
+        return all_peaks
+        #return remove_outliers_by_peak_activity(all_peaks, emg_data)
 
 
 # Compare all peaks and remove outliers below Q1

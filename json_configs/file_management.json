@@ -1,6 +1,19 @@
 {
+  "subject_0": {
+    "label_files": ["online_02_labels.txt"],
+    "emg_outliers": ["online_01.mat", "online_02.mat", "close_01.mat", "close_02.mat", "close_03.mat", "close_06.mat", "close_07.mat", "close_08.mat", "open_01.mat", "open_09.mat"]
+  },
   "subject_1": {
     "label_files": ["online_02_labels.txt"],
-    "emg_outliers": []
+    "emg_outliers": ["open_01.mat"]
+  },
+  "subject_2": {
+    "label_files": ["online_02_labels.txt"],
+    "emg_outliers": ["online_01.mat", "close_02.mat", "close_03.mat", "close_04.mat", "close_06.mat", "close_07.mat", "close_08.mat", "open_01.mat", "open_03.mat", "open_10.mat"]
+  },
+  "subject_3": {
+    "label_files": ["online_02_labels.txt"],
+    "emg_outliers": ["online_02.mat"]
   }
+
 }
