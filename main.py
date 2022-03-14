@@ -1,39 +1,33 @@
-import pandas as pd
-import json
 import logging
-from classes.Dict import AttrDict
-from data_preprocessing.init_dataset import get_datasets
+from data_preprocessing.init_dataset import format_input
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
+from dispatch import preliminary
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 # pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
+valid_subjects = list(range(9))
 
 
 def main():
-    # with open('json_configs/default.json') as c_config:
-    #     config = AttrDict(json.load(c_config))
-    #
-    # config = AttrDict(config)
-    #
-    # valid_subjects = list(range(9))
-    # subject = int(input('Choose subject 0-8\n'))
-    #
-    # if subject in valid_subjects:
-    #     dwell_dataset, online_dataset, training_dataset = get_datasets(subject_id=subject, config=config)
-    # else:
-    #     print('Input does not match subject ID')
-    #     exit()
+    config, label_config = preliminary.check_config_files()
+    preliminary.check_data_folders()
+    preliminary.check_for_label_files(label_config)
 
-    with open('config.json') as config_file, open('script_parameters.json') as script_parameters:
-        config = json.load(config_file)['cue_set1']  # Choose config
-        script_params = json.load(script_parameters)  # Load script parameters
+    subject = int(input('Choose subject 0-8\n'))
 
-    script_params = AttrDict(script_params)
-    config = AttrDict(config)
+    transfer_learning = input('Enable Transfer Learning (y/n)\n')
+    config.transfer_learning = format_input(transfer_learning)
 
-    dispatch(script_params, config)
+    include_rest = input('Binary rest/movement classification (y/n)\n')
+    config.rest_classification = format_input(include_rest)
+
+    if subject in valid_subjects:
+        dispatch(subject, config)
+    else:
+        print('Input does not match subject ID')
+        exit()
 
 
 if __name__ == '__main__':

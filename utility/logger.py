@@ -3,6 +3,17 @@ import os
 import sys
 from definitions import OUTPUT_PATH
 
+
+'''
+Logger levels:
+    Debug:      10
+    Info:       20
+    Warning:    30
+    Error:      40
+    Critical:   50
+'''
+
+
 logger = None
 
 
