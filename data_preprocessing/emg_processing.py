@@ -18,8 +18,17 @@ def emg_amplitude_tkeo(filtered_data):
 
     return tkeo
 
+def emg_amplitude_tkeo(filtered_data):
 
-def onset_detection(dataset: Dataset, config) -> [[int]]:
+    tkeo = np.zeros((len(filtered_data),))
+
+    for i in range(1, len(tkeo) - 1):
+        tkeo[i] = (filtered_data[i] * filtered_data[i] - filtered_data[i - 1] * filtered_data[i + 1])
+
+    return tkeo
+
+
+def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -51,7 +60,7 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
 
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets)
+    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, is_online=is_online)
 
     plot_arr = []
     for cluster in emg_clusters:
@@ -73,7 +82,7 @@ def onset_detection(dataset: Dataset, config) -> [[int]]:
     return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None) -> [[int]]:
+def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:
     all_peaks = []
     if distance is None:
         distance = 100
@@ -108,8 +117,11 @@ def emg_clustering(emg_data, onsets: [int], distance=None) -> [[int]]:
                 highest = abs(emg_data[onset])
                 index = onset
         all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
-    return remove_outliers_by_x_axis_distance(all_peaks)
-    #return remove_outliers_by_peak_activity(all_peaks, emg_data)
+
+    if is_online:
+        return all_peaks
+    else:
+        return remove_outliers_by_peak_activity(all_peaks, emg_data)
 
 
 # Compare all peaks and remove outliers below Q1
@@ -168,6 +180,6 @@ def remove_outliers_by_x_axis_distance(clusters):
 # TODO: 2d outlier detection (width of cluster, height of cluster)
 #       Signal to noise ratio.
 
-def multi_dataset_onset_detection(datasets, config):
+def multi_dataset_onset_detection(datasets, config, is_online=False):
     for dataset in datasets:
-        dataset.filtered_data = onset_detection(dataset, config)
+        dataset.filtered_data = onset_detection(dataset, config, is_online)
