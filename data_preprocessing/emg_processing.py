@@ -42,6 +42,7 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
                                                         sampling_rate=dataset.sample_rate,
                                                         )
 
+    threshold = threshold
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()

@@ -1,6 +1,7 @@
 import json
 import logging
 from classes.Dict import AttrDict
+from data_preprocessing.init_dataset import format_input
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
 from dispatch import preliminary
@@ -22,6 +23,12 @@ def main():
         config = AttrDict(json.load(c_config))
 
     subject = int(input('Choose subject 0-8\n'))
+
+    transfer_learning = input('Enable Transfer Learning (y/n)\n')
+    config.transfer_learning = format_input(transfer_learning)
+
+    include_rest = input('Binary rest/movement classification (y/n)\n')
+    config.rest_classification = format_input(include_rest)
 
     if subject in valid_subjects:
         dispatch(subject, config)
