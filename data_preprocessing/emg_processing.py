@@ -16,28 +16,27 @@ def emg_amplitude_tkeo(filtered_data):
     for i in range(1, len(tkeo) - 1):
         tkeo[i] = (filtered_data[i] * filtered_data[i] - filtered_data[i - 1] * filtered_data[i + 1])
 
-    return tkeo
+    return tkeo[1:-1]
 
 
 def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
-    # highpass filter to determine onsets
-    filtered_data[config.EMG_CHANNEL] = butter_filter(data=dataset.data[config.EMG_CHANNEL],
-                                                      order=6,
-                                                      cutoff=[30, 300],
-                                                      btype='bandpass',
+    bandpass_data = butter_filter(data=dataset.data[config.EMG_CHANNEL],
+                                                      order=config.EMG_ORDER_BANDPASS,
+                                                      cutoff=config.EMG_CUTOFF_BANDPASS,
+                                                      btype=config.EMG_BTYPE_BANDPASS,
                                                       )
 
-    tkeo = emg_amplitude_tkeo(filtered_data[config.EMG_CHANNEL].to_numpy())
+    tkeo = emg_amplitude_tkeo(bandpass_data)
 
     tkeo_rectified = np.abs(tkeo)
 
     filtered_data[config.EMG_CHANNEL] = butter_filter(data=tkeo_rectified,
-                                                      order=2,
-                                                      cutoff=50,
-                                                      btype='lowpass',
+                                                      order=config.EMG_ORDER_LOWPASS,
+                                                      cutoff=config.EMG_CUTOFF_LOWPASS,
+                                                      btype=config.EMG_BTYPE_LOWPASS,
                                                       )
 
     # Find onsets based on the filtered data
@@ -165,3 +164,5 @@ def remove_outliers_by_x_axis_distance(clusters):
 def multi_dataset_onset_detection(datasets, config, is_online=False):
     for dataset in datasets:
         dataset.filtered_data = onset_detection(dataset, config, is_online)
+        dataset.data = dataset.data.iloc[1:-1, :]
+        dataset.data.reset_index(drop=True, inplace=True)
