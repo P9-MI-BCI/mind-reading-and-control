@@ -53,25 +53,22 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
 
     # Plotting of EMG signal and clusters
     if get_logger().level == 10:
-        try:
-            assert len(emg_clusters) < 2
-
             cluster_plot_arr = []
             for cluster in emg_clusters:
                 cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
+            plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
+
             for vals in cluster_plot_arr:
                 plt.plot(np.abs(vals))
 
-            plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
             plt.plot(t, '--', color='black')
             plt.title(dataset.filename)
             plt.xlabel('Time (s)')
             plt.ylabel('mV (Filtered)', labelpad=-2)
             plt.autoscale()
             plt.show()
-        except AssertionError:
-            get_logger().exception(f'{dataset.filename} contains {len(emg_clusters)} clusters.')
+
 
     dataset.onsets_index = emg_clusters
     return filtered_data[config.EMG_CHANNEL]
@@ -105,21 +102,26 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [
 
         distance += 200
 
-    clusters = remove_outliers_by_x_axis_distance(clusters, prox_coef)
+    try:
+        assert len(clusters) > 2
+        clusters = remove_outliers_by_x_axis_distance(clusters, prox_coef)
 
-    for onset_cluster in clusters:
-        highest = 0
-        index = 0
-        for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
-            if abs(emg_data[onset]) > highest:
-                highest = abs(emg_data[onset])
-                index = onset
-        all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+        for onset_cluster in clusters:
+            highest = 0
+            index = 0
+            for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
+                if abs(emg_data[onset]) > highest:
+                    highest = abs(emg_data[onset])
+                    index = onset
+            all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+        if is_online:
+            return all_peaks
+        else:
+            return remove_outliers_by_peak_activity(all_peaks, emg_data)
+    except AssertionError:
+        get_logger().exception(f'File only contains {len(clusters)} clusters.')
 
-    if is_online:
-        return all_peaks
-    else:
-        return remove_outliers_by_peak_activity(all_peaks, emg_data)
+
 
 
 # Compare all peaks and remove outliers below Q1
