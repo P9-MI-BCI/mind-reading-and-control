@@ -144,20 +144,24 @@ def remove_outliers_by_x_axis_distance(clusters):
     clusters_to_remove = []
     t_clusters = []
 
-    for i in range(0, len(clusters) - 2):
-        if abs(clusters[i][2] - clusters[i + 1][0]) < 2 * 1200:
-            if len(clusters[i]) < len(clusters[i + 1]):
+
+    for i in range(0, len(clusters)-2):
+        # Check for all clusters if the subsequent cluster is closer in proximity than x*fs
+        if abs(clusters[i][-1] - clusters[i+1][0]) < 2*1200:
+            # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
+            if len(clusters[i]) < len(clusters[i+1]):
                 clusters_to_remove.append(clusters[i])
             else:
-                clusters_to_remove.append(clusters[i + 1])
+                clusters_to_remove.append(clusters[i+1])
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1][1] - clusters[-2][1]) < 2 * 1200:
+    if abs(clusters[-1][0] - clusters[-2][-1]) < 2*1200:
         if len(clusters[-1]) < len(clusters[-2]):
             clusters_to_remove.append(clusters[-1])
         else:
             clusters_to_remove.append(clusters[-2])
-    if (clusters_to_remove):
+
+    if(clusters_to_remove):
         get_logger().debug(f"Removed {len(clusters_to_remove)} clusters because of proximity")
     for cluster in clusters:
         if cluster not in clusters_to_remove:
