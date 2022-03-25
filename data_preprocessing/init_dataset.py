@@ -67,12 +67,13 @@ def read_data(path: str):
     data = []
     filenames = []
     for file in glob.glob(path, recursive=True):
-        data.append(scipy.io.loadmat(file))
-        filenames.append(file.lower().split('\\')[-1])
-        if 'close' in file:
-            names.append(0)
-        elif 'open' in file:
-            names.append(1)
+        if ".mat" in file:
+            data.append(scipy.io.loadmat(file))
+            filenames.append(file.lower().split('\\')[-1])
+            if 'close' in file:
+                names.append(0)
+            elif 'open' in file:
+                names.append(1)
 
     return names, data, filenames
 

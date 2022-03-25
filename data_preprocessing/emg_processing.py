@@ -10,7 +10,6 @@ from utility.logger import get_logger
 
 
 def emg_amplitude_tkeo(filtered_data):
-
     tkeo = np.zeros((len(filtered_data),))
 
     for i in range(1, len(tkeo) - 1):
@@ -24,10 +23,10 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     filtered_data = pd.DataFrame()
 
     bandpass_data = butter_filter(data=dataset.data[config.EMG_CHANNEL],
-                                                      order=config.EMG_ORDER_BANDPASS,
-                                                      cutoff=config.EMG_CUTOFF_BANDPASS,
-                                                      btype=config.EMG_BTYPE_BANDPASS,
-                                                      )
+                                  order=config.EMG_ORDER_BANDPASS,
+                                  cutoff=config.EMG_CUTOFF_BANDPASS,
+                                  btype=config.EMG_BTYPE_BANDPASS,
+                                  )
 
     tkeo = emg_amplitude_tkeo(bandpass_data)
 
@@ -44,30 +43,35 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
                                                         sampling_rate=dataset.sample_rate,
                                                         )
 
-    # emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
 
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, is_online=is_online)
+    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
+                                  is_online=is_online)
 
-    plot_arr = []
-    for cluster in emg_clusters:
-        plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
-
-    plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
-    for vals in plot_arr:
-        plt.plot(np.abs(vals))
-
+    # Plotting of EMG signal and clusters
     if get_logger().level == 10:
-        plt.title(dataset.filename)
-        plt.xlabel('Time (s)')
-        # plt.xticks([0, 60000, 120000, 180000, 240000, 300000], [0, 50, 100, 150, 200, 250])
-        plt.ylabel('mV (Filtered)', labelpad=-2)
-        plt.plot(t, '--', color='black')
-        plt.autoscale()
-        plt.show()
+        try:
+            assert len(emg_clusters) < 2
+
+            cluster_plot_arr = []
+            for cluster in emg_clusters:
+                cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+
+            for vals in cluster_plot_arr:
+                plt.plot(np.abs(vals))
+
+            plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
+            plt.plot(t, '--', color='black')
+            plt.title(dataset.filename)
+            plt.xlabel('Time (s)')
+            plt.ylabel('mV (Filtered)', labelpad=-2)
+            plt.autoscale()
+            plt.show()
+        except AssertionError:
+            get_logger().exception(f'{dataset.filename} contains {len(emg_clusters)} clusters.')
 
     dataset.onsets_index = emg_clusters
     return filtered_data[config.EMG_CHANNEL]
@@ -130,7 +134,7 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     t_clusters = []
 
     for cluster in clusters:
-        if Q1 - iqr_val*0.7 < emg_data[cluster[1]]:
+        if Q1 - iqr_val * 0.7 < emg_data[cluster[1]]:
             t_clusters.append(cluster)
 
     return t_clusters
@@ -140,26 +144,27 @@ def remove_outliers_by_x_axis_distance(clusters):
     clusters_to_remove = []
     t_clusters = []
 
-    for i in range(0, len(clusters)-2):
-        if abs(clusters[i][2] - clusters[i+1][0]) < 2*1200:
-            if len(clusters[i]) < len(clusters[i+1]):
+    for i in range(0, len(clusters) - 2):
+        if abs(clusters[i][2] - clusters[i + 1][0]) < 2 * 1200:
+            if len(clusters[i]) < len(clusters[i + 1]):
                 clusters_to_remove.append(clusters[i])
             else:
-                clusters_to_remove.append(clusters[i+1])
+                clusters_to_remove.append(clusters[i + 1])
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1][1] - clusters[-2][1]) < 2*1200:
+    if abs(clusters[-1][1] - clusters[-2][1]) < 2 * 1200:
         if len(clusters[-1]) < len(clusters[-2]):
             clusters_to_remove.append(clusters[-1])
         else:
             clusters_to_remove.append(clusters[-2])
-    if(clusters_to_remove):
+    if (clusters_to_remove):
         get_logger().debug(f"Removed {len(clusters_to_remove)} clusters because of proximity")
     for cluster in clusters:
         if cluster not in clusters_to_remove:
             t_clusters.append(cluster)
 
     return t_clusters
+
 
 def multi_dataset_onset_detection(datasets, config, is_online=False):
     for dataset in datasets:
