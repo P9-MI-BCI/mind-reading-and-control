@@ -79,6 +79,7 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:
     all_peaks = []
+    prox_coef = 2
     if distance is None:
         distance = 100
 
@@ -104,7 +105,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [
 
         distance += 200
 
-    clusters = remove_outliers_by_x_axis_distance(clusters)
+    clusters = remove_outliers_by_x_axis_distance(clusters, prox_coef)
 
     for onset_cluster in clusters:
         highest = 0
@@ -140,14 +141,14 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     return t_clusters
 
 
-def remove_outliers_by_x_axis_distance(clusters):
+def remove_outliers_by_x_axis_distance(clusters, prox_coef):
     clusters_to_remove = []
     t_clusters = []
 
 
     for i in range(0, len(clusters)-2):
         # Check for all clusters if the subsequent cluster is closer in proximity than x*fs
-        if abs(clusters[i][-1] - clusters[i+1][0]) < 2*1200:
+        if abs(clusters[i][-1] - clusters[i+1][0]) < prox_coef*1200:
             # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
             if len(clusters[i]) < len(clusters[i+1]):
                 clusters_to_remove.append(clusters[i])
@@ -155,7 +156,7 @@ def remove_outliers_by_x_axis_distance(clusters):
                 clusters_to_remove.append(clusters[i+1])
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1][0] - clusters[-2][-1]) < 2*1200:
+    if abs(clusters[-1][0] - clusters[-2][-1]) < prox_coef*1200:
         if len(clusters[-1]) < len(clusters[-2]):
             clusters_to_remove.append(clusters[-1])
         else:
