@@ -297,21 +297,22 @@ def data_preparation(datasets, config):
 
     if config.rest_classification:
         for dataset in datasets:
-            for cluster in dataset.onsets_index:
-                if cluster[0]-config.window_padding*dataset.sample_rate * 3 < 0:
-                    continue
-                # movement
+            step_i = 0
+
+            while step_i < len(dataset.data)-config.window_size:
                 X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                         cluster[0]-int(config.window_padding*dataset.sample_rate):
-                         cluster[0]+int(config.window_padding*dataset.sample_rate)
-                         ].to_numpy())
-                # rest before movement
-                Y.append(dataset.label)
-                X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                         cluster[0]-int(config.window_padding*dataset.sample_rate * 3):
-                         cluster[0]-int(config.window_padding*dataset.sample_rate)
-                         ].to_numpy())
-                Y.append(0)
+                            step_i:
+                            step_i+int(config.window_size*dataset.sample_rate)
+                         ])
+                label_arr = []
+                for cluster in dataset.onsets_index:
+                    if cluster[0] < step_i < cluster[1]:
+                        label_arr.append(True)
+                    else:
+                        label_arr.append(False)
+                Y.append(any(label_arr))
+
+                step_i += int(config.step_size * dataset.sample_rate)
 
     elif not config.rest_classification:
         for dataset in datasets:
