@@ -174,12 +174,12 @@ def remove_outliers_by_x_axis_distance(clusters):
     if abs(clusters[-1][1] - clusters[-2][1]) > 5*1200 and abs(clusters[-1][1] - clusters[-2][1]) > x*median:
         t_clusters.append(clusters[-1])
 
-    print(len(t_clusters))
     return t_clusters
 
 # TODO: 2d outlier detection (width of cluster, height of cluster)
 #       Signal to noise ratio.
-
 def multi_dataset_onset_detection(datasets, config, is_online=False):
     for dataset in datasets:
         dataset.filtered_data = onset_detection(dataset, config, is_online)
+        dataset.data = dataset.data.iloc[1:-1, :]
+        dataset.data.reset_index(drop=True, inplace=True)

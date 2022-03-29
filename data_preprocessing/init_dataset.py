@@ -78,6 +78,8 @@ def get_dataset_paths(subject_id: int, config):
     if config.transfer_learning:
         training_p = []
         for sub_temp in range(9):
+            if sub_temp == subject_id:
+                continue
             training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
     else:
         training_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*')
@@ -94,3 +96,12 @@ def format_input(arg: str):
         return True
     elif arg == 'n':
         return False
+
+
+def print_hypothesis_options():
+    print("1. A combination of features extracted from different deep learning algorithms will improve the classification.")
+    print("2. The electrode layout will allow for differentiation between rest and movement in the EEG signals.")
+    print("3. A model can be trained to predict a new subject without any calibration.")
+    print("4. Calibration will improve the accuracy of the model when predicting on a new subject.")
+    print("5. Deep feature extraction will generalize better to cross-session datasets compared to handcrafted features.")
+    print("6. A high number of recorded movements from each subject will help improve classification of our models.")
