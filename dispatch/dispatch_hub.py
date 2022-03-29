@@ -7,6 +7,7 @@ from data_preprocessing.data_distribution import data_preparation, online_data_l
 from data_training.EEGModels.training import EEGModels_training_hub
 from data_training.SVM.training import svm_training_hub
 from data_visualization.mne_visualization import visualize_mne
+from data_visualization.brain_activity import visualize_brain_activity
 from data_preprocessing.downsampling import downsample
 
 
@@ -25,7 +26,7 @@ def dispatch(subject_id, config):
     Perform onset detection on the movement data and annotate the dataset with the indexes of the beginning
     of movement and end of movement. 
     """
-    multi_dataset_onset_detection(training_data, config)
+    # multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
 
     """
@@ -41,7 +42,9 @@ def dispatch(subject_id, config):
     Down sample testing. Visualizes the data with the MNE data structures.
     """
     # downsample(training_data, config)
-    visualize_mne(training_data, config)
+    # visualize_mne(training_data, config)
+    visualize_brain_activity(training_data, config)
+
 
     """
     Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
@@ -52,8 +55,8 @@ def dispatch(subject_id, config):
     X, scaler = normalization(X)
     online_X, online_Y = online_data_labeling(online_data, config, scaler, subject_id)
 
-    svm_training_hub(X, Y, online_X, online_Y)
-    EEGModels_training_hub(X, Y, online_X, online_Y)
+    # svm_training_hub(X, Y, online_X, online_Y)
+    # EEGModels_training_hub(X, Y, online_X, online_Y)
 
 
 
