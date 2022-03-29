@@ -5,6 +5,7 @@ from data_preprocessing.filters import data_filtering, multi_dataset_filtering
 from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
 from data_preprocessing.data_distribution import data_preparation, online_data_labeling, normalization
 from data_training.EEGModels.training import EEGModels_training_hub
+from data_training.SVM.training import svm_training_hub
 from data_visualization.mne_visualization import visualize_mne
 from data_preprocessing.downsampling import downsample
 
@@ -40,7 +41,7 @@ def dispatch(subject_id, config):
     Down sample testing. Visualizes the data with the MNE data structures.
     """
     # downsample(training_data, config)
-    # visualize_mne(training_data, config)
+    visualize_mne(training_data, config)
 
     """
     Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
@@ -50,4 +51,9 @@ def dispatch(subject_id, config):
     X, Y = data_preparation(training_data, config)
     X, scaler = normalization(X)
     online_X, online_Y = online_data_labeling(online_data, config, scaler, subject_id)
+
+    svm_training_hub(X, Y, online_X, online_Y)
     EEGModels_training_hub(X, Y, online_X, online_Y)
+
+
+

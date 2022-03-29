@@ -28,7 +28,7 @@ def create_raw_array(data: pd.DataFrame, config):
     # Visualization of raw data
     raw_data.plot(n_channels=len(config.EEG_CHANNELS))  # plot of the signal(s) can be a single or all channels
     raw_data.plot_sensors(ch_type='eeg')  # plot sensor positions
-    raw_data.plot_psd(average=False)  # plot spectral density of signals
+    raw_data.plot_psd(average=False, fmax=50)  # plot spectral density of signals
     mne.viz.plot_projs_topomap(raw_proj_data, colorbar=True, vlim='joint', info=info)
 
     return raw_data
@@ -56,9 +56,10 @@ def create_epochs_array(dataset: Dataset, config, visualize=False):
 
     # Visualization of epoched data
     if visualize:
-        epochs.plot(scalings='auto', show=True, block=True)
-        epochs.plot_image()
-        mne.viz.plot_projs_topomap(epoch_proj_data, colorbar=True, vlim='joint', info=info)
+        epochs.plot_psd()
+        # epochs.plot(scalings='auto', show=True, block=True)
+        # epochs.plot_image()
+        # mne.viz.plot_projs_topomap(epoch_proj_data, colorbar=True, vlim='joint', info=info)
 
     return epochs
 
@@ -84,4 +85,6 @@ def create_evoked_array(dataset, config, show_plots=False):
 
 def visualize_mne(datasets, config):
     for dataset in datasets:
-        create_evoked_array(dataset, config, show_plots=True)
+        create_raw_array(dataset.data, config)
+        #create_epochs_array(dataset, config, visualize=True)
+        #create_evoked_array(dataset, config, show_plots=True)
