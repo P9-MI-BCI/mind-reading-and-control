@@ -37,6 +37,6 @@
   "window_padding": 1,
   "step_size": 0.1,
   "downsample_rate": 10,
-  "transfer_learning": false,
-  "rest_classification": false
+  "rest_classification": false,
+  "include_all_subjects": false
 }

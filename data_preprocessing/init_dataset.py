@@ -34,7 +34,7 @@ def init(data, config, open_l=None, filename=None):
 def create_dataset(path: str, config):
     train_data = []
 
-    if config.transfer_learning and isinstance(path, list):
+    if config.include_all_subjects and isinstance(path, list):
         for t_path in path:
             names, data, filenames = read_data(t_path)
             assert len(data) == len(names)
@@ -79,11 +79,14 @@ def read_data(path: str):
 
 
 def get_dataset_paths(subject_id: int, config):
-    assert config.transfer_learning is not None
-    if config.transfer_learning:
+    assert config.include_all_subjects is not None
+    if config.include_all_subjects:
         training_p = []
         for sub_temp in range(9):
-            training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
+            if sub_temp is not subject_id:
+                training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
+        #training_p.append(os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*'))
+
     else:
         training_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*')
 
