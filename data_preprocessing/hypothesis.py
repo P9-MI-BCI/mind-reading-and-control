@@ -5,12 +5,12 @@ from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.init_dataset import format_input, get_dataset_paths, create_dataset
 from data_preprocessing.data_distribution import data_preparation, online_data_labeling, normalization
-
-# Hypothesis one aims to test the difference between spatial and temporal feature extraction. It will test if combining
-# the feature extraction improves the results
+from data_preprocessing.downsampling import downsample
 from data_training.EEGModels.training import EEGModels_training_hub
 
 
+# Hypothesis one aims to test the difference between spatial and temporal feature extraction. It will test if combining
+# the feature extraction improves the results
 def hypothesis_one(config):
     """
     A combination of features extracted from different deep learning algorithms will improve the classification
@@ -50,6 +50,8 @@ def hypothesis_three(config):
     multi_dataset_filtering(config.BASELINE, config, online_data)
     data_filtering(config.BASELINE, config, dwell_data)
 
+    downsample(training_data, config)
+    downsample(online_data, config)
     """
     Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
     into a sliding window defined by the config.window_padding parameter. The data is shuffled during creation.

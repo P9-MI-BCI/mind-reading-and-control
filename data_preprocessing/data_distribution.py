@@ -299,29 +299,35 @@ def data_preparation(datasets, config):
         for dataset in datasets:
             step_i = 0
 
-            while step_i < len(dataset.data)-config.window_size:
-                X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                            step_i:
-                            step_i+int(config.window_size*dataset.sample_rate)
-                         ])
+            while step_i < len(dataset.data) - config.window_size * dataset.sample_rate:
                 label_arr = []
                 for cluster in dataset.onsets_index:
                     if cluster[0] < step_i < cluster[1]:
                         label_arr.append(True)
                     else:
                         label_arr.append(False)
-                Y.append(any(label_arr))
-
+                if any(label_arr):
+                    Y.append(any(label_arr))
+                    X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                             step_i:
+                             step_i + int(config.window_size * dataset.sample_rate)
+                             ])
+                elif not any(label_arr) and sum(Y) > len(Y) / 2:
+                    Y.append(any(label_arr))
+                    X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                             step_i:
+                             step_i + int(config.window_size * dataset.sample_rate)
+                             ])
                 step_i += int(config.step_size * dataset.sample_rate)
 
     elif not config.rest_classification:
         for dataset in datasets:
             for cluster in dataset.onsets_index:
-                if cluster[0]-config.window_padding*dataset.sample_rate < 0:
+                if cluster[0] - config.window_padding * dataset.sample_rate < 0:
                     continue
-                X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                         cluster[0]-int(config.window_padding*dataset.sample_rate):
-                         cluster[0]+int(config.window_padding*dataset.sample_rate)].to_numpy())
+                X.append(dataset.filtered_data[config.EEG_CHANNELS].iloc[
+                         cluster[0] - int(config.window_padding * dataset.sample_rate):
+                         cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy())
                 Y.append(dataset.label)
 
     shuffler = np.random.permutation(len(X))
@@ -347,25 +353,25 @@ def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
     online_data_labels = get_online_data_labels(subject_id)
     X = []
     Y = []
-    label_determiner = 0
 
     for dataset in datasets:
-        for cluster in dataset.onsets_index:
-            if cluster[0] - config.window_padding * dataset.sample_rate < 0:
-                continue
-            X.append(
-                scaler.transform(
-                    dataset.data[config.EEG_CHANNELS].iloc[
-                    cluster[0] - int(config.window_padding * dataset.sample_rate):
-                    cluster[0] + int(config.window_padding * dataset.sample_rate)].to_numpy()
-                )
-            )
+        step_i = 0
 
-            if label_determiner % 2 == 0:
-                Y.append(0)
-            else:
-                Y.append(1)
-            label_determiner += 1
+        while step_i < len(dataset.data) - config.window_size * dataset.sample_rate:
+            label_arr = []
+            for cluster in dataset.onsets_index:
+                if cluster[0] < step_i < cluster[1]:
+                    label_arr.append(True)
+                else:
+                    label_arr.append(False)
+
+            Y.append(any(label_arr))
+            X.append(scaler.transform(dataset.data[config.EEG_CHANNELS].iloc[
+                     step_i:
+                     step_i + int(config.window_size * dataset.sample_rate)
+                     ]))
+
+            step_i += int(config.step_size * dataset.sample_rate)
 
     if len(online_data_labels) == 1:
         if online_data_labels[0][1] == 1:
