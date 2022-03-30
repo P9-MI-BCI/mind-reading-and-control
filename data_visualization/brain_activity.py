@@ -1,34 +1,36 @@
 import matplotlib.pyplot as plt
-import matplotlib
-import pandas as pd
-import numpy as np
 
 from classes.Dataset import Dataset
 
 
 def visualize_brain_activity(datasets: [Dataset], config):
     channels = config.EEG_CHANNELS
+    window_sz = int((2 * 1200) / 2)
 
-    data = datasets[0].data
+    for dataset in datasets:
+        fig = plt.figure(figsize=(15, 12))
+        fig.suptitle(dataset.filename)
 
-    data = []
-    for channel in datasets[0].filtered_data:
-        data.append(datasets[0].filtered_data[channel])
+        for i, onset in enumerate(dataset.onsets_index):
+            ax = plt.subplot(6, 4, i + 1)
 
-    # harvest = np.array([[0.8, 2.4, 2.5, 3.9, 0.0, 4.0, 0.0],
-    #                     [2.4, 0.0, 4.0, 1.0, 2.7, 0.0, 0.0],
-    #                     [1.1, 2.4, 0.8, 4.3, 1.9, 4.4, 0.0],
-    #                     [0.6, 0.0, 0.3, 0.0, 3.1, 0.0, 0.0],
-    #                     [0.7, 1.7, 0.6, 2.6, 2.2, 6.2, 0.0],
-    #                     [1.3, 1.2, 0.0, 0.0, 0.0, 3.2, 5.1],
-    #                     [0.1, 2.0, 0.0, 1.4, 0.0, 1.9, 6.3]])
+            center = onset[0]
+            data = dataset.filtered_data.iloc[center - window_sz: center + window_sz].iloc[:, :9].T
+            im = plt.pcolor(data)
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(data)
+            ax.pcolor(data)
+            ax.set_yticks(range(len(channels)))
+            ax.set_yticklabels(channels)
+            ax.set_title(f'Onset {i}')
+            # fig.subplots_adjust(wspace=0, hspace=0)
+            ax.axvline(1200, ls='--', color='black')
 
-    #ax.set_xticks(np.arange(len(data)))
-    ax.set_yticks(np.arange(len(channels)))
-    ax.set_yticklabels(channels)
+            # Onsets
+            # onsets = plt.subplot(gs[1], sharex=heatmap)
 
-    fig.tight_layout()
-    plt.show()
+            # Color bar
+            cbar = fig.colorbar(ax=ax, mappable=im, )
+            cbar.set_label('Amplitude, uV')
+
+        fig.tight_layout()
+        plt.show()
