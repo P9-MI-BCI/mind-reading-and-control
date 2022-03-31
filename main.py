@@ -16,16 +16,20 @@ def main():
     config, label_config = preliminary.check_config_files()
     preliminary.check_data_folders()
     preliminary.check_for_label_files(label_config)
-    if get_logger().level == 10:
-        outlier_test(config, label_config)
 
+    outlier_test_suite = input('Run outlier test suite (y/n)\n')
+    
     subject = int(input('Choose subject 0-8\n'))
 
-    transfer_learning = input('Enable Transfer Learning (y/n)\n')
-    config.transfer_learning = format_input(transfer_learning)
+    include_all_subjects = input('Include all subjects for classification (y/n)\n')
+    config.include_all_subjects = format_input(include_all_subjects)
 
     include_rest = input('Binary rest/movement classification (y/n)\n')
     config.rest_classification = format_input(include_rest)
+
+    if (format_input(outlier_test_suite)):
+        get_logger().setLevel(logging.DEBUG)
+        outlier_test(config, label_config)
 
     if subject in valid_subjects:
         dispatch(subject, config)

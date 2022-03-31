@@ -51,8 +51,8 @@ def create_dataset(path: str, config):
         return init(data[0], config, filenames)
     elif len(data) == 2:
         online_test_data = []
-        for dataset in data:
-            online_test_data.append(init(dataset, config, filenames))
+        for dataset, filename in zip(data, filenames):
+            online_test_data.append(init(dataset, config, filename))
         return online_test_data
     else:
         train_data = []
@@ -85,7 +85,6 @@ def get_dataset_paths(subject_id: int, config):
         for sub_temp in range(9):
             if sub_temp is not subject_id:
                 training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
-        #training_p.append(os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*'))
 
     else:
         training_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*')

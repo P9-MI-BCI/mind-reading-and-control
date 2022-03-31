@@ -42,7 +42,12 @@ def outlier_test(config, label_config):
     data = create_dataset_from_config(config, label_config)
     try:
         for dataset in data:
-            onset_detection(dataset, config)
+            try:
+                onset_detection(dataset, config)
+                assert len(dataset.onsets_index) == 20
+            except AssertionError:
+                get_logger().warning(f"{dataset.filename} contains {len(dataset.onsets_index)} clusters (not 20) "
+                                     f"with current outlier parameters")
     except TypeError:
         get_logger().error("Dataset for EMG outlier detection is probably Nonetype, fix path/config file")
 

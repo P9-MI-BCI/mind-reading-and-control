@@ -18,7 +18,7 @@ def emg_amplitude_tkeo(filtered_data):
     return tkeo[1:-1]
 
 
-def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
+def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=1) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -49,7 +49,7 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
 
     # Group onsets based on time
     emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
-                                  is_online=is_online)
+                                  is_online=is_online, prox_coef=prox_coef)
 
     # Plotting of EMG signal and clusters
     if get_logger().level == 10:
@@ -74,9 +74,8 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
     return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:
+def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2) -> [[int]]:
     all_peaks = []
-    prox_coef = 2
     if distance is None:
         distance = 100
 
