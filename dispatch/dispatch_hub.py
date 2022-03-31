@@ -1,31 +1,26 @@
-import matplotlib.pyplot
-
-from data_preprocessing.emg_processing import onset_detection, multi_dataset_onset_detection
-from data_preprocessing.filters import data_filtering, multi_dataset_filtering
-from data_preprocessing.hypothesis import hypothesis_one, hypothesis_two, hypothesis_three, hypothesis_four, \
-    hypothesis_five, hypothesis_six
-from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset, format_input
-from data_preprocessing.data_distribution import data_preparation, online_data_labeling, normalization
-from data_training.EEGModels.training import EEGModels_training_hub
-from data_visualization.mne_visualization import visualize_mne
-from data_preprocessing.downsampling import downsample
+import hypotheses.hypothesis_one as hypothesis_one
+import hypotheses.hypothesis_two as hypothesis_two
+import hypotheses.hypothesis_three as hypothesis_three
+import hypotheses.hypothesis_four as hypothesis_four
+import hypotheses.hypothesis_five as hypothesis_five
+import hypotheses.hypothesis_six as hypothesis_six
 from utility.logger import get_logger
 
 
 def dispatch(config):
 
     if config.hypothesis_choice == 1:
-        hypothesis_one(config)
+        hypothesis_one.run(config)
     elif config.hypothesis_choice == 2:
-        hypothesis_two(config)
+        hypothesis_two.run(config)
     elif config.hypothesis_choice == 3:
-        hypothesis_three(config)
+        hypothesis_three.run(config)
     elif config.hypothesis_choice == 4:
-        hypothesis_four(config)
+        hypothesis_four.run(config)
     elif config.hypothesis_choice == 5:
-        hypothesis_five(config)
+        hypothesis_five.run(config)
     elif config.hypothesis_choice == 6:
-        hypothesis_six(config)
+        hypothesis_six.run(config)
     else:
         get_logger().info('No valid hypothesis selected - exiting')
         exit()
