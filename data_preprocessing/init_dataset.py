@@ -69,7 +69,7 @@ def read_data(path: str):
     for file in glob.glob(path, recursive=True):
         if ".mat" in file:
             data.append(scipy.io.loadmat(file))
-            filenames.append(file.lower().split('\\')[-1])
+            filenames.append(file.lower().split('\\')[-3]+' '+file.lower().split('\\')[-1])
             if 'close' in file:
                 names.append(0)
             elif 'open' in file:

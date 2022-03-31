@@ -43,7 +43,7 @@ def outlier_test(config, label_config):
     try:
         for dataset in data:
             onset_detection(dataset, config)
-    except TypeError as te:
+    except TypeError:
         get_logger().error("Dataset for EMG outlier detection is probably Nonetype, fix path/config file")
 
 
