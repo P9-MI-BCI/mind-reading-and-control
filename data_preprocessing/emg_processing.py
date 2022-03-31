@@ -53,22 +53,21 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=1) -> [
 
     # Plotting of EMG signal and clusters
     if get_logger().level == 10:
-            cluster_plot_arr = []
-            for cluster in emg_clusters:
-                cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+        cluster_plot_arr = []
+        for cluster in emg_clusters:
+            cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
-            plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
+        plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
 
-            for vals in cluster_plot_arr:
-                plt.plot(np.abs(vals))
+        for vals in cluster_plot_arr:
+            plt.plot(np.abs(vals))
 
-            plt.plot(t, '--', color='black')
-            plt.title(dataset.filename)
-            plt.xlabel('Time (s)')
-            plt.ylabel('mV (Filtered)', labelpad=-2)
-            plt.autoscale()
-            plt.show()
-
+        plt.plot(t, '--', color='black')
+        plt.title(dataset.filename)
+        plt.xlabel('Time (s)')
+        plt.ylabel('mV (Filtered)', labelpad=-2)
+        plt.autoscale()
+        plt.show()
 
     dataset.onsets_index = emg_clusters
     return filtered_data[config.EMG_CHANNEL]
@@ -121,8 +120,6 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
         get_logger().exception(f'File only contains {len(clusters)} clusters.')
 
 
-
-
 # Compare all peaks and remove outliers below Q1
 # We don't care about outliers above Q3 as they have shown clear excess in force
 def remove_outliers_by_peak_activity(clusters, emg_data):
@@ -146,24 +143,23 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
     clusters_to_remove = []
     t_clusters = []
 
-
-    for i in range(0, len(clusters)-2):
+    for i in range(0, len(clusters) - 2):
         # Check for all clusters if the subsequent cluster is closer in proximity than x*fs
-        if abs(clusters[i][-1] - clusters[i+1][0]) < prox_coef*1200:
+        if abs(clusters[i][-1] - clusters[i + 1][0]) < prox_coef * 1200:
             # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
-            if len(clusters[i]) < len(clusters[i+1]):
+            if len(clusters[i]) < len(clusters[i + 1]):
                 clusters_to_remove.append(clusters[i])
             else:
-                clusters_to_remove.append(clusters[i+1])
+                clusters_to_remove.append(clusters[i + 1])
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1][0] - clusters[-2][-1]) < prox_coef*1200:
+    if abs(clusters[-1][0] - clusters[-2][-1]) < prox_coef * 1200:
         if len(clusters[-1]) < len(clusters[-2]):
             clusters_to_remove.append(clusters[-1])
         else:
             clusters_to_remove.append(clusters[-2])
 
-    if(clusters_to_remove):
+    if (clusters_to_remove):
         get_logger().debug(f"Removed {len(clusters_to_remove)} clusters because of proximity")
     for cluster in clusters:
         if cluster not in clusters_to_remove:
@@ -173,7 +169,14 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 
 
 def multi_dataset_onset_detection(datasets, config, is_online=False):
-    for dataset in datasets:
-        dataset.filtered_data = onset_detection(dataset, config, is_online)
-        dataset.data = dataset.data.iloc[1:-1, :]
-        dataset.data.reset_index(drop=True, inplace=True)
+    try:
+        iter(datasets)
+    except TypeError:
+        datasets.filtered_data = onset_detection(datasets, config, is_online)
+        datasets.data = datasets.data.iloc[1:-1, :]
+        datasets.data.reset_index(drop=True, inplace=True)
+    else:
+        for dataset in datasets:
+            dataset.filtered_data = onset_detection(dataset, config, is_online)
+            dataset.data = dataset.data.iloc[1:-1, :]
+            dataset.data.reset_index(drop=True, inplace=True)

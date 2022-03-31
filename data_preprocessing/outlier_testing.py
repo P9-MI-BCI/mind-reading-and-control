@@ -19,7 +19,7 @@ def create_dataset_from_config(config, label_config):
             for trial in label_config[k]['emg_outliers']:
                 if file.lower().endswith(trial.lower()):
                     data.append(scipy.io.loadmat(file))
-                    filenames.append(file.lower().split('\\')[-3]+' '+file.lower().split('\\')[-1])
+                    filenames.append(file.lower().split('\\')[-3] + ' ' + file.lower().split('\\')[-1])
                     if 'close' in file:
                         names.append(0)
                     elif 'open' in file:
@@ -38,7 +38,6 @@ def create_dataset_from_config(config, label_config):
 
 
 def outlier_test(config, label_config):
-
     data = create_dataset_from_config(config, label_config)
     try:
         for dataset in data:
@@ -50,6 +49,3 @@ def outlier_test(config, label_config):
                                      f"with current outlier parameters")
     except TypeError:
         get_logger().error("Dataset for EMG outlier detection is probably Nonetype, fix path/config file")
-
-
-

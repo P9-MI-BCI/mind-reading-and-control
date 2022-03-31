@@ -18,7 +18,7 @@ def main():
     preliminary.check_for_label_files(label_config)
 
     outlier_test_suite = input('Run outlier test suite (y/n)\n')
-    
+
     subject = int(input('Choose subject 0-8\n'))
 
     include_all_subjects = input('Include all subjects for classification (y/n)\n')

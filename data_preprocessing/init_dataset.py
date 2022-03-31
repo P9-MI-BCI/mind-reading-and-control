@@ -48,11 +48,11 @@ def create_dataset(path: str, config):
         get_logger().error(f'No files found in {path}')
     elif len(data) == 1:
         # Dwell data
-        return init(data[0], config, filenames)
+        return init(data[0], config, filename=filenames)
     elif len(data) == 2:
         online_test_data = []
         for dataset, filename in zip(data, filenames):
-            online_test_data.append(init(dataset, config, filename))
+            online_test_data.append(init(dataset, config, filename=filename))
         return online_test_data
     else:
         train_data = []
@@ -69,7 +69,7 @@ def read_data(path: str):
     for file in glob.glob(path, recursive=True):
         if ".mat" in file:
             data.append(scipy.io.loadmat(file))
-            filenames.append(file.lower().split('\\')[-3]+' '+file.lower().split('\\')[-1])
+            filenames.append(file.lower().split('\\')[-3] + ' ' + file.lower().split('\\')[-1])
             if 'close' in file:
                 names.append(0)
             elif 'open' in file:
