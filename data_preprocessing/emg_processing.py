@@ -3,6 +3,7 @@ import biosppy
 import numpy as np
 import pandas as pd
 from classes.Dataset import Dataset
+from classes.Cluster import Cluster
 from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
@@ -18,7 +19,7 @@ def emg_amplitude_tkeo(filtered_data):
     return tkeo[1:-1]
 
 
-def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=1) -> [[int]]:
+def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -55,7 +56,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=1) -> [
     if get_logger().level == 10:
         cluster_plot_arr = []
         for cluster in emg_clusters:
-            cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+            cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster.start:cluster.end])
 
         plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
 
@@ -83,6 +84,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
     while True:
         clusters = []
         temp_clusters = []
+        cluster_list = []
         for idx in onsets:
             if len(temp_clusters) == 0:
                 temp_clusters.append(idx)
@@ -90,8 +92,15 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
                 temp_clusters.append(idx)
             else:
                 clusters.append(temp_clusters)
+                temp_clusterobj = Cluster(data=temp_clusters)
+                temp_clusterobj.create_info()
+                cluster_list.append(temp_clusterobj)
                 temp_clusters = [idx]
+
         clusters.append(temp_clusters)
+        temp_clusterobj = Cluster(data=temp_clusters)
+        temp_clusterobj.create_info()
+        cluster_list.append(temp_clusterobj)
 
         if clusters == prev_cluster:
             break
@@ -102,20 +111,20 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
 
     try:
         assert len(clusters) > 2
-        clusters = remove_outliers_by_x_axis_distance(clusters, prox_coef)
+        cluster_list = remove_outliers_by_x_axis_distance(cluster_list, prox_coef)
 
-        for onset_cluster in clusters:
+        for onset_cluster in cluster_list:
             highest = 0
             index = 0
-            for onset in range(onset_cluster[0], onset_cluster[-1] + 1):
+            for onset in range(onset_cluster.data[0], onset_cluster.data[-1]):
                 if abs(emg_data[onset]) > highest:
                     highest = abs(emg_data[onset])
                     index = onset
-            all_peaks.append([onset_cluster[0], index, onset_cluster[-1]])
+            onset_cluster.peak = index
         if is_online:
-            return all_peaks
+            return cluster_list
         else:
-            return remove_outliers_by_peak_activity(all_peaks, emg_data)
+            return remove_outliers_by_peak_activity(cluster_list, emg_data)
     except AssertionError:
         get_logger().exception(f'File only contains {len(clusters)} clusters.')
 
@@ -125,7 +134,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
 def remove_outliers_by_peak_activity(clusters, emg_data):
     peaks = []
     for cluster in clusters:
-        peaks.append(emg_data[cluster[1]])
+        peaks.append(emg_data[cluster.peak])
 
     iqr_val = iqr(peaks, axis=0)
     Q1 = np.quantile(peaks, 0.25)
@@ -133,7 +142,7 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     t_clusters = []
 
     for cluster in clusters:
-        if Q1 - iqr_val * 0.7 < emg_data[cluster[1]]:
+        if Q1 - iqr_val * 0.7 < emg_data[cluster.peak]:
             t_clusters.append(cluster)
 
     return t_clusters
@@ -145,16 +154,16 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 
     for i in range(0, len(clusters) - 2):
         # Check for all clusters if the subsequent cluster is closer in proximity than x*fs
-        if abs(clusters[i][-1] - clusters[i + 1][0]) < prox_coef * 1200:
+        if abs(clusters[i].end - clusters[i + 1].start) < prox_coef * 1200:
             # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
-            if len(clusters[i]) < len(clusters[i + 1]):
+            if len(clusters[i].data) < len(clusters[i + 1].data):
                 clusters_to_remove.append(clusters[i])
             else:
                 clusters_to_remove.append(clusters[i + 1])
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1][0] - clusters[-2][-1]) < prox_coef * 1200:
-        if len(clusters[-1]) < len(clusters[-2]):
+    if abs(clusters[-1].start - clusters[-2].end) < prox_coef * 1200:
+        if len(clusters[-1].data) < len(clusters[-2].data):
             clusters_to_remove.append(clusters[-1])
         else:
             clusters_to_remove.append(clusters[-2])
