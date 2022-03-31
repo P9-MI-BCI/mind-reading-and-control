@@ -299,18 +299,30 @@ def data_preparation(datasets, config):
         for dataset in datasets:
             step_i = 0
 
-            while step_i < len(dataset.data)-config.window_size:
-                X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                            step_i:
-                            step_i+int(config.window_size*dataset.sample_rate)
-                         ])
-                label_arr = []
+            while step_i < len(dataset.data)-int(config.window_size*dataset.sample_rate):
+                is_in_cluster = []
                 for cluster in dataset.onsets_index:
                     if cluster[0] < step_i < cluster[1]:
-                        label_arr.append(True)
+                        is_in_cluster.append(True)
                     else:
-                        label_arr.append(False)
-                Y.append(any(label_arr))
+                        is_in_cluster.append(False)
+
+                if any(is_in_cluster):
+                    Y.append(1)
+
+                    X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                            step_i:
+                            step_i+int(config.window_size*dataset.sample_rate)
+                            ])
+                # if current step is not within a movement cluster and there are more 1 than 0 labels,
+                # add a new 0 label
+                elif not any(is_in_cluster) and sum(Y) > len(Y) / 2:
+                    Y.append(0)
+
+                    X.append(dataset.data[config.EEG_CHANNELS].iloc[
+                             step_i:
+                             step_i + int(config.window_size * dataset.sample_rate)
+                             ])
 
                 step_i += int(config.step_size * dataset.sample_rate)
 
