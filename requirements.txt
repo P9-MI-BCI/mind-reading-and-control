@@ -8,9 +8,6 @@ lightgbm==3.2.1
 biosppy~=0.8.0
 tensorflow==2.6.1
 tqdm==4.62.3
-neurokit2==0.1.4.1
-plotly==5.3.1
-dash==2.0.0
 Flask~=2.0.2
 wandb~=0.12.10
 keras~=2.6.0
