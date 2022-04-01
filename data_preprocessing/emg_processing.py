@@ -75,6 +75,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2) -> [[int]]:
+    # TODO: Fix clustering to detect fixed amount of clusters
     all_peaks = []
     if distance is None:
         distance = 100
@@ -126,7 +127,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
         else:
             return remove_outliers_by_peak_activity(cluster_list, emg_data)
     except AssertionError:
-        get_logger().exception(f'File only contains {len(clusters)} clusters.')
+        get_logger().exception(f'File only contains {len(cluster_list)} clusters.')
 
 
 # Compare all peaks and remove outliers below Q1
@@ -149,6 +150,7 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
 
 
 def remove_outliers_by_x_axis_distance(clusters, prox_coef):
+    # TODO: Figure out how to incorporate in EMG clustering after changed to detect fixed 20 clusters
     clusters_to_remove = []
     t_clusters = []
 
@@ -157,15 +159,25 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
         if abs(clusters[i].end - clusters[i + 1].start) < prox_coef * 1200:
             # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
             if len(clusters[i].data) < len(clusters[i + 1].data):
+                clusters[i + 1].data.extend(clusters[i].data)
+                clusters[i + 1].create_info()
                 clusters_to_remove.append(clusters[i])
+                i = i + 1
             else:
+                clusters[i].data.extend(clusters[i + 1].data)
+                clusters[i].create_info()
                 clusters_to_remove.append(clusters[i + 1])
 
     # Handle 'edge' case for last element of array
     if abs(clusters[-1].start - clusters[-2].end) < prox_coef * 1200:
         if len(clusters[-1].data) < len(clusters[-2].data):
+            clusters[-2].data.extend(clusters[-1].data)
+            clusters[-2].create_info()
             clusters_to_remove.append(clusters[-1])
+            #
         else:
+            clusters[-1].data.extend(clusters[-2].data)
+            clusters[-1].create_info()
             clusters_to_remove.append(clusters[-2])
 
     if (clusters_to_remove):
