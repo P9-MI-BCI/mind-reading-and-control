@@ -43,16 +43,17 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [
     onsets, threshold = biosppy.signals.emg.find_onsets(signal=filtered_data[config.EMG_CHANNEL].to_numpy(),
                                                         sampling_rate=dataset.sample_rate,
                                                         )
-
     emg_rectified = np.abs(filtered_data[config.EMG_CHANNEL]) > threshold
     emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-    t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
 
     # Group onsets based on time
-    emg_clusters = emg_clustering(emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
-                                  is_online=is_online, prox_coef=prox_coef)
+    emg_clusters, filtered_data[config.EMG_CHANNEL], threshold = emg_clustering(
+        emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
+        is_online=is_online, prox_coef=prox_coef)
 
     # Plotting of EMG signal and clusters
+    t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
+
     if get_logger().level == 10:
         cluster_plot_arr = []
         for cluster in emg_clusters:
@@ -74,7 +75,8 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [
     return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2) -> [[int]]:
+def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2, normalize=True,
+                   threshold=None) -> [[int]]:
     # TODO: Fix clustering to detect fixed amount of clusters
     all_peaks = []
     if distance is None:
@@ -122,17 +124,26 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
                     highest = abs(emg_data[onset])
                     index = onset
             onset_cluster.peak = index
+
+        if (normalize):
+            onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
+            emg_rectified = np.abs(emg_data) > threshold
+            emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
+            cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
+                                                               is_online=is_online, prox_coef=prox_coef,
+                                                               normalize=False, threshold=threshold)
+
         if is_online:
-            return cluster_list
+            return cluster_list, emg_data, threshold
         else:
-            return remove_outliers_by_peak_activity(cluster_list, emg_data)
+            # cluster_list, emg_data = remove_outliers_by_peak_activity(cluster_list, emg_data)
+            return cluster_list, emg_data, threshold
     except AssertionError:
         get_logger().exception(f'File only contains {len(cluster_list)} clusters.')
 
 
-# Compare all peaks and remove outliers below Q1
-# We don't care about outliers above Q3 as they have shown clear excess in force
-def remove_outliers_by_peak_activity(clusters, emg_data):
+def normalize_peaks(clusters, emg_data):
+    # TODO: Consider hardcap of how high cluster can be
     peaks = []
     for cluster in clusters:
         peaks.append(emg_data[cluster.peak])
@@ -140,13 +151,45 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     iqr_val = iqr(peaks, axis=0)
     Q1 = np.quantile(peaks, 0.25)
     Q3 = np.quantile(peaks, 0.75)
+
+    for cluster in clusters:
+        if Q3 < emg_data[cluster.peak]:
+            for index in cluster.data:
+                if Q3 < emg_data[index]:
+                    if Q3 < emg_data[index] / 2:
+                        emg_data[index] = emg_data[index] / 4
+                    else:
+                        emg_data[index] = emg_data[index] / 2
+
+        if Q1 > emg_data[cluster.peak]:
+            for index in cluster.data:
+                if Q1 > emg_data[index]:
+                    emg_data[index] = emg_data[index] + iqr_val
+
+    o, t = biosppy.signals.emg.find_onsets(signal=emg_data.to_numpy(), sampling_rate=1200)
+
+    return o, t, emg_data
+
+
+# Compare all peaks and remove outliers below Q1
+# We don't care about outliers above Q3 as they have shown clear excess in force
+def remove_outliers_by_peak_activity(clusters, emg_data):
+    # TODO: Normalize values > Q3 by iqr
+    peaks = []
+    for cluster in clusters:
+        peaks.append(emg_data[cluster.peak])
+
+    iqr_val = iqr(peaks, axis=0)
+    Q1 = np.quantile(peaks, 0.25)
+    Q3 = np.quantile(peaks, 0.75)
+
     t_clusters = []
 
     for cluster in clusters:
         if Q1 - iqr_val * 0.7 < emg_data[cluster.peak]:
             t_clusters.append(cluster)
 
-    return t_clusters
+    return t_clusters, emg_data
 
 
 def remove_outliers_by_x_axis_distance(clusters, prox_coef):
@@ -159,23 +202,23 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
         if abs(clusters[i].end - clusters[i + 1].start) < prox_coef * 1200:
             # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
             if len(clusters[i].data) < len(clusters[i + 1].data):
-                clusters[i + 1].data.extend(clusters[i].data)
+                clusters[i + 1].data = np.append(clusters[i + 1].data, clusters[i].data)
                 clusters[i + 1].create_info()
                 clusters_to_remove.append(clusters[i])
                 i = i + 1
             else:
-                clusters[i].data.extend(clusters[i + 1].data)
+                clusters[i].data = np.append(clusters[i].data, clusters[i + 1].data)
                 clusters[i].create_info()
                 clusters_to_remove.append(clusters[i + 1])
 
     # Handle 'edge' case for last element of array
     if abs(clusters[-1].start - clusters[-2].end) < prox_coef * 1200:
         if len(clusters[-1].data) < len(clusters[-2].data):
-            clusters[-2].data.extend(clusters[-1].data)
+            clusters[-2].data = np.append(clusters[-2].data, clusters[-1].data)
             clusters[-2].create_info()
             clusters_to_remove.append(clusters[-1])
         else:
-            clusters[-1].data.extend(clusters[-2].data)
+            clusters[-1].data = np.append(clusters[-1].data, clusters[-2].data)
             clusters[-1].create_info()
             clusters_to_remove.append(clusters[-2])
 

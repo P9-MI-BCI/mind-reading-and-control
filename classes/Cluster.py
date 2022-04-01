@@ -1,7 +1,10 @@
+import numpy as np
+
+
 class Cluster:
 
     def __init__(self, data=[]):
-        self.data = data
+        self.data = np.array(data)
         self.peak = 0
         self.start = 0
         self.end = 0
