@@ -6,7 +6,7 @@ from utility.logger import get_logger
 from dispatch import preliminary
 
 """CONFIGURATION"""
-get_logger().setLevel(logging.DEBUG)  # Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
+get_logger().setLevel(logging.INFO)  # Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
 logging.getLogger('matplotlib.font_manager').disabled = True
 # pd.set_option("display.max_rows", None, "display.max_columns", None)  # pandas print settings
 valid_subjects = list(range(9))

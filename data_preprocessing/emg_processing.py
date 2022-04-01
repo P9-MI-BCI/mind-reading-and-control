@@ -174,7 +174,6 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
             clusters[-2].data.extend(clusters[-1].data)
             clusters[-2].create_info()
             clusters_to_remove.append(clusters[-1])
-            #
         else:
             clusters[-1].data.extend(clusters[-2].data)
             clusters[-1].create_info()
