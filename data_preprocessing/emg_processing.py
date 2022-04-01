@@ -16,7 +16,7 @@ def emg_amplitude_tkeo(filtered_data):
     for i in range(1, len(tkeo) - 1):
         tkeo[i] = (filtered_data[i] * filtered_data[i] - filtered_data[i - 1] * filtered_data[i + 1])
 
-    return tkeo[1:-1]
+    return tkeo
 
 
 def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [[int]]:
