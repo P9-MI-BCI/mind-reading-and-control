@@ -4,6 +4,7 @@ from data_preprocessing.emg_processing import onset_detection, multi_dataset_ons
 from data_preprocessing.filters import data_filtering, multi_dataset_filtering
 from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
 from data_preprocessing.data_distribution import data_preparation, online_data_labeling, normalization
+from data_preprocessing.recurrence_quantification_analysis import recurrence_quantification
 from data_training.EEGModels.training import EEGModels_training_hub
 from data_training.SVM.training import svm_training_hub
 from data_visualization.mne_visualization import visualize_mne
@@ -26,7 +27,7 @@ def dispatch(subject_id, config):
     Perform onset detection on the movement data and annotate the dataset with the indexes of the beginning
     of movement and end of movement. 
     """
-    # multi_dataset_onset_detection(training_data, config)
+    multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
 
     """
@@ -34,7 +35,7 @@ def dispatch(subject_id, config):
     json_config/default.json file. Method include possibility of handling multiple datasets at once. 
     """
 
-    multi_dataset_filtering(config.BASELINE, config, training_data)
+    multi_dataset_filtering(config.ALPHA_BAND, config, training_data)
     multi_dataset_filtering(config.BASELINE, config, online_data)
     data_filtering(config.BASELINE, config, dwell_data)
 
@@ -43,7 +44,8 @@ def dispatch(subject_id, config):
     """
     # downsample(training_data, config)
     # visualize_mne(training_data, config)
-    visualize_brain_activity(training_data, config)
+    # visualize_brain_activity(training_data, config)
+    recurrence_quantification(training_data, config)
 
 
     """
