@@ -49,7 +49,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [
     # Group onsets based on time
     emg_clusters, filtered_data[config.EMG_CHANNEL], threshold = emg_clustering(
         emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
-        is_online=is_online, prox_coef=prox_coef)
+        is_online=is_online, prox_coef=prox_coef, threshold=threshold)
 
     # Plotting of EMG signal and clusters
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
@@ -76,7 +76,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2) -> [
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2, normalize=True,
-                   threshold=None) -> [[int]]:
+                   threshold=None, test=0) -> [[int]]:
     # TODO: Fix clustering to detect fixed amount of clusters
     all_peaks = []
     if distance is None:
@@ -125,13 +125,24 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
                     index = onset
             onset_cluster.peak = index
 
+        # TODO: Consider recursively calling find_onset or normalize or just lower threshold
+        #       while clusters == 20 to include as much of the clusters as possible
+        #       maybe similar to clustering heuristic (while len==20, threshold -0.01 etc)
+        if len(clusters) == 20 and test < 5:
+            normalize = True
+            test = test + 1
+        # elif len(clusters) != 20 and test<5:
+        #     normalize = False
+        #     threshold = threshold/0.7
+
         if (normalize):
             onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
+            threshold = threshold * 0.7
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
             cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
                                                                is_online=is_online, prox_coef=prox_coef,
-                                                               normalize=False, threshold=threshold)
+                                                               normalize=False, threshold=threshold, test=test)
 
         if is_online:
             return cluster_list, emg_data, threshold
@@ -152,15 +163,14 @@ def normalize_peaks(clusters, emg_data):
     Q1 = np.quantile(peaks, 0.25)
     Q3 = np.quantile(peaks, 0.75)
 
+    # Half along the y-axis any cluster with indices over Q3
     for cluster in clusters:
         if Q3 < emg_data[cluster.peak]:
             for index in cluster.data:
-                if Q3 < emg_data[index]:
-                    if Q3 < emg_data[index] / 2:
-                        emg_data[index] = emg_data[index] / 4
-                    else:
-                        emg_data[index] = emg_data[index] / 2
+                while Q3 < emg_data[index]:
+                    emg_data[index] = emg_data[index] / 2
 
+        # Increase by the IQR Value along the y-axis for the clusters below Q1
         if Q1 > emg_data[cluster.peak]:
             for index in cluster.data:
                 if Q1 > emg_data[index]:
@@ -174,7 +184,6 @@ def normalize_peaks(clusters, emg_data):
 # Compare all peaks and remove outliers below Q1
 # We don't care about outliers above Q3 as they have shown clear excess in force
 def remove_outliers_by_peak_activity(clusters, emg_data):
-    # TODO: Normalize values > Q3 by iqr
     peaks = []
     for cluster in clusters:
         peaks.append(emg_data[cluster.peak])
