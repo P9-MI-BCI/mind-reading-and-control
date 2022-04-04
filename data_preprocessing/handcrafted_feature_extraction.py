@@ -2,6 +2,7 @@ from statistics import mean
 from scipy.stats import skew, kurtosis
 import numpy as np
 
+
 # take input windows and extract features for the XGBoost
 def extract_features(X):
     handcrafted_X = []

@@ -12,4 +12,6 @@ def run(config):
     config.rest_classification = True
 
     training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
+
+
     pass

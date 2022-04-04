@@ -1,3 +1,4 @@
+from classes.Simulation import Simulation
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.handcrafted_feature_extraction import extract_features
@@ -15,7 +16,6 @@ def run(config):
     """
     Deep feature extraction will generalize better to cross-session datasets compared to handcrafted features.
     """
-
     subject_id = int(input("Choose subject to predict on 0-9\n"))
     config.transfer_learning = False
     config.rest_classification = True
@@ -35,11 +35,29 @@ def run(config):
 
     X, Y = data_preparation(training_data, config)
     X, scaler = normalization(X)
-    online_X, online_Y = online_data_labeling(online_data, config, scaler, subject_id)
-    # create hand crafted features
 
+    # extract hand crafted features
     X = extract_features(X)
-    online_X = extract_features(online_X)
 
-    xgboost_training(X, Y, online_X, online_Y)
+    model = xgboost_training(X, Y)
+
+    simulation = Simulation(config)
+    simulation.set_normalizer(scaler)
+    simulation.set_filter(config.DELTA_BAND)
+    simulation.set_feature_extraction(True)
+    simulation.set_evaluation_metrics()
+    simulation.load_models(model)
+
+    # test the first dataset
+    simulation.mount_dataset(online_data[0])
+    simulation.simulate(real_time=True)
+
+    simulation.reset()
+    exit()
+    # test the second dataset
+    simulation.mount_dataset(online_data[1])
+    simulation.simulate(real_time=False)
+
+    #TODO implement our deep learning method
+
 

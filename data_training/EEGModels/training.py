@@ -22,8 +22,8 @@ def EEGModels_training_hub(X, Y, online_X, online_Y):
     shallow_conv_net = get_ShallowConvNet(X)
 
     stratified_kfold_cv(X, Y, eeg_net, online_X, online_Y)
-    stratified_kfold_cv(X, Y, deep_conv_net, online_X, online_Y)
-    stratified_kfold_cv(X, Y, shallow_conv_net, online_X, online_Y)
+    #stratified_kfold_cv(X, Y, deep_conv_net, online_X, online_Y)
+    #stratified_kfold_cv(X, Y, shallow_conv_net, online_X, online_Y)
 
 
 # Creates a stratified-k-fold cross validation object that splits the data and shuffles it.
@@ -36,8 +36,12 @@ def stratified_kfold_cv(X, Y, model, online_X, online_Y):
         # Reshape data into (Num_samples, Num_channels, Num_data_points, kernel=1)
         X_reshaped = X[train_index].reshape((X[train_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
         X_val_reshaped = X[val_index].reshape((X[val_index].shape[0], X[0].shape[1], X[0].shape[0], kernels))
-        model.fit(X_reshaped, Y[train_index], batch_size=8, epochs=300,
-                  verbose=0, validation_data=(X_val_reshaped, Y[val_index]),
+        model.fit(X_reshaped,
+                  Y[train_index],
+                  batch_size=16,
+                  epochs=300,
+                  verbose=0,
+                  validation_data=(X_val_reshaped, Y[val_index]),
                   callbacks=[TqdmCallback(verbose=0),
                              EarlyStopping(monitor='val_loss', patience=30)])
 
@@ -47,18 +51,23 @@ def stratified_kfold_cv(X, Y, model, online_X, online_Y):
     X_online_reshaped = online_X.reshape((online_X.shape[0], online_X[0].shape[1], online_X[0].shape[0], kernels))
 
     get_logger().info(f'Cross Validation Finished -- Training using entire dataset')
-    history = model.fit(X_reshaped, Y, batch_size=16, epochs=300, verbose=0,
+    history = model.fit(X_reshaped,
+                        Y,
+                        batch_size=16,
+                        epochs=300,
+                        verbose=0,
                         validation_data=(X_online_reshaped, online_Y),
                         callbacks=[TqdmCallback(verbose=0),
-                                   ])
-
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
+                                   EarlyStopping(monitor='val_loss', patience=30)])
+    plt.clf()
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
     plt.show()
 
     Y_hat = model.predict(X_online_reshaped)
     Y_hat = Y_hat.reshape((len(Y_hat),))
     plot_confusion_matrix(online_Y, Y_hat)
+    get_logger().info('End of training')
 
 
 def get_EEGNet(X):
@@ -91,12 +100,11 @@ def get_ShallowConvNet(X):
 
 def plot_confusion_matrix(Y, Y_hat):
     Y_hat = [round(y_hat) for y_hat in Y_hat]
-    labels = ['close', 'open']
     conf_matrix = confusion_matrix(Y, Y_hat)
 
     df_cm = pd.DataFrame(conf_matrix)
 
-    sn.set(font_scale=1.4)  # for label size
-    sn.heatmap(df_cm, annot=True, annot_kws={"size": 16})  # font size
+    sn.set(font_scale=1)  # for label size
+    sn.heatmap(df_cm, annot=True, annot_kws={"size": 10}, fmt='g')  # font size
 
     plt.show()

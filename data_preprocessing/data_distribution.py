@@ -302,9 +302,9 @@ def data_preparation(datasets, config):
             while step_i < len(dataset.data) - int(config.window_size * dataset.sample_rate):
                 is_in_cluster = []
                 for cluster in dataset.onsets_index:
-                    if cluster[0] < step_i < cluster[2]:
+                    if cluster[0]-dataset.sample_rate/2 < step_i < cluster[0]+dataset.sample_rate/2:
                         is_in_cluster.append(True)
-                    else:
+                    elif not cluster[0]-dataset.sample_rate/2 < step_i < cluster[2]:
                         is_in_cluster.append(False)
 
                 if any(is_in_cluster):
@@ -325,7 +325,8 @@ def data_preparation(datasets, config):
                              ])
 
                 step_i += int(config.step_size * dataset.sample_rate)
-            if len(X) > 1000:
+
+            if len(X) > 500:
                 break
 
     elif not config.rest_classification:
@@ -370,7 +371,8 @@ def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
             while step_i < len(dataset.data) - int(config.window_size * dataset.sample_rate):
                 is_in_cluster = []
                 for cluster in dataset.onsets_index:
-                    if cluster[0] < step_i < cluster[2]:
+                    # half a second before and after the cluster onset
+                    if cluster[0]-dataset.sample_rate/2 < step_i < cluster[0]+dataset.sample_rate/2:
                         is_in_cluster.append(True)
                     else:
                         is_in_cluster.append(False)
@@ -396,23 +398,6 @@ def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
                 step_i += int(config.step_size * dataset.sample_rate)
             if len(X) > 1000:
                 break
-    # for dataset in datasets:
-    #    for cluster in dataset.onsets_index:
-    #        if cluster[0] - config.window_size * dataset.sample_rate < 0:
-    #            continue
-    #        X.append(
-    #            scaler.transform(
-    #                dataset.filtered_datadata[config.EEG_CHANNELS].iloc[
-    #                cluster[0] - int(config.window_size * dataset.sample_rate):
-    #                cluster[0] + int(config.window_size * dataset.sample_rate)].to_numpy()
-    #            )
-    #        )
-    #
-    #        if label_determiner % 2 == 0:
-    #            Y.append(0)
-    #        else:
-    #            Y.append(1)
-    #        label_determiner += 1
 
     if len(online_data_labels) == 1:
         if online_data_labels[0][1] == 1:

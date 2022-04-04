@@ -139,7 +139,6 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     for cluster in clusters:
         if Q1 - iqr_val*0.7 < emg_data[cluster[1]]:
             t_clusters.append(cluster)
-    print(len(t_clusters))
     return t_clusters
 
 
