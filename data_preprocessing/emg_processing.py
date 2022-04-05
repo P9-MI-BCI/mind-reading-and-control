@@ -80,8 +80,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2, stat
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2, normalize=True,
                    threshold=None, iter=0, iter_threshold=False, static_clusters=True, proximity_outliers=True) -> [
     [int]]:
-    # TODO: Fix clustering to detect fixed amount of clusters
-    all_peaks = []
+
     if distance is None:
         distance = 100
 
@@ -144,7 +143,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
         for onset_cluster in cluster_list:
             highest = 0
             index = 0
-            for onset in range(onset_cluster.data[0], onset_cluster.data[-1]):
+            for onset in range(onset_cluster.start, onset_cluster.end):
                 if abs(emg_data[onset]) > highest:
                     highest = abs(emg_data[onset])
                     index = onset
@@ -175,7 +174,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
                                                                    proximity_outliers=proximity_outliers)
             # If there are 20 clusters, reduce threshold by 10% maximum 10 times
             elif (len(cluster_list) == 20 and iter < 10):
-                threshold = threshold - (threshold * 0.05)
+                threshold -= threshold * 0.05
                 emg_rectified = np.abs(emg_data) > threshold
                 emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
                 cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
@@ -186,7 +185,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
 
             # If we broke a dataset and it now does not have 20 clusters, increase threshold by 10% once
             elif (len(cluster_list) != 20 and 1 < iter < 10):
-                threshold = threshold + (threshold * 0.10)
+                threshold += threshold * 0.10
                 emg_rectified = np.abs(emg_data) > threshold
                 emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
                 cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
@@ -253,7 +252,6 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
 
 # We want to merge clusters who are in close proximity to eachother
 def remove_outliers_by_x_axis_distance(clusters, prox_coef):
-    # TODO: Figure out how to incorporate in EMG clustering after changed to detect fixed 20 clusters
     clusters_to_remove = []
     t_clusters = []
 
@@ -265,7 +263,7 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
                 clusters[i + 1].data = np.append(clusters[i + 1].data, clusters[i].data)
                 clusters[i + 1].create_info()
                 clusters_to_remove.append(clusters[i])
-                i = i + 1
+                i += 1
             else:
                 clusters[i].data = np.append(clusters[i].data, clusters[i + 1].data)
                 clusters[i].create_info()

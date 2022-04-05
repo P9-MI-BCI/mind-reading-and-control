@@ -40,15 +40,14 @@ def create_epochs_array(dataset: Dataset, config, visualize=False):
 
     events = []
     epochs_data = []
-    # TODO: Fix to use new Cluster class
     for onset in dataset.clusters:
-        if onset[0] - config.window_padding * dataset.sample_rate < 0:
+        if onset.start - config.window_padding * dataset.sample_rate < 0:
             continue
-        temp = [onset[0], 0, dataset.label]
+        temp = [onset.start, 0, dataset.label]
         events.append(temp)
         epochs_data.append(np.transpose(dataset.filtered_data[config.EEG_CHANNELS].iloc[
-                                        onset[0] - config.window_padding * dataset.sample_rate:
-                                        onset[0] + config.window_padding * dataset.sample_rate].to_numpy()))
+                                        onset.start - config.window_padding * dataset.sample_rate:
+                                        onset.start + config.window_padding * dataset.sample_rate].to_numpy()))
 
     epochs_data = np.array(epochs_data)
 
