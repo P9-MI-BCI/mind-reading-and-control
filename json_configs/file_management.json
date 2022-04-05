@@ -1,7 +1,15 @@
 {
   "subject_0": {
     "label_files": [],
-    "emg_outliers": ["close_02.mat", "close_03.mat", "close_06.mat", "close_08.mat", "open_01.mat", "online_01.mat", "online_02.mat"]
+    "emg_outliers": [
+      "close_02.mat",
+      "close_03.mat",
+      "close_06.mat",
+      "close_08.mat",
+      "open_01.mat",
+      "online_01.mat",
+      "online_02.mat"
+    ]
   },
   "subject_1": {
     "label_files": [],
