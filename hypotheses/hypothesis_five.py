@@ -28,6 +28,7 @@ def run(config):
 
     multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
+    dwell_data.onsets_index = []
 
     multi_dataset_filtering(config.DELTA_BAND, config, training_data)
     multi_dataset_filtering(config.DELTA_BAND, config, online_data)
@@ -48,12 +49,14 @@ def run(config):
     simulation.set_evaluation_metrics()
     simulation.load_models(model)
 
+    # simulation.tune_dwell(dwell_data)
+
     # test the first dataset
     simulation.mount_dataset(online_data[0])
-    simulation.simulate(real_time=True)
+    simulation.simulate(real_time=False)
 
     simulation.reset()
-    exit()
+
     # test the second dataset
     simulation.mount_dataset(online_data[1])
     simulation.simulate(real_time=False)

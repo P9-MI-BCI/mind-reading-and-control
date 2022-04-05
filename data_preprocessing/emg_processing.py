@@ -79,7 +79,7 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
         plt.show()
 
     dataset.onsets_index = emg_clusters
-    return filtered_data[config.EMG_CHANNEL]
+    return filtered_data
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:

@@ -4,7 +4,8 @@ from sklearn.metrics import accuracy_score
 from utility import logger
 import pandas as pd
 
-def xgboost_training(X, Y, ):
+
+def xgboost_training(X, Y):
 
     skf = StratifiedKFold(n_splits=5, shuffle=True)
 
@@ -28,7 +29,9 @@ def xgboost_training(X, Y, ):
 
     logger.get_logger().info(f'Cross Validation Complete')
     print('Cross Validation Results:')
-    print(f'{pd.DataFrame(cv_scores, index=[0])}')
+    cv_scores = pd.DataFrame(cv_scores, index=[0])
+    cv_scores['mean'] = cv_scores.mean(axis=1)
+    print(f'{cv_scores}')
     logger.get_logger().info(f'Fitting entire dataset prior to online prediction')
     model = xgb.XGBClassifier(use_label_encoder=False,
                               objective='binary:logistic',
