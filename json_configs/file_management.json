@@ -8,10 +8,51 @@
     "emg_outliers": []
   },
   "subject_2": {
-    "label_files": ["online_02_labels.txt"],
-    "emg_outliers": ["close_02.mat", "close_04.mat", "close_06.mat", "close_07.mat", "close_08.mat", "open_10.mat"]
+    "label_files": [
+      "online_02_labels.txt"
+    ],
+    "emg_outliers": [
+      "close_02.mat",
+      "close_04.mat",
+      "close_06.mat",
+      "close_07.mat",
+      "close_08.mat",
+      "open_10.mat"
+    ]
   },
   "subject_3": {
+    "label_files": [],
+    "emg_outliers": []
+  },
+  "subject_4": {
+    "label_files": [],
+    "emg_outliers": []
+  },
+  "subject_5": {
+    "label_files": [],
+    "emg_outliers": [
+      "close_01.mat",
+      "close_02.mat",
+      "close_03.mat",
+      "close_04.mat",
+      "close_05.mat",
+      "close_06.mat",
+      "close_07.mat"
+    ]
+  },
+  "subject_6": {
+    "label_files": [],
+    "emg_outliers": []
+  },
+  "subject_7": {
+    "label_files": [],
+    "emg_outliers": []
+  },
+  "subject_8": {
+    "label_files": [],
+    "emg_outliers": []
+  },
+  "subject_9": {
     "label_files": [],
     "emg_outliers": []
   }

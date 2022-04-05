@@ -40,7 +40,8 @@ def create_epochs_array(dataset: Dataset, config, visualize=False):
 
     events = []
     epochs_data = []
-    for onset in dataset.onsets_index:
+    # TODO: Fix to use new Cluster class
+    for onset in dataset.clusters:
         if onset[0] - config.window_padding * dataset.sample_rate < 0:
             continue
         temp = [onset[0], 0, dataset.label]

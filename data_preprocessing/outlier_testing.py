@@ -37,15 +37,46 @@ def create_dataset_from_config(config, label_config):
         return train_data
 
 
-def outlier_test(config, label_config):
+def outlier_test(config, label_config, gridsearch=False):
     data = create_dataset_from_config(config, label_config)
+    grid_results = {}
+    if (gridsearch):
+        for static_clusters in (True, False):
+            for proximity_outliers in (True, False):
+                for iter_threshold in (True, False):
+                    for dataset in data:
+                        try:
+                            onset_detection(dataset, config, static_clusters=static_clusters,
+                                            proximity_outliers=proximity_outliers,
+                                            iter_threshold=iter_threshold)
+                            assert len(dataset.clusters) == 20
+                        except AssertionError:
+                            get_logger().warning(
+                                f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
+                                f"with current outlier parameters")
+                            get_logger().debug([f'Static clustering: {static_clusters}',
+                                                f'Proximity outlier removal: {proximity_outliers}',
+                                                f'Iterative threshold: {iter_threshold}',
+                                                f'Filename: {dataset.filename}'])
+                            if ((static_clusters, proximity_outliers, iter_threshold) in grid_results):
+                                grid_results[(static_clusters, proximity_outliers, iter_threshold)] += 1
+                            else:
+                                grid_results[(static_clusters, proximity_outliers, iter_threshold)] = 1
+        print('Results of outlier gridsearch:\n')
+        for k, v in grid_results.items():
+            print(f'Static clustering: {k[0]}, Proximity outlier merging: {k[1]}, '
+                  f'Adaptive threshold: {k[2]}, Datasets where clusters != 20: {v}\n')
+
     # try:
-    for dataset in data:
-        try:
-            onset_detection(dataset, config)
-            assert len(dataset.onsets_index) == 20
-        except AssertionError:
-            get_logger().warning(f"{dataset.filename} contains {len(dataset.onsets_index)} clusters (not 20) "
-                                 f"with current outlier parameters")
+    else:
+        for dataset in data:
+            try:
+                onset_detection(dataset, config)
+                assert len(dataset.clusters) == 20
+            except AssertionError:
+                get_logger().warning(f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
+                                     f"with current outlier parameters")
+                get_logger().debug(dataset.filename)
+
     # except TypeError:
     #    get_logger().error("Dataset for EMG outlier detection is probably Nonetype, fix path/config file")

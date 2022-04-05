@@ -297,13 +297,13 @@ def data_preparation(datasets, config):
 
     if config.rest_classification:
         for dataset in datasets:
-            for cluster in dataset.onsets_index:
-                if cluster.start-config.window_padding*dataset.sample_rate * 3 < 0:
+            for cluster in dataset.clusters:
+                if cluster.start - config.window_padding * dataset.sample_rate * 3 < 0:
                     continue
                 # movement
                 X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                         cluster.start-int(config.window_padding*dataset.sample_rate):
-                         cluster.start+int(config.window_padding*dataset.sample_rate)
+                         cluster.start - int(config.window_padding * dataset.sample_rate):
+                         cluster.start + int(config.window_padding * dataset.sample_rate)
                          ].to_numpy())
                 # rest before movement
                 Y.append(dataset.label)
@@ -315,12 +315,12 @@ def data_preparation(datasets, config):
 
     elif not config.rest_classification:
         for dataset in datasets:
-            for cluster in dataset.onsets_index:
-                if cluster.start-config.window_padding*dataset.sample_rate < 0:
+            for cluster in dataset.clusters:
+                if cluster.start - config.window_padding * dataset.sample_rate < 0:
                     continue
                 X.append(dataset.data[config.EEG_CHANNELS].iloc[
-                         cluster.start-int(config.window_padding*dataset.sample_rate):
-                         cluster.start+int(config.window_padding*dataset.sample_rate)].to_numpy())
+                         cluster.start - int(config.window_padding * dataset.sample_rate):
+                         cluster.start + int(config.window_padding * dataset.sample_rate)].to_numpy())
                 Y.append(dataset.label)
 
     shuffler = np.random.permutation(len(X))
@@ -349,7 +349,7 @@ def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
     label_determiner = 0
 
     for dataset in datasets:
-        for cluster in dataset.onsets_index:
+        for cluster in dataset.clusters:
             if cluster.start - config.window_padding * dataset.sample_rate < 0:
                 continue
             X.append(
