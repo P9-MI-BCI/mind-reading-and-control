@@ -59,7 +59,7 @@ def data_filtering(filter_range, config, dataset: Dataset):
                                                    btype=config.EEG_BTYPE,
                                                    freq=dataset.sample_rate)
 
-        return filtered_data
+        return filtered_data[config.EEG_CHANNELS]
     except AssertionError:
         get_logger().exception(f'{data_filtering.__name__} received an empty dataset.')
 
@@ -67,6 +67,6 @@ def data_filtering(filter_range, config, dataset: Dataset):
 def multi_dataset_filtering(filter_range, config, datasets):
     if len(datasets) > 1:
         for dataset in datasets:
-            dataset.filtered_data = data_filtering(filter_range, config, dataset)
+            dataset.filtered_data[config.EEG_CHANNELS] = data_filtering(filter_range, config, dataset)
     else:
-        datasets.filtered_data = data_filtering(filter_range, config, datasets)
+        datasets.filtered_data[config.EEG_CHANNELS] = data_filtering(filter_range, config, datasets)

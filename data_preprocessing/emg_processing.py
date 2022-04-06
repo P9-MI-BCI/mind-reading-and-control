@@ -79,7 +79,7 @@ def onset_detection(dataset: Dataset, config, is_online=False) -> [[int]]:
         plt.show()
 
     dataset.onsets_index = emg_clusters
-    return filtered_data[config.EMG_CHANNEL]
+    return filtered_data
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False) -> [[int]]:
@@ -139,7 +139,6 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
     for cluster in clusters:
         if Q1 - iqr_val*0.7 < emg_data[cluster[1]]:
             t_clusters.append(cluster)
-    print(len(t_clusters))
     return t_clusters
 
 
