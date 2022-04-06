@@ -49,7 +49,7 @@ def run(config):
     simulation.set_evaluation_metrics()
     simulation.load_models(model)
 
-    # simulation.tune_dwell(dwell_data)
+    simulation.tune_dwell(dwell_data)
 
     # test the first dataset
     simulation.mount_dataset(online_data[0])

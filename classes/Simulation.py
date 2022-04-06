@@ -12,6 +12,7 @@ from utility.logger import get_logger
 import datetime
 from data_preprocessing.filters import butter_filter
 import matplotlib.patches as patches
+from matplotlib.pyplot import figure
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -90,7 +91,8 @@ class Simulation:
         simulation_duration = len(self.dataset.data) - self.step_size
         with tqdm(total=len(self.dataset.data), file=sys.stdout) as pbar:
             while self.iteration < simulation_duration:
-                self.frequency_range = [self.iteration, self.iteration + self.window_size]
+                # start, middle, end
+                self.frequency_range = [self.iteration, self.iteration + self.window_size / 2, self.iteration + self.window_size]
                 if self.freeze_flag:
                     self._freeze_module(pbar)
 
@@ -177,6 +179,7 @@ class Simulation:
             self.simulate(real_time=False, description=False, analyse=False)
             get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
 
+        self.reset()
         get_logger().info(f'Acceptable level reached of {self.freeze_counter}'
                           f' false positive predictions in a '
                           f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
@@ -304,7 +307,7 @@ class Simulation:
                 if pair[0] - self.dataset.sample_rate / 2 < freq < pair[0] + self.dataset.sample_rate / 2:
                     self.true_labels.append(1)
                     # return the end of the cluster
-                    return pair[2]
+                    return max(pair[-1], self.iteration + 2 * self.dataset.sample_rate)
         if not is_in_index:
             self.true_labels.append(0)
             return self.iteration + 2 * self.dataset.sample_rate
@@ -361,7 +364,7 @@ class Simulation:
             found = False
             for p in pair:
                 for i in self.prediction_frequency:
-                    if i[0] < p < i[1]:
+                    if i[0] < p < i[-1]:
                         found = True
             min_distance = sys.maxsize
             if not found:
@@ -392,6 +395,7 @@ class Simulation:
             f'seconds to the nearest prediction.')
 
     def _plot_predictions(self):
+        fig = plt.figure(figsize=(30, 8))
         plt.clf()
         plot_arr = []
         max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
@@ -399,13 +403,17 @@ class Simulation:
         for cluster in self.dataset.onsets_index:
             plt.vlines(cluster[0]-self.dataset.sample_rate/2, 0, max_height)
             plt.vlines(cluster[0]+self.dataset.sample_rate/2, 0, max_height)
+
+            plt.vlines(cluster[0], 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster[-1], 0, max_height, linestyles='--', color='black')
             plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
-        plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
+        # plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
         for vals in plot_arr:
             plt.plot(np.abs(vals))
 
         for prediction, correct in zip(self.prediction_frequency, self.true_labels):
+
             if correct:
                 plt.gca().add_patch(
                     patches.Rectangle((prediction[0], max_height * 0.7), abs(prediction[0] - prediction[-1]),
