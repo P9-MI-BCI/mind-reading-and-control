@@ -13,7 +13,18 @@
   },
   "subject_1": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_01.mat",
+      "close_06.mat",
+      "close_09.mat",
+      "close_10.mat",
+      "open_01.mat",
+      "open_03.mat",
+      "open_05.mat",
+      "open_06.mat",
+      "open_07.mat",
+      "online_02.mat"
+    ]
   },
   "subject_2": {
     "label_files": [

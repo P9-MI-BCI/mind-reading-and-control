@@ -44,6 +44,9 @@ def outlier_test(config, label_config, gridsearch=False):
         for static_clusters in (True, False):
             for proximity_outliers in (True, False):
                 for iter_threshold in (True, False):
+                    print(f'Trying Static clustering: {static_clusters} '
+                          f'Proximity outlier removal: {proximity_outliers} '
+                          f'Iterative threshold: {iter_threshold}')
                     for dataset in data:
                         try:
                             onset_detection(dataset, config, static_clusters=static_clusters,
