@@ -27,6 +27,8 @@ def init(data, config, open_l=None):
     else:
         dataset.label = open_l
 
+    dataset.data[config.EOG_CHANNEL] = data['data_device1'][:, 9]
+
     return dataset
 
 

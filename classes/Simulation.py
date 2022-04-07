@@ -12,7 +12,7 @@ from utility.logger import get_logger
 import datetime
 from data_preprocessing.filters import butter_filter
 import matplotlib.patches as patches
-from matplotlib.pyplot import figure
+import neurokit2 as nk
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -92,7 +92,8 @@ class Simulation:
         with tqdm(total=len(self.dataset.data), file=sys.stdout) as pbar:
             while self.iteration < simulation_duration:
                 # start, middle, end
-                self.frequency_range = [self.iteration, self.iteration + self.window_size / 2, self.iteration + self.window_size]
+                self.frequency_range = [self.iteration, self.iteration + self.window_size / 2,
+                                        self.iteration + self.window_size]
                 if self.freeze_flag:
                     self._freeze_module(pbar)
 
@@ -201,6 +202,7 @@ class Simulation:
         self.sliding_window = None
         self.data_buffer = pd.DataFrame(columns=self.config.EEG_CHANNELS)
         self.true_labels = []
+        self.score = {}
 
     def _time_module(self, pbar):
         if self.real_time:
@@ -392,25 +394,24 @@ class Simulation:
             f'movement intention windows.')
         get_logger().info(
             f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
-            f'seconds to the nearest prediction.')
+            f' seconds to the nearest prediction.')
 
     def _plot_predictions(self):
         fig = plt.figure(figsize=(30, 8))
         plt.clf()
         plot_arr = []
         max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
+        blinks = self._blink_detection()
 
         for cluster in self.dataset.onsets_index:
-            plt.vlines(cluster[0]-self.dataset.sample_rate/2, 0, max_height)
-            plt.vlines(cluster[0]+self.dataset.sample_rate/2, 0, max_height)
-
-            plt.vlines(cluster[0], 0, max_height, linestyles='--', color='black')
-            plt.vlines(cluster[-1], 0, max_height, linestyles='--', color='black')
-            plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+            plt.vlines(cluster[0] - self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster[0] + self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
+            plt.axvspan(cluster[0], cluster[-1], alpha=0.80, color='lightblue')
+            # plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
         # plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
-        for vals in plot_arr:
-            plt.plot(np.abs(vals))
+        # for vals in plot_arr:
+        #    plt.plot(np.abs(vals))
 
         for prediction, correct in zip(self.prediction_frequency, self.true_labels):
 
@@ -424,8 +425,21 @@ class Simulation:
                     patches.Rectangle((prediction[0], max_height * 0.4), abs(prediction[0] - prediction[-1]),
                                       max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='red', fill=True,
                                       edgecolor='black'))
+        for b in blinks:
+            #
+            plt.gca().add_patch(
+                patches.Rectangle((b, max_height * 0.45), max_height * 0.025,
+                                  max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
+            )
 
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
         plt.autoscale()
         plt.show()
+
+    def _blink_detection(self):
+        eog_cleaned = nk.eog_clean(self.dataset.data[self.config.EOG_CHANNEL], sampling_rate=self.dataset.sample_rate,
+                                   method='neurokit')
+        blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='mne')
+
+        return blinks
