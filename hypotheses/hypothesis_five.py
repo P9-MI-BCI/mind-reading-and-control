@@ -3,7 +3,8 @@ from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.handcrafted_feature_extraction import extract_features
 from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
-from data_preprocessing.data_distribution import data_preparation, normalization, online_data_labeling
+from data_preprocessing.data_distribution import data_preparation, normalization, online_data_labeling, \
+    data_preparation_with_filtering, load_data_from_temp, shuffle
 from data_training.XGBoost.xgboost_hub import xgboost_training
 
 """
@@ -26,17 +27,19 @@ def run(config):
     online_data = create_dataset(online_dataset_path, config)
     dwell_data = create_dataset(dwell_dataset_path, config)
 
-    multi_dataset_onset_detection(training_data, config)
+    # multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
     dwell_data.onsets_index = []
 
-    multi_dataset_filtering(config.DELTA_BAND, config, training_data)
-    multi_dataset_filtering(config.DELTA_BAND, config, online_data)
-    data_filtering(config.DELTA_BAND, config, dwell_data)
+    # multi_dataset_filtering(config.DELTA_BAND, config, training_data)
+    # multi_dataset_filtering(config.DELTA_BAND, config, online_data)
+    # data_filtering(config.DELTA_BAND, config, dwell_data)
 
-    X, Y = data_preparation(training_data, config)
+    # data_preparation_with_filtering(training_data, config)
+    # X, Y = data_preparation(training_data, config)
+    X, Y = load_data_from_temp()
+    X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
-
     # extract hand crafted features
     X = extract_features(X)
 

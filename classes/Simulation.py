@@ -106,7 +106,8 @@ class Simulation:
 
                     self._initiate_simulation(pbar)
                 else:
-                    self.data_buffer = pd.concat([self.data_buffer.iloc[self.step_size:],
+                    self.data_buffer = pd.concat([self.data_buffer.iloc[
+                                                  self.step_size:],
                                                   self.dataset.data.iloc[
                                                   self.iteration:
                                                   self.iteration + self.step_size]
@@ -397,7 +398,7 @@ class Simulation:
             f' seconds to the nearest prediction.')
 
     def _plot_predictions(self):
-        fig = plt.figure(figsize=(30, 8))
+        fig = plt.figure(figsize=(40, 8))
         plt.clf()
         plot_arr = []
         max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
@@ -407,11 +408,11 @@ class Simulation:
             plt.vlines(cluster[0] - self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
             plt.vlines(cluster[0] + self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
             plt.axvspan(cluster[0], cluster[-1], alpha=0.80, color='lightblue')
-            # plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+            plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
-        # plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
-        # for vals in plot_arr:
-        #    plt.plot(np.abs(vals))
+        plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
+        for vals in plot_arr:
+            plt.plot(np.abs(vals))
 
         for prediction, correct in zip(self.prediction_frequency, self.true_labels):
 
@@ -426,9 +427,10 @@ class Simulation:
                                       max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='red', fill=True,
                                       edgecolor='black'))
         for b in blinks:
+            size = self.prediction_frequency[0]
             #
             plt.gca().add_patch(
-                patches.Rectangle((b, max_height * 0.45), max_height * 0.025,
+                patches.Rectangle((b, max_height * 0.45), abs(size[0] - size[-1]) * 0.3,
                                   max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
             )
 

@@ -1,4 +1,5 @@
 import collections
+import glob
 import random
 import pandas as pd
 import numpy as np
@@ -9,9 +10,12 @@ import json
 from statistics import mean, stdev, median
 from classes import Window, Dataset
 from sklearn.preprocessing import StandardScaler
-from utility.file_util import file_exist
-from definitions import DATASET_PATH
 
+from data_preprocessing.filters import butter_filter
+from utility.file_util import file_exist
+from definitions import DATASET_PATH, OUTPUT_PATH
+import pickle
+import os
 
 # Finds the start of TriggerPoints and converts it to frequency and takes the window_size (in seconds) and cuts each
 # side into a datawindow. This is used to find peaks locally in EMG data.
@@ -302,9 +306,9 @@ def data_preparation(datasets, config):
             while step_i < len(dataset.data) - int(config.window_size * dataset.sample_rate):
                 is_in_cluster = []
                 for cluster in dataset.onsets_index:
-                    if cluster[0]-dataset.sample_rate/2 < step_i < cluster[0]+dataset.sample_rate/2:
+                    if cluster[0] - dataset.sample_rate / 2 < step_i < cluster[0]:
                         is_in_cluster.append(True)
-                    elif not cluster[0]-dataset.sample_rate/2 < step_i < cluster[2]:
+                    elif not cluster[0] - dataset.sample_rate / 2 < step_i < cluster[2]:
                         is_in_cluster.append(False)
 
                 if any(is_in_cluster):
@@ -372,7 +376,7 @@ def online_data_labeling(datasets: [Dataset], config, scaler, subject_id: int):
                 is_in_cluster = []
                 for cluster in dataset.onsets_index:
                     # half a second before and after the cluster onset
-                    if cluster[0]-dataset.sample_rate/2 < step_i < cluster[0]+dataset.sample_rate/2:
+                    if cluster[0] - dataset.sample_rate / 2 < step_i < cluster[0] + dataset.sample_rate / 2:
                         is_in_cluster.append(True)
                     else:
                         is_in_cluster.append(False)
@@ -434,3 +438,102 @@ def get_online_data_labels(subject_id: int):
             test_data_labels.append([labels, test_data_id])
 
     return test_data_labels
+
+
+def data_preparation_with_filtering(datasets, config):
+    dataset_num = 0
+    temp_file_name = 'temp_data_'
+    temp_label_name = 'temp_label_'
+    if config.rest_classification:
+        for dataset in datasets:
+            X = []
+            Y = []
+            data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
+            step_i = 0
+
+            while step_i < len(dataset.data) - int(config.window_size * dataset.sample_rate):
+                while len(data_buffer) < config.buffer_size * dataset.sample_rate:
+                    data_buffer = pd.concat([
+                        data_buffer,
+                        dataset.data.iloc[step_i:
+                                          step_i + int(dataset.sample_rate * config.step_size)]
+                    ],
+                        ignore_index=True)
+
+                data_buffer = pd.concat([data_buffer.iloc[
+                                         int(dataset.sample_rate * config.step_size):],
+                                         dataset.data.iloc[
+                                         step_i:
+                                         step_i + int(dataset.sample_rate * config.step_size)]
+                                         ],
+                                        ignore_index=True)
+
+                is_in_cluster = []
+                skip_mark = False
+                for cluster in dataset.onsets_index:
+                    if cluster[0] - dataset.sample_rate / 2 < step_i + config.window_size * dataset.sample_rate < \
+                            cluster[0]:
+                        is_in_cluster.append(True)
+                        break
+                    elif not cluster[0] - dataset.sample_rate / 2 < step_i < cluster[2]:
+                        is_in_cluster.append(False)
+                    elif cluster[0] < step_i < cluster[2]:
+                        break
+                if skip_mark:
+                    continue
+                elif any(is_in_cluster):
+                    Y.append(1)
+
+                    sliding_window = filter_module(config, config.DELTA_BAND, data_buffer, dataset.sample_rate)
+                    X.append(sliding_window)
+                # if current step is not within a movement cluster and there are more 1 than 0 labels,
+                # add a new 0 label
+                elif not any(is_in_cluster) and sum(Y) > len(Y) / 2:
+                    Y.append(0)
+
+                    sliding_window = filter_module(config, config.DELTA_BAND, data_buffer, dataset.sample_rate)
+                    X.append(sliding_window)
+
+                step_i += int(config.step_size * dataset.sample_rate)
+
+            with open(os.path.join(OUTPUT_PATH, f'{temp_file_name}{dataset_num}'), 'wb') as f:
+                pickle.dump(X, f)
+
+            with open(os.path.join(OUTPUT_PATH, f'{temp_label_name}{dataset_num}'), 'wb') as f:
+                pickle.dump(Y, f)
+
+            dataset_num += 1
+
+
+def filter_module(config, filter_range, data_buffer, sample_rate):
+    filtered_data = pd.DataFrame(columns=config.EEG_CHANNELS)
+
+    for channel in config.EEG_CHANNELS:
+        filtered_data[channel] = butter_filter(data=data_buffer[channel],
+                                               order=config.EEG_ORDER,
+                                               cutoff=filter_range,
+                                               btype=config.EEG_BTYPE
+                                               )
+
+    sliding_window = np.array(filtered_data.iloc[-int(config.window_size*sample_rate):].reset_index(drop=True))
+    return sliding_window
+
+
+def load_data_from_temp():
+    labels = []
+    data = []
+    for file in glob.glob(OUTPUT_PATH, recursive=True):
+        if 'label' in file:
+            with open(file, 'rb') as f:
+                labels.extend(pickle.load(f))
+        elif 'data' in file:
+            with open(file, 'rb') as f:
+                data.extend(pickle.load(f))
+
+    return data, labels
+
+def shuffle(X, Y):
+    shuffler = np.random.permutation(len(X))
+    X = np.array(X)[shuffler]
+    Y = np.array(Y)[shuffler]
+    return X, Y
