@@ -27,7 +27,7 @@ def run(config):
     online_data = create_dataset(online_dataset_path, config)
     dwell_data = create_dataset(dwell_dataset_path, config)
 
-    # multi_dataset_onset_detection(training_data, config)
+    multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
     dwell_data.onsets_index = []
 
@@ -35,8 +35,8 @@ def run(config):
     # multi_dataset_filtering(config.DELTA_BAND, config, online_data)
     # data_filtering(config.DELTA_BAND, config, dwell_data)
 
-    # data_preparation_with_filtering(training_data, config)
-    # X, Y = data_preparation(training_data, config)
+    data_preparation_with_filtering(training_data, config)
+    #X, Y = data_preparation(training_data, config)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)

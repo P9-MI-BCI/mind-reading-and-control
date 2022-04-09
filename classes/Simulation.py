@@ -17,7 +17,7 @@ import neurokit2 as nk
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 
-
+# cluster[0] - dataset.sample_rate * 1.5 < step_i + config.window_size * dataset.sample_rate < cluster[0]
 class Simulation:
 
     def __init__(self, config, real_time: bool = False):
@@ -307,7 +307,7 @@ class Simulation:
 
         for freq in self.frequency_range:
             for pair in self.dataset.onsets_index:
-                if pair[0] - self.dataset.sample_rate / 2 < freq < pair[0] + self.dataset.sample_rate / 2:
+                if pair[0] - self.dataset.sample_rate * 1.5 < freq < pair[0]:
                     self.true_labels.append(1)
                     # return the end of the cluster
                     return max(pair[-1], self.iteration + 2 * self.dataset.sample_rate)
@@ -332,13 +332,13 @@ class Simulation:
             min_distance = sys.maxsize
             for i in freq_range:
                 for pair in self.dataset.onsets_index:
-                    if pair[0] - self.dataset.sample_rate / 2 < i < pair[0] + self.dataset.sample_rate / 2:
+                    if pair[0] - self.dataset.sample_rate * 1.5 < i < pair[0]:
                         min_distance = 0
                     else:
-                        dist = abs(i - pair[0] - self.dataset.sample_rate / 2)
+                        dist = abs(i - pair[0] - self.dataset.sample_rate * 1.5)
                         if dist < min_distance:
                             min_distance = dist
-                        dist = abs(i - pair[0] + self.dataset.sample_rate / 2)
+                        dist = abs(i - pair[0])
                         if dist < min_distance:
                             min_distance = dist
             distances.append(min_distance)
@@ -360,23 +360,22 @@ class Simulation:
         furthest_distance = []
 
         for pair in self.dataset.onsets_index:
-            if pair[0] - self.dataset.sample_rate / 2 < discarded_mrcp or \
-                    pair[0] + self.dataset.sample_rate / 2 < discarded_mrcp:
+            if pair[0] - self.dataset.sample_rate * 1.5 < discarded_mrcp or pair[0] < discarded_mrcp:
                 found_mrcp.append(999)
                 continue
             found = False
             for p in pair:
                 for i in self.prediction_frequency:
-                    if i[0] < p < i[-1]:
+                    if i[0] - self.dataset.sample_rate * 1.5 < p < i[0]:
                         found = True
             min_distance = sys.maxsize
             if not found:
                 for freq in self.prediction_frequency:
                     for i in freq:
-                        dist = abs(i - pair[0] - self.dataset.sample_rate / 2)
+                        dist = abs(i - pair[0] - self.dataset.sample_rate * 1.5)
                         if dist < min_distance:
                             min_distance = dist
-                        dist = abs(i - pair[0] + self.dataset.sample_rate / 2)
+                        dist = abs(i - pair[0])
                         if dist < min_distance:
                             min_distance = dist
                 furthest_distance.append(min_distance)
@@ -405,8 +404,8 @@ class Simulation:
         blinks = self._blink_detection()
 
         for cluster in self.dataset.onsets_index:
-            plt.vlines(cluster[0] - self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
-            plt.vlines(cluster[0] + self.dataset.sample_rate / 2, 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster[0] - self.dataset.sample_rate * 1.5, 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster[0], 0, max_height, linestyles='--', color='black')
             plt.axvspan(cluster[0], cluster[-1], alpha=0.80, color='lightblue')
             plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
 
@@ -433,7 +432,9 @@ class Simulation:
                 patches.Rectangle((b, max_height * 0.45), abs(size[0] - size[-1]) * 0.3,
                                   max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
             )
-
+        plt.gca().add_patch(
+            patches.Rectangle((0,0), self.config.buffer_size * self.dataset.sample_rate, max_height, linewidth=1, alpha=0.5, fill=True, facecolor='yellow')
+        )
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
         plt.autoscale()

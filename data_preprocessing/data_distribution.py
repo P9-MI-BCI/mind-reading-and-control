@@ -8,6 +8,9 @@ import os
 import json
 
 from statistics import mean, stdev, median
+
+from tqdm import tqdm
+
 from classes import Window, Dataset
 from sklearn.preprocessing import StandardScaler
 
@@ -445,7 +448,7 @@ def data_preparation_with_filtering(datasets, config):
     temp_file_name = 'temp_data_'
     temp_label_name = 'temp_label_'
     if config.rest_classification:
-        for dataset in datasets:
+        for dataset in tqdm(datasets):
             X = []
             Y = []
             data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
@@ -459,6 +462,7 @@ def data_preparation_with_filtering(datasets, config):
                                           step_i + int(dataset.sample_rate * config.step_size)]
                     ],
                         ignore_index=True)
+                    step_i += int(config.step_size * dataset.sample_rate)
 
                 data_buffer = pd.concat([data_buffer.iloc[
                                          int(dataset.sample_rate * config.step_size):],
@@ -471,15 +475,16 @@ def data_preparation_with_filtering(datasets, config):
                 is_in_cluster = []
                 skip_mark = False
                 for cluster in dataset.onsets_index:
-                    if cluster[0] - dataset.sample_rate / 2 < step_i + config.window_size * dataset.sample_rate < \
-                            cluster[0]:
+                    if cluster[0] - dataset.sample_rate * 1.5 < step_i < cluster[0]:
                         is_in_cluster.append(True)
                         break
                     elif not cluster[0] - dataset.sample_rate / 2 < step_i < cluster[2]:
                         is_in_cluster.append(False)
                     elif cluster[0] < step_i < cluster[2]:
+                        skip_mark = True
                         break
                 if skip_mark:
+                    step_i += int(config.step_size * dataset.sample_rate)
                     continue
                 elif any(is_in_cluster):
                     Y.append(1)
@@ -522,7 +527,7 @@ def filter_module(config, filter_range, data_buffer, sample_rate):
 def load_data_from_temp():
     labels = []
     data = []
-    for file in glob.glob(OUTPUT_PATH, recursive=True):
+    for file in glob.glob(os.path.join(OUTPUT_PATH, '*'), recursive=True):
         if 'label' in file:
             with open(file, 'rb') as f:
                 labels.extend(pickle.load(f))
