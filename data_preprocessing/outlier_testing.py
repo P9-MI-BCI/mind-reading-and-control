@@ -44,31 +44,34 @@ def outlier_test(config, label_config, gridsearch=False):
         for static_clusters in (True, False):
             for proximity_outliers in (True, False):
                 for iter_threshold in (True, False):
-                    print(f'Trying Static clustering: {static_clusters} '
-                          f'Proximity outlier removal: {proximity_outliers} '
-                          f'Iterative threshold: {iter_threshold}')
-                    for dataset in data:
-                        try:
-                            onset_detection(dataset, config, static_clusters=static_clusters,
-                                            proximity_outliers=proximity_outliers,
-                                            iter_threshold=iter_threshold)
-                            assert len(dataset.clusters) == 20
-                        except AssertionError:
-                            get_logger().warning(
-                                f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
-                                f"with current outlier parameters")
-                            get_logger().debug([f'Static clustering: {static_clusters}',
-                                                f'Proximity outlier removal: {proximity_outliers}',
-                                                f'Iterative threshold: {iter_threshold}',
-                                                f'Filename: {dataset.filename}'])
-                            if ((static_clusters, proximity_outliers, iter_threshold) in grid_results):
-                                grid_results[(static_clusters, proximity_outliers, iter_threshold)] += 1
-                            else:
-                                grid_results[(static_clusters, proximity_outliers, iter_threshold)] = 1
+                    for normalization in (True, False):
+                        print(f'Trying Static clustering: {static_clusters} '
+                              f'Proximity outlier removal: {proximity_outliers} '
+                              f'Iterative threshold: {iter_threshold}'
+                              f'Normalization: {normalization}')
+                        for dataset in data:
+                            try:
+                                onset_detection(dataset, config, static_clusters=static_clusters,
+                                                proximity_outliers=proximity_outliers,
+                                                iter_threshold=iter_threshold, normalization=normalization)
+                                assert len(dataset.clusters) == 20
+                            except AssertionError:
+                                get_logger().warning(
+                                    f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
+                                    f"with current outlier parameters")
+                                get_logger().debug([f'Static clustering: {static_clusters}',
+                                                    f'Proximity outlier removal: {proximity_outliers}',
+                                                    f'Iterative threshold: {iter_threshold}',
+                                                    f'Normalization: {normalization}',
+                                                    f'Filename: {dataset.filename}'])
+                                if ((static_clusters, proximity_outliers, iter_threshold) in grid_results):
+                                    grid_results[(static_clusters, proximity_outliers, iter_threshold)] += 1
+                                else:
+                                    grid_results[(static_clusters, proximity_outliers, iter_threshold)] = 1
         print('Results of outlier gridsearch:\n')
         for k, v in grid_results.items():
             print(f'Static clustering: {k[0]}, Proximity outlier merging: {k[1]}, '
-                  f'Adaptive threshold: {k[2]}, Datasets where clusters != 20: {v}\n')
+                  f'Adaptive threshold: {k[2]}, Normalization: {k[3]}, Datasets where clusters != 20: {v}\n')
 
     # try:
     else:

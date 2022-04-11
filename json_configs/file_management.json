@@ -41,35 +41,62 @@
   },
   "subject_3": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_01.mat",
+      "close_04.mat",
+      "open_02.mat",
+      "online_02.mat"
+    ]
   },
   "subject_4": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_01.mat",
+      "close_04.mat",
+      "open_02.mat"
+    ]
   },
   "subject_5": {
     "label_files": [],
     "emg_outliers": [
       "close_01.mat",
-      "close_02.mat",
       "close_03.mat",
       "close_04.mat",
-      "close_05.mat",
       "close_06.mat",
-      "close_07.mat"
+      "open_01.mat",
+      "online_01.mat",
+      "online_02.mat"
+
     ]
   },
   "subject_6": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_01.mat",
+      "close_02.mat",
+      "open_01.mat",
+      "open_03.mat"
+    ]
   },
   "subject_7": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_08.mat"
+    ]
+
   },
   "subject_8": {
     "label_files": [],
-    "emg_outliers": []
+    "emg_outliers": [
+      "close_03.mat",
+      "close_04.mat",
+      "close_06.mat",
+      "close_09.mat",
+      "open_01.mat",
+      "open_04.mat",
+      "open_07.mat",
+      "open_08.mat"
+    ]
   },
   "subject_9": {
     "label_files": [],

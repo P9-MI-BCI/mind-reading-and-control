@@ -65,6 +65,7 @@ def data_filtering(filter_range, config, dataset: Dataset):
 
 
 def multi_dataset_filtering(filter_range, config, datasets):
+    # TODO: Fix this shit for 1 file
     if len(datasets) > 1:
         for dataset in datasets:
             dataset.filtered_data = data_filtering(filter_range, config, dataset)
