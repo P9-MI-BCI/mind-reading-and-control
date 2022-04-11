@@ -293,13 +293,13 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 
 
 def multi_dataset_onset_detection(datasets, config, is_online=False):
-    # TODO: Fix this shit for 1 file
     try:
         iter(datasets)
     except TypeError:
-        datasets.filtered_data = onset_detection(datasets, config, is_online)
-        datasets.data = datasets.data.iloc[1:-1, :]
-        datasets.data.reset_index(drop=True, inplace=True)
+        if datasets is not None:
+            datasets.filtered_data = onset_detection(datasets, config, is_online)
+            datasets.data = datasets.data.iloc[1:-1, :]
+            datasets.data.reset_index(drop=True, inplace=True)
     else:
         for dataset in datasets:
             dataset.filtered_data = onset_detection(dataset, config, is_online)
