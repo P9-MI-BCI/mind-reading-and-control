@@ -19,30 +19,39 @@ def wavelet_transformation(dataset: Dataset, config, wavelet_type: str, plot=Fal
 
     wavelet_coeffs = []
     for channel in dataset.filtered_data:
-        totalscal = 64  # scale
-        wavename = 'morl'
-        fc = pywt.central_frequency(wavename)  # central frequency
-        cparam = 2 * fc * totalscal
-        scales = cparam / np.arange(1, totalscal + 1)
-        sampling_period = 1.0 / sampling_rate
-        time = len(dataset.filtered_data[channel]) / sampling_rate
-        t = np.arange(0, time, 1.0 / sampling_rate)
 
         # Discrete wavelet transform
         if wavelet_type == 'discrete':
-            cA, cD = discrete_wavelet_transform(dataset.filtered_data[channel], level=0)
+            # cA, cD = discrete_wavelet_transform(dataset.filtered_data[channel], level=0)
             coeffs = discrete_wavelet_transform(dataset.filtered_data[channel], level=5)
 
+            energy_distributions = []
+            for c in coeffs:
+                energy_distributions.append(parsevals_theorem(c))
+
+
             if plot:
+                # fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+                # ax1.plot(dataset.filtered_data[channel])
+                # ax2.plot(cA, '-g')
+                # ax3.plot(cD, '-r')
                 fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
-                ax1.plot(dataset.filtered_data[channel])
-                ax2.plot(cA, '-g')
-                ax3.plot(cD, '-r')
-                fig.suptitle(f'{dataset.filename} - {channel}')
-                plt.show()
+                # for c in coeffs:
+                #     plt.bar(c, len(c))
+                # fig.suptitle(f'{dataset.filename} - {channel}')
+                # plt.show()
 
         # Continuous wavelet transform
         if wavelet_type == 'continuous':
+            totalscal = 64  # scale
+            wavename = 'morl'
+            fc = pywt.central_frequency(wavename)  # central frequency
+            cparam = 2 * fc * totalscal
+            scales = cparam / np.arange(1, totalscal + 1)
+            sampling_period = 1.0 / sampling_rate
+            time = len(dataset.filtered_data[channel]) / sampling_rate
+            t = np.arange(0, time, 1.0 / sampling_rate)
+
             cwtmatr, freqs = continuous_wavelet_transform(dataset.filtered_data[channel], scales, wavename,
                                                           sampling_period)
 
@@ -58,6 +67,14 @@ def wavelet_transformation(dataset: Dataset, config, wavelet_type: str, plot=Fal
                 plt.show()
 
             return wavelet_coeffs
+
+
+def parsevals_theorem(data):
+    energy_sum = 0
+    for i in range(len(data)):
+        energy_sum += abs(data[i])**2
+
+    return energy_sum
 
 
 def discrete_wavelet_transform(channel_data, level: int):
