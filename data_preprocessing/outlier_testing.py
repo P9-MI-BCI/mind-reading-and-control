@@ -77,7 +77,11 @@ def outlier_test(config, label_config, gridsearch=False):
     else:
         for dataset in data:
             try:
-                onset_detection(dataset, config)
+                onset_detection(dataset, config,
+                                static_clusters=True,
+                                proximity_outliers=True,
+                                iter_threshold=False,
+                                normalization=True)
                 assert len(dataset.clusters) == 20
             except AssertionError:
                 get_logger().warning(f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
