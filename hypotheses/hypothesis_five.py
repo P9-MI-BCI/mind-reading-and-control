@@ -4,8 +4,9 @@ from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.handcrafted_feature_extraction import extract_features
 from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
 from data_preprocessing.data_distribution import data_preparation, normalization, online_data_labeling, \
-    data_preparation_with_filtering, load_data_from_temp, shuffle
-from data_training.XGBoost.xgboost_hub import xgboost_training
+    data_preparation_with_filtering, load_data_from_temp, shuffle, features_to_file, load_features_from_file, \
+    load_scaler
+from data_training.XGBoost.xgboost_hub import xgboost_training, optimized_xgboost
 
 """
 Hypothesis five aims to test whether deep feature extraction models will perform better than handcrafted ones. It
@@ -29,30 +30,30 @@ def run(config):
 
     multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config, is_online=True)
-    dwell_data.onsets_index = []
-
-    # multi_dataset_filtering(config.DELTA_BAND, config, training_data)
-    # multi_dataset_filtering(config.DELTA_BAND, config, online_data)
-    # data_filtering(config.DELTA_BAND, config, dwell_data)
+    dwell_data.clusters = []
 
     data_preparation_with_filtering(training_data, config)
-    #X, Y = data_preparation(training_data, config)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
+
     # extract hand crafted features
     X = extract_features(X)
+    features_to_file(X, Y, scaler)
+    X, Y = load_features_from_file()
+    scaler = load_scaler()
 
     model = xgboost_training(X, Y)
-
+    # optimized_xgboost(X, Y)
     simulation = Simulation(config)
+
     simulation.set_normalizer(scaler)
     simulation.set_filter(config.DELTA_BAND)
     simulation.set_feature_extraction(True)
     simulation.set_evaluation_metrics()
     simulation.load_models(model)
 
-    simulation.tune_dwell(dwell_data)
+    simulation.tune_dwell(online_data[0])
 
     # test the first dataset
     simulation.mount_dataset(online_data[0])

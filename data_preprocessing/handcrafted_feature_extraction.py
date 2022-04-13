@@ -1,9 +1,12 @@
-from statistics import mean
+from statistics import mean, median
 from scipy.stats import skew, kurtosis
 import numpy as np
-
-
+from scipy.fft import fft
 # take input windows and extract features for the XGBoost
+from tqdm import tqdm
+from scipy.stats import linregress
+
+
 def extract_features(X):
     handcrafted_X = []
 
@@ -13,7 +16,7 @@ def extract_features(X):
             feature_vector.append(mean(channel))
             feature_vector.append(skew(channel))
             feature_vector.append(kurtosis(channel))
-
+            feature_vector.append(median(channel))
             feature_vector.append(peak_to_peak_time_window(channel))
             feature_vector.append(peak_to_peak_slope(channel))
 

@@ -17,7 +17,6 @@ import neurokit2 as nk
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 
-# cluster[0] - dataset.sample_rate * 1.5 < step_i + config.window_size * dataset.sample_rate < cluster[0]
 class Simulation:
 
     def __init__(self, config, real_time: bool = False):
@@ -84,6 +83,8 @@ class Simulation:
             self._simulation_information()
             self._real_time_check()
 
+        blinks = self._blink_detection()
+
         self.iteration = 0
 
         time.sleep(1)
@@ -122,9 +123,16 @@ class Simulation:
                         self._filter_module(self.filter)
 
                     # Remove the oldest prediction before making new prediction
-                    self.prev_pred_buffer.pop(0)
+                    if len(self.prev_pred_buffer) > self.PREV_PRED_SIZE:
+                        self.prev_pred_buffer.pop(0)
 
-                    self.prev_pred_buffer.append(self._prediction_module())
+                    skip_prediction = False
+                    for b in blinks:
+                        if self.frequency_range[0] < b < self.frequency_range[-1]:
+                            skip_prediction = True
+
+                    if not skip_prediction:
+                        self.prev_pred_buffer.append(self._prediction_module())
 
                     self._check_heuristic()
 
@@ -156,7 +164,6 @@ class Simulation:
             f'{datetime.timedelta(seconds=round(len(self.dataset.data) / self.dataset.sample_rate))} to '
             f'simulate.')
         get_logger().info(f'Dataset is sampled at: {self.dataset.sample_rate} frequency.')
-        # get_logger().info(f'Dataset contains: {(len(self.dataset.TriggerPoint)) // 2} cue onsets.')
 
     def _build_data_buffer(self, bpbar, pbar):
         self.data_buffer = pd.concat([
@@ -174,7 +181,7 @@ class Simulation:
         # run simulation on the dwell dataset
         self.freeze_counter = 6  # just to start the first iteration
 
-        while self.freeze_counter > 4:
+        while self.freeze_counter > 3:
             self.PREV_PRED_SIZE += 1
             self.reset()
             self.mount_dataset(dwell_dataset)
@@ -305,15 +312,16 @@ class Simulation:
         self.prediction_frequency.append(self.frequency_range)
         is_in_index = False
 
-        for freq in self.frequency_range:
-            for pair in self.dataset.onsets_index:
-                if pair[0] - self.dataset.sample_rate * 1.5 < freq < pair[0]:
-                    self.true_labels.append(1)
-                    # return the end of the cluster
-                    return max(pair[-1], self.iteration + 2 * self.dataset.sample_rate)
+        # we only evaluate center of the prediction in inside the intended range
+        for cluster in self.dataset.clusters:
+            if self.frequency_range[0] < cluster.start < self.frequency_range[2]:
+                self.true_labels.append(1)
+                # return the end of the cluster
+                return max(cluster.end, self.iteration + 2 * self.dataset.sample_rate)
         if not is_in_index:
             self.true_labels.append(0)
-            return self.iteration + 2 * self.dataset.sample_rate
+            # break windowlength
+            return self.iteration + self.config.window_size * self.dataset.sample_rate
 
     def _apply_metrics(self):
         for metric in self.metrics:
@@ -327,20 +335,20 @@ class Simulation:
         self._plot_predictions()
 
     def _distance_to_nearest_mrcp(self):
+        # note: freq_range[1] refers to the center of the prediction window
         distances = []
         for freq_range in self.prediction_frequency:
             min_distance = sys.maxsize
-            for i in freq_range:
-                for pair in self.dataset.onsets_index:
-                    if pair[0] - self.dataset.sample_rate * 1.5 < i < pair[0]:
-                        min_distance = 0
-                    else:
-                        dist = abs(i - pair[0] - self.dataset.sample_rate * 1.5)
-                        if dist < min_distance:
-                            min_distance = dist
-                        dist = abs(i - pair[0])
-                        if dist < min_distance:
-                            min_distance = dist
+            for cluster in self.dataset.clusters:
+                if freq_range[0] < cluster.start < freq_range[1]:
+                    min_distance = 0
+                else:
+                    dist = abs(freq_range[0] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
+                    dist = abs(freq_range[-1] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
             distances.append(min_distance)
         # iterate over pred freq and closest mrcp pair
         mean_distance = (sum(distances) / len(self.prediction_frequency) / self.dataset.sample_rate)
@@ -359,25 +367,24 @@ class Simulation:
         discarded_mrcp = self.buffer_size
         furthest_distance = []
 
-        for pair in self.dataset.onsets_index:
-            if pair[0] - self.dataset.sample_rate * 1.5 < discarded_mrcp or pair[0] < discarded_mrcp:
+        for cluster in self.dataset.clusters:
+            if cluster.start - self.dataset.sample_rate * 2 < discarded_mrcp or \
+               cluster.start + self.dataset.sample_rate < discarded_mrcp:
                 found_mrcp.append(999)
                 continue
             found = False
-            for p in pair:
-                for i in self.prediction_frequency:
-                    if i[0] - self.dataset.sample_rate * 1.5 < p < i[0]:
-                        found = True
+            for prediction_freq in self.prediction_frequency:
+                if prediction_freq[0] < cluster.start < prediction_freq[-1]:
+                    found = True
             min_distance = sys.maxsize
             if not found:
-                for freq in self.prediction_frequency:
-                    for i in freq:
-                        dist = abs(i - pair[0] - self.dataset.sample_rate * 1.5)
-                        if dist < min_distance:
-                            min_distance = dist
-                        dist = abs(i - pair[0])
-                        if dist < min_distance:
-                            min_distance = dist
+                for prediction_freq in self.prediction_frequency:
+                    dist = abs(prediction_freq[0] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
+                    dist = abs(prediction_freq[-1] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
                 furthest_distance.append(min_distance)
             found_mrcp.append(found)
 
@@ -387,29 +394,36 @@ class Simulation:
                 discard_counter += 1
 
         get_logger().info(f'Total Predictions made by the model {len(self.predictions)}.')
-        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.onsets_index)}.')
+        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.')
         get_logger().info(f'Data buffer removed {discard_counter} movement intention windows during building process.')
         get_logger().info(
             f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} '
             f'movement intention windows.')
-        get_logger().info(
-            f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
-            f' seconds to the nearest prediction.')
+        if len(furthest_distance) > 0:
+            get_logger().info(
+                f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
+                f' seconds to the nearest prediction.')
+        else:
+            get_logger().info('All movement intention windows were hit!')
 
     def _plot_predictions(self):
-        fig = plt.figure(figsize=(40, 8))
         plt.clf()
+        fig = plt.figure(figsize=(40, 8))
         plot_arr = []
         max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
         blinks = self._blink_detection()
 
-        for cluster in self.dataset.onsets_index:
-            plt.vlines(cluster[0] - self.dataset.sample_rate * 1.5, 0, max_height, linestyles='--', color='black')
-            plt.vlines(cluster[0], 0, max_height, linestyles='--', color='black')
-            plt.axvspan(cluster[0], cluster[-1], alpha=0.80, color='lightblue')
-            plot_arr.append(self.dataset.filtered_data[self.config.EMG_CHANNEL].iloc[cluster[0]:cluster[-1]])
+        for cluster in self.dataset.clusters:
+            # dashed lines 2 seconds before onset and 1 second after
+            #plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
+            plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
+                        cluster.start + self.dataset.sample_rate,
+                        alpha=0.80,
+                        color='lightblue')
+            plot_arr.append(self.dataset.filtered_data.iloc[cluster.start:cluster.end])
 
-        plt.plot(np.abs(self.dataset.filtered_data[self.config.EMG_CHANNEL]), color='black')
+        plt.plot(np.abs(self.dataset.filtered_data), color='black')
         for vals in plot_arr:
             plt.plot(np.abs(vals))
 
@@ -432,9 +446,8 @@ class Simulation:
                 patches.Rectangle((b, max_height * 0.45), abs(size[0] - size[-1]) * 0.3,
                                   max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
             )
-        plt.gca().add_patch(
-            patches.Rectangle((0,0), self.config.buffer_size * self.dataset.sample_rate, max_height, linewidth=1, alpha=0.5, fill=True, facecolor='yellow')
-        )
+        plt.axvspan(0, self.config.buffer_size * self.dataset.sample_rate, alpha=0.80, color='yellow')
+
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
         plt.autoscale()

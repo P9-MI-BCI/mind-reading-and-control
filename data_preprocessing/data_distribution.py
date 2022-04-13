@@ -289,15 +289,6 @@ def min_max_scaling(window: pd.DataFrame) -> pd.DataFrame:
     return (window - window.min()) / (window.max() - window.min())
 
 
-def blinks_in_list(windows: [Window]) -> int:
-    counter = 0
-    for window in windows:
-        if window.blink == 1:
-            counter += 1
-
-    return counter
-
-
 def data_preparation(datasets, config):
     X = []
     Y = []
@@ -473,17 +464,20 @@ def data_preparation_with_filtering(datasets, config):
                                         ignore_index=True)
 
                 is_in_cluster = []
-                skip_mark = False
-                for cluster in dataset.onsets_index:
-                    if cluster[0] - dataset.sample_rate * 1.5 < step_i < cluster[0]:
+                skip = False
+                for cluster in dataset.clusters:
+                    # 2 seconds before 1 sec after onset
+                    if cluster.start - dataset.sample_rate * config.window_size < step_i < cluster.start:
                         is_in_cluster.append(True)
                         break
-                    elif not cluster[0] - dataset.sample_rate / 2 < step_i < cluster[2]:
+                    # leave half a second after movement ends to start labeling false
+                    elif not cluster.start - dataset.sample_rate * config.window_size < step_i < cluster.end + dataset.sample_rate / 2:
                         is_in_cluster.append(False)
-                    elif cluster[0] < step_i < cluster[2]:
-                        skip_mark = True
+                    # if step is in the cluster just skip it.
+                    elif cluster.start < step_i < cluster.end + dataset.sample_rate / 2:
+                        skip = True
                         break
-                if skip_mark:
+                if skip:
                     step_i += int(config.step_size * dataset.sample_rate)
                     continue
                 elif any(is_in_cluster):
@@ -491,8 +485,6 @@ def data_preparation_with_filtering(datasets, config):
 
                     sliding_window = filter_module(config, config.DELTA_BAND, data_buffer, dataset.sample_rate)
                     X.append(sliding_window)
-                # if current step is not within a movement cluster and there are more 1 than 0 labels,
-                # add a new 0 label
                 elif not any(is_in_cluster) and sum(Y) > len(Y) / 2:
                     Y.append(0)
 
@@ -501,10 +493,10 @@ def data_preparation_with_filtering(datasets, config):
 
                 step_i += int(config.step_size * dataset.sample_rate)
 
-            with open(os.path.join(OUTPUT_PATH, f'{temp_file_name}{dataset_num}'), 'wb') as f:
+            with open(os.path.join(OUTPUT_PATH, 'data', f'{temp_file_name}{dataset_num}'), 'wb') as f:
                 pickle.dump(X, f)
 
-            with open(os.path.join(OUTPUT_PATH, f'{temp_label_name}{dataset_num}'), 'wb') as f:
+            with open(os.path.join(OUTPUT_PATH, 'data',f'{temp_label_name}{dataset_num}'), 'wb') as f:
                 pickle.dump(Y, f)
 
             dataset_num += 1
@@ -527,7 +519,8 @@ def filter_module(config, filter_range, data_buffer, sample_rate):
 def load_data_from_temp():
     labels = []
     data = []
-    for file in glob.glob(os.path.join(OUTPUT_PATH, '*'), recursive=True):
+    path = os.path.join(OUTPUT_PATH, 'data')
+    for file in glob.glob(os.path.join(path, '*'), recursive=True):
         if 'label' in file:
             with open(file, 'rb') as f:
                 labels.extend(pickle.load(f))
@@ -537,8 +530,40 @@ def load_data_from_temp():
 
     return data, labels
 
+
 def shuffle(X, Y):
     shuffler = np.random.permutation(len(X))
     X = np.array(X)[shuffler]
     Y = np.array(Y)[shuffler]
     return X, Y
+
+
+def features_to_file(X, Y, scaler):
+    with open(os.path.join(OUTPUT_PATH, 'features', 'features'), 'wb') as f:
+        pickle.dump(X, f)
+
+    with open(os.path.join(OUTPUT_PATH, 'features', 'labels'), 'wb') as f:
+        pickle.dump(Y, f)
+
+    with open(os.path.join(OUTPUT_PATH, 'scaler'), 'wb') as f:
+        pickle.dump(scaler, f)
+
+
+def load_features_from_file():
+    labels = []
+    data = []
+    path = os.path.join(OUTPUT_PATH, 'features')
+    for file in glob.glob(os.path.join(path, '*'), recursive=True):
+        if 'labels' in file:
+            with open(file, 'rb') as f:
+                labels.extend(pickle.load(f))
+        elif 'features' in file:
+            with open(file, 'rb') as f:
+                data.extend(pickle.load(f))
+
+    return np.array(data), np.array(labels)
+
+
+def load_scaler():
+    with open(os.path.join(OUTPUT_PATH, 'scaler'), 'rb') as f:
+        return pickle.load(f)

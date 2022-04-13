@@ -74,7 +74,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2, stat
         plt.show()
 
     dataset.clusters = emg_clusters
-    return filtered_data[config.EMG_CHANNEL]
+    return filtered_data
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox_coef=2, normalization=True,
@@ -298,10 +298,6 @@ def multi_dataset_onset_detection(datasets, config, is_online=False):
     except TypeError:
         if datasets is not None:
             datasets.filtered_data = onset_detection(datasets, config, is_online)
-            datasets.data = datasets.data.iloc[1:-1, :]
-            datasets.data.reset_index(drop=True, inplace=True)
     else:
         for dataset in datasets:
             dataset.filtered_data = onset_detection(dataset, config, is_online)
-            dataset.data = dataset.data.iloc[1:-1, :]
-            dataset.data.reset_index(drop=True, inplace=True)
