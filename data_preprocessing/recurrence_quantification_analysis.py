@@ -25,7 +25,7 @@ def recurrence_quantification(training_data, config, plot=True):
     right_hemisphere = ['C4', 'C6', 'T8']
     longitudinal_fissure = ['C1', 'Cz', 'C2']
 
-    window_sz = int((2 * config.SAMPLE_RATE) / 2)
+    window_sz = int((2 * config.SAMPLE_RATE))
 
     for dataset in training_data:
         lhs = dataset.filtered_data[left_hemisphere]
