@@ -84,7 +84,7 @@ def get_dataset_paths(subject_id: int, config):
     assert config.transfer_learning is not None
     if config.transfer_learning:
         training_p = []
-        for sub_temp in range(9):
+        for sub_temp in range(10):
             if sub_temp == subject_id:
                 continue
             training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
