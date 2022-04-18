@@ -116,8 +116,8 @@ class Simulation:
                                                  ignore_index=True)
 
                     if not (len(self.data_buffer) == self.buffer_size):
-                        print('something went wrong with the databuffer')
-                        print(f'len data buffer {(len(self.data_buffer))}')
+                        get_logger().error('something went wrong with the databuffer')
+                        get_logger().error(f'len data buffer {(len(self.data_buffer)}')                     
 
                     if self.filter:
                         self._filter_module(self.filter)
