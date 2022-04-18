@@ -15,8 +15,6 @@ from utility.logger import get_logger
 
 def run(config):
     subject_id = int(input("Choose subject to predict on 0-9\n"))
-    config.transfer_learning = True
-    config.rest_classification = True
 
     training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
 
@@ -68,7 +66,7 @@ def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_dat
     subject_rsd = []
     # Goes through the sessions of current subject (if extend_data = True online and dwell sessions are included)
     for session_data in training_data:
-        session_data.data.drop(columns=['EMG'], inplace=True)  # Removes EMG channel
+        session_data.data.drop(columns=['EMG', 'EOG'], inplace=True)  # Removes EMG channel
         session_mean = []
         session_var = []
         session_rsd = []

@@ -1,9 +1,9 @@
-import modules.hypothesis_one as hypothesis_one
-import modules.hypothesis_two as hypothesis_two
-import modules.hypothesis_three as hypothesis_three
-import modules.hypothesis_four as hypothesis_four
-import modules.hypothesis_five as hypothesis_five
-import modules.hypothesis_six as hypothesis_six
+import hypotheses.hypothesis_one as hypothesis_one
+import hypotheses.hypothesis_two as hypothesis_two
+import hypotheses.hypothesis_three as hypothesis_three
+import hypotheses.hypothesis_four as hypothesis_four
+import hypotheses.hypothesis_five as hypothesis_five
+import hypotheses.hypothesis_six as hypothesis_six
 import modules.session_analysis as session_analysis
 from utility.logger import get_logger
 
