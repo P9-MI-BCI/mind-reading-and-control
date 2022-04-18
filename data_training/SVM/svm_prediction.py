@@ -2,10 +2,10 @@ from data_training.scikit_classifiers import scikit_classifier, scikit_classifie
 from sklearn import svm
 
 
-def svm_classifier(x_train, y_train, x_test, y_test, channels=None, features='raw'):
+def svm_classifier(train_data, test_data, channels=None, features='raw'):
     model = svm.SVC()
 
-    result = scikit_classifier(model, x_train, y_train, x_test, y_test, channels, features, dir_name='svm')
+    result = scikit_classifier(model, train_data, test_data, channels, features, dir_name='svm')
 
     return result
 
