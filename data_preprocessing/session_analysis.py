@@ -11,9 +11,8 @@ from utility.save_figure import save_figure
 from utility.logger import get_logger
 
 
-def session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, save_res: bool = False):
-    extend_data = True
-
+def session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data: bool = True,
+                         save_res: bool = False):
     # Mean, var, and rsd over each channel of all sessions.
     mean, var, rsd = session_analysis(training_data, online_data, dwell_data, extend_data=extend_data)
 
@@ -30,23 +29,22 @@ def session_analysis_hub(training_data, online_data, dwell_data, config, subject
         write_results_to_csv(rsd_mean, subject_id, config)
 
 
-"""
+def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_data: Dataset,
+                     extend_data: bool = False):
+    """
     Calc the mean, var, and RSD values for each channel in each session.
         session_mean = [mean_ch0, mean_ch1, ..., mean_ch8]
-        session_var = [var_ch0, var_ch1, ..., var_ch8] 
-        session_RSD = [RSD_ch0, RSD_ch1, ..., RSD_ch8] 
+        session_var = [var_ch0, var_ch1, ..., var_ch8]
+        session_RSD = [RSD_ch0, RSD_ch1, ..., RSD_ch8]
     Returns:
         subject_mean = [session_mean1, ..., session_meanN]
         subject_var = [session_var1, ..., session_varN]
         subject_RSD = [session_RSD1, ..., session_RSDN]
-        N is 20 (training sessions) if extend_data=False. 23 if True (online 1 & 2 + dwell added) 
-"""
+        N is 20 (training sessions) if extend_data=False. 23 if True (online 1 & 2 + dwell added)
+    """
 
-
-def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_data: Dataset,
-                     extend_data: bool = False):
     if extend_data:
-        training_data.extend(online_data)
+        training_data = training_data + online_data
         training_data.append(dwell_data)
 
     subject_mean = []

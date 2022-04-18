@@ -4,8 +4,6 @@ from data_preprocessing.emg_processing import onset_detection, multi_dataset_ons
 from data_preprocessing.filters import data_filtering, multi_dataset_filtering
 from data_preprocessing.init_dataset import init, get_dataset_paths, create_dataset
 from data_preprocessing.data_distribution import data_preparation, online_data_labeling, normalization
-#from data_preprocessing.recurrence_quantification_analysis import recurrence_quantification
-from data_preprocessing.wavelet_transformation import wavelet_transformation
 from data_preprocessing.session_analysis import session_analysis_hub
 from data_training.EEGModels.training import EEGModels_training_hub
 from data_training.SVM.training import svm_training_hub
@@ -51,9 +49,7 @@ def dispatch(subject_id, config):
     """
     Feature extraction. 
     """
-    # recurrence_quantification(training_data, config, plot=True)
-    # wavelet_transformation(training_data, config, wavelet_type='discrete', plot=True)
-    session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, save_res=False)
+    session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data=True, save_res=False)
 
     """
     Prepare data for the models by combining the training datasets into a single vector. Each sample is cut
