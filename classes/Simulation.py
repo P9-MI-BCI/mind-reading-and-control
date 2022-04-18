@@ -1,21 +1,23 @@
 import sys
-
+import datetime
+import time
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from classes.Dataset import Dataset
-import time
+import matplotlib.patches as patches
+import neurokit2 as nk
 import matplotlib.pyplot as plt
+
 from data_preprocessing.handcrafted_feature_extraction import extract_features
 from data_training.measurements import accuracy
 from utility.logger import get_logger
-import datetime
+from tqdm import tqdm
+from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
-import matplotlib.patches as patches
-import neurokit2 as nk
+
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
+
 
 class Simulation:
 
@@ -117,7 +119,7 @@ class Simulation:
 
                     if not (len(self.data_buffer) == self.buffer_size):
                         get_logger().error('something went wrong with the databuffer')
-                        get_logger().error(f'len data buffer {(len(self.data_buffer)}')                     
+                        get_logger().error(f'len data buffer {(len(self.data_buffer))}')
 
                     if self.filter:
                         self._filter_module(self.filter)
@@ -369,7 +371,7 @@ class Simulation:
 
         for cluster in self.dataset.clusters:
             if cluster.start - self.dataset.sample_rate * 2 < discarded_mrcp or \
-               cluster.start + self.dataset.sample_rate < discarded_mrcp:
+                    cluster.start + self.dataset.sample_rate < discarded_mrcp:
                 found_mrcp.append(999)
                 continue
             found = False
@@ -415,7 +417,7 @@ class Simulation:
 
         for cluster in self.dataset.clusters:
             # dashed lines 2 seconds before onset and 1 second after
-            #plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
+            # plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
             plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
             plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
                         cluster.start + self.dataset.sample_rate,

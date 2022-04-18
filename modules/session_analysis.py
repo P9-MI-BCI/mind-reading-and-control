@@ -4,11 +4,27 @@ import matplotlib.pyplot as plt
 import os
 import csv
 
+from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
+from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from collections import OrderedDict
 from classes import Dataset
 from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
 from utility.logger import get_logger
+
+
+def run(config):
+    subject_id = int(input("Choose subject to predict on 0-9\n"))
+    config.transfer_learning = True
+    config.rest_classification = True
+
+    training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
+
+    training_data = create_dataset(training_dataset_path, config)
+    online_data = create_dataset(online_dataset_path, config)
+    dwell_data = create_dataset(dwell_dataset_path, config)
+
+    session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data=True, save_res=False)
 
 
 def session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data: bool = True,
@@ -23,9 +39,9 @@ def session_analysis_hub(training_data, online_data, dwell_data, config, subject
     std_var, rsd_var, median_var = calc_std_rsd_median(var)
 
     # Plotting and saving results
+    boxplot(rsd, config, subject_id, 'rsd', show_points=True, extend_data=extend_data, save_fig=save_res)
+    barchart(rsd, config, subject_id, 'rsd', save_fig=save_res)
     if save_res:
-        boxplot(rsd, config, subject_id, 'rsd', show_points=True, extend_data=extend_data, save_fig=save_res)
-        barchart(rsd, config, subject_id, 'rsd', save_fig=save_res)
         write_results_to_csv(rsd_mean, subject_id, config)
 
 
