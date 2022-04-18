@@ -75,7 +75,7 @@ def onset_detection(dataset: Dataset, config, prox_coef=2, static_clusters=True,
         plt.show()
 
     dataset.clusters = emg_clusters
-    return filtered_data[config.EMG_CHANNEL]
+    return filtered_data
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normalization=True,
@@ -294,3 +294,4 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 def multi_dataset_onset_detection(datasets, config):
         for dataset in datasets:
             dataset.filtered_data = onset_detection(dataset, config)
+

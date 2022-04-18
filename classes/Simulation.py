@@ -1,46 +1,33 @@
 import sys
-import time
 
-import flask
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from tqdm import tqdm
-
-from classes.Dataset import Dataset
-from classes.Window import Window
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from classes.Dataset import Dataset
 import time
-import json
-from data_preprocessing.data_distribution import create_uniform_distribution, z_score_normalization
-from scipy.special import softmax
-from scipy.stats import zscore
-from data_preprocessing.date_freq_convertion import convert_freq_to_datetime
-from data_preprocessing.mrcp_detection import load_index_list, pair_index_list, \
-    mrcp_detection_for_calibration, channel_weights_calculation
-from data_preprocessing.optimize_windows import optimize_channels
-from data_training.measurements import accuracy, precision, recall, f1
-from data_visualization.average_channels import average_channel, plot_average_channels
+import matplotlib.pyplot as plt
+from data_preprocessing.handcrafted_feature_extraction import extract_features
+from data_training.measurements import accuracy
 from utility.logger import get_logger
 import datetime
-import collections
 from data_preprocessing.filters import butter_filter
-from classes.Dict import AttrDict
+import matplotlib.patches as patches
+import neurokit2 as nk
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 
-
 class Simulation:
 
-    def __init__(self, config, dataset: Dataset = 0, calibration_dataset: Dataset = 0, real_time: bool = False):
-        self.time = time.time()
+    def __init__(self, config, real_time: bool = False):
+        self.time = None
         self.iteration = 0
         self.real_time = real_time
-        self.sliding_window = Window()
+        self.sliding_window = None
         self.model = None
+        self.PREV_PRED_SIZE = 1
         self.metrics = None  # maybe implement metrics class
-        self.prev_pred_buffer = [0] * 5
-        self.mrcp_detected = False
+        self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
         self.freeze_flag = False
         self.freeze_counter = 0
         self.data_buffer_flag = True
@@ -49,320 +36,194 @@ class Simulation:
         self.true_labels = []
         self.score = {}
         self.normalization = None
+        self.frequency_range = []
+        self.window_size = None
+        self.step_size = None
+        self.dataset = None
+        self.config = config
+        self.filter = None
+        self.feature_extraction = None
+        self.buffer_size = self.config.window_size * config.buffer_size
+        self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
-        if config:
-            self.window_size = config.window_size
-            self.buffer_size = self.window_size * config.buffer_size
-            self.step_size = config.step_size
-            self.allowed_time = self.step_size
-            self.EEG_channels = config.EEG_Channels
-            self.data_buffer = pd.DataFrame(columns=self.EEG_channels)
-
-            self.filtering = config.filtering
-            self.EEG_order = config.eeg_order
-            self.EEG_cutoff = config.eeg_cutoff
-            self.EEG_btype = config.eeg_btype
-
-            self.cue_set = config.id
-            self.start_time = config.start_time
-            self.freeze_time = config.freeze_time
-            if config.index is not None:
-                self.index = config.index
-                self.index_time = config.index_timestamp
-                self._build_index()
-                self.index_position = 0
-            else:
-                self.index = None
-
-        if dataset:
-            self.dataset = None
-            self.mount_dataset(dataset)
-        if calibration_dataset:
-            self.calibration_config = None
-            self.calibration_dataset = None
-            self.mount_calibration_dataset(calibration_dataset, config.calibration_dataset)
-
-    def mount_dataset(self, dataset: Dataset, analyse: bool = False):
+    def mount_dataset(self, dataset: Dataset):
         assert isinstance(dataset, Dataset)
 
-        self.window_size = self.window_size * dataset.sample_rate
-        self.step_size = int(self.step_size * dataset.sample_rate)
-        self.freeze_time = self.freeze_time * dataset.sample_rate
-        self.buffer_size = self.buffer_size * dataset.sample_rate
-        if self.start_time > 0:
-            self.dataset = shift_data(self.start_time, dataset)
-        else:
-            self.dataset = dataset
-
-        if analyse:
-            self._analyse_dataset()
-
-    def mount_calibration_dataset(self, dataset: Dataset, config='default'):
-        assert isinstance(dataset, Dataset)
-        self.calibration_dataset = dataset
-        get_logger().info('Calibration Dataset mounted.')
-        time.sleep(1)
-
-        if config == 'default':
-            with open('json_configs/default.json') as c_config:
-                self.calibration_config = AttrDict(json.load(c_config))
-                get_logger().info('No config was provided for calibration dataset - using default.')
-                self._print_config()
-        else:
-            self.calibration_config = AttrDict(config)
-            self._print_config()
-
-    def _print_config(self):
-        get_logger().info(f'Start time of dataset: frequency {self.calibration_config.start_time}')
-        get_logger().info(f'EMG channel is located at: {self.calibration_config.EMG_Channel}')
-        get_logger().info(f'EMG Filtering is performed using butterworth {self.calibration_config.emg_btype}')
-        get_logger().info(f'EMG Cutoff is {self.calibration_config.emg_cutoff} Hz')
-        get_logger().info(f'EMG Order is {self.calibration_config.emg_order}')
-        get_logger().info(f'EEG channels are located at: {self.calibration_config.EEG_Channels}')
-        get_logger().info(f'EEG Filtering is performed using butterworth {self.calibration_config.eeg_btype}')
-        get_logger().info(f'EEG Cutoff is {self.calibration_config.eeg_cutoff}')
-        get_logger().info(f'EEG Order is {self.calibration_config.eeg_order}')
-        get_logger().info(f'Window size is {self.calibration_config.window_size} seconds')
-
-    def calibrate(self, centering=False):
-        assert self.calibration_dataset
-        assert self.calibration_config
-
-        get_logger().info(f'Shifting Dataset according to config.start_time ({self.calibration_config.start_time})')
-
-        # if self.calibration_config.start_time > 0:
-        #     self.calibration_dataset = shift_data(freq=self.calibration_config.start_time,
-        #                                           dataset=self.calibration_dataset)
-
-        get_logger().info('Performing MRCP detection on calibration dataset.')
-
-        peaks_to_find = input('Enter the amount of movements expected to find in the dataset. \n')
-        windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
-                                                         config=self.calibration_config, perfect_centering=False)
-
-        get_logger().info('MRCP detection complete - displaying average for each channel.')
-        average = average_channel(windows)
-        plot_average_channels(average, self.calibration_config, layout='grid')
-
-
-        ######### perfect centering module ############
-        if centering:
-            channel_weights = 1 - np.array(channel_weights_calculation(average))
-
-            windows = mrcp_detection_for_calibration(data=self.calibration_dataset, input_peaks=int(peaks_to_find),
-                                                             config=self.calibration_config, perfect_centering=True,
-                                                             weights=channel_weights)
-            average = average_channel(windows)
-            plot_average_channels(average, self.calibration_config, layout='grid', weights=channel_weights)
-
-
-        ### Single Sample plotting ###
-        channel_choice = input('Choose channel to plot for window selecting.\n')
-        for window in range(len(windows)):
-            # if window.label == 1 and not window.is_sub_window:
-            if window == 15:
-                windows[window].plot_window_for_all_channels()
-
-                lmd_vec = []
-                for column in windows[window].filtered_data.columns:
-                    if column == 12 or column == 9:
-                        continue
-                    distance = (windows[window].filtered_data[column].idxmin() - 1200)
-                    lmd_vec.append(distance)
-                print(lmd_vec)
-                print(zscore(lmd_vec))
-                print(softmax(zscore(lmd_vec)))
-                print(1 - softmax(zscore(lmd_vec)))
-        windows = self._select_windows(windows)
-
-        get_logger().info('MRCP Window selection is complete the new average channels are being created.')
-        average = average_channel(windows)
-        plot_average_channels(average, self.calibration_config, layout='grid')
-
-        get_logger().info('Creating uniform distributed dataset of labels')
-        uniform_data = create_uniform_distribution(windows)
-
-        model_selection = self._select_model()
-
-        self._optimize_channels(uniform_data, model_selection)
-        get_logger().info('Calibration is complete.')
-
-        self.normalization = self._create_scaler_for_optimized_channels()
-
-    def _create_scaler_for_optimized_channels(self):
-        filtered_data = pd.DataFrame()
-        for i in self.calibration_config.EEG_Channels:
-            filtered_data[i] = butter_filter(data=self.calibration_dataset.data_device1[i],
-                                             order=self.calibration_config.eeg_order,
-                                             cutoff=self.calibration_config.eeg_cutoff,
-                                             btype=self.calibration_config.eeg_btype
-                                             )
-
-        # Reshape filtered_data frame so EMG column is not first
-        filtered_data = filtered_data.reindex(sorted(filtered_data.columns), axis=1)
-
-        scaler = StandardScaler()
-        scaler.fit(filtered_data[self.EEG_channels])
-        return scaler
-
-
-    def _select_model(self):
-        while True:
-            model_selection = input('Select model knn, svm, lda. \n')
-
-            answer = input(f'Are you sure you want to select {model_selection}? [Y/n]\n')
-            if answer.lower() == 'y':
-                get_logger().info(f'Selected Model for training and simulation {model_selection}')
-                return model_selection
-
-    def _select_windows(self, windows):
-        while True:
-
-            images_to_remove = str.split(input(
-                "Enter MRCP ids to remove windows using format '0 4 5'.. If no windows should be removed enter. \n"))
-            if images_to_remove:
-                images_to_remove = [int(x) for x in images_to_remove]
-            answer = input(f'Deleting {images_to_remove}, Correct? [Y/n]\n')
-
-            if answer.lower() == 'y':
-                if images_to_remove:
-                    assert isinstance(images_to_remove, list)
-                    images_to_remove.sort(reverse=True)
-                    for i in range(len(windows) - 1, -1, -1):
-                        if i in images_to_remove:
-                            del windows[i]
-                get_logger().info(f'Deleted {images_to_remove}')
-                return windows
-
-    def _optimize_channels(self, data, model):
-
-        self.calibration_score, model, self.EEG_channels = optimize_channels(data, model,
-                                                                             self.calibration_config.EEG_Channels)
-
-        get_logger().info(f'The highest optimized score was \n {self.calibration_score}')
-        get_logger().info(f'Found using the EEG channels {self.EEG_channels}')
-        self.load_models(model)
+        self.window_size = int(self.config.window_size * dataset.sample_rate)
+        self.step_size = int(self.config.step_size * dataset.sample_rate)
+        self.buffer_size = int(self.config.buffer_size * dataset.sample_rate)
+        self.dataset = dataset
 
     def load_models(self, models):
         if isinstance(models, list):
-            assert (len(models) == len(self.EEG_channels))
+            assert (len(models) == len(self.config.EEG_channels))
             self.model = models
             get_logger().info(f'Loaded models: {models[0]}')
         else:
             self.model = models
             get_logger().info(f'Loaded model: {models}')
 
-    def simulate(self, real_time: bool, description: bool = True):
+    def set_normalizer(self, normalization):
+        self.normalization = normalization
+
+    def set_filter(self, filter_range):
+        self.filter = filter_range
+
+    def set_feature_extraction(self, extract):
+        if extract:
+            self.feature_extraction = True
+        else:
+            self.feature_extraction = False
+
+    def simulate(self, real_time: bool, description: bool = True, analyse: bool = True):
         assert bool(self.dataset)
 
         self.real_time = real_time
         if description:
             self._simulation_information()
+            self._real_time_check()
+
+        blinks = self._blink_detection()
 
         self.iteration = 0
-        self.time = time.time()
 
-        self._real_time_check()
+        time.sleep(1)
 
-        simulation_duration = len(self.dataset.data_device1) - self.step_size
-        with tqdm(total=len(self.dataset.data_device1), file=sys.stdout) as pbar:
+        simulation_duration = len(self.dataset.data) - self.step_size
+        with tqdm(total=len(self.dataset.data), file=sys.stdout) as pbar:
             while self.iteration < simulation_duration:
-                self.sliding_window.frequency_range = [self.iteration - self.window_size, self.iteration]
+                # start, middle, end
+                self.frequency_range = [self.iteration, self.iteration + self.window_size / 2,
+                                        self.iteration + self.window_size]
                 if self.freeze_flag:
                     self._freeze_module(pbar)
 
                 elif self.data_buffer_flag:
+                    self.time = time.time()
+
                     with tqdm(total=self.buffer_size, position=0, file=sys.stdout) as data_buffer_pbar:
                         while len(self.data_buffer) < self.buffer_size:
                             self._build_data_buffer(data_buffer_pbar, pbar)
 
-                        self._initiate_simulation(pbar)
+                    self._initiate_simulation(pbar)
                 else:
-                    self.sliding_window.data = pd.concat(
-                        [self.sliding_window.data.iloc[self.step_size:],
-                         self.dataset.data_device1.iloc[self.iteration: self.iteration + self.step_size]],
-                        ignore_index=True)
-
-                    self.data_buffer = pd.concat([self.data_buffer.iloc[self.step_size:],
-                                                  self.sliding_window.data.iloc[-self.step_size:]],
+                    self.data_buffer = pd.concat([self.data_buffer.iloc[
+                                                  self.step_size:],
+                                                  self.dataset.data.iloc[
+                                                  self.iteration:
+                                                  self.iteration + self.step_size]
+                                                  ],
                                                  ignore_index=True)
 
-                    assert (len(self.data_buffer) == self.buffer_size)
-                    assert (len(self.sliding_window.data) == self.window_size)
+                    if not (len(self.data_buffer) == self.buffer_size):
+                        get_logger().error('something went wrong with the databuffer')
+                        get_logger().error(f'len data buffer {(len(self.data_buffer)}')                     
 
-                    if self.filtering:
-                        self._filter_module()
-                        self.sliding_window.create_feature_vector()
+                    if self.filter:
+                        self._filter_module(self.filter)
 
-                        assert (len(self.sliding_window.filtered_data) == len(self.sliding_window.data))
-                        # Remove the oldest prediction before making new prediction
+                    # Remove the oldest prediction before making new prediction
+                    if len(self.prev_pred_buffer) > self.PREV_PRED_SIZE:
                         self.prev_pred_buffer.pop(0)
-                        if isinstance(self.model, list) and len(self.EEG_channels) > 1:
-                            self.prev_pred_buffer.append(self._prediction_module())
-                        else:
-                            get_logger().error(f'Single model was provided for multiple channels. ')
+
+                    skip_prediction = False
+                    for b in blinks:
+                        if self.frequency_range[0] < b < self.frequency_range[-1]:
+                            skip_prediction = True
+
+                    if not skip_prediction:
+                        self.prev_pred_buffer.append(self._prediction_module())
 
                     self._check_heuristic()
-
-                    # evaluate metrics (possibly every x iteration, possibly during freeze time?
-                    if self.mrcp_detected:
-                        self.freeze_flag = True
 
                     # update time
                     self._time_module(pbar)
 
-        self._post_simulation_analysis()
+        if analyse:
+            self._post_simulation_analysis()
 
     # if metrics are provided, they must follow the convention (target 'arr-like', predictions 'arr-like')
-    def evaluation_metrics(self, metrics=None):
-        if self.index is None:
-            get_logger().warning('No index specified for this dataset, metrics cannot be calculated.')
+    def set_evaluation_metrics(self, metrics=None):
+        if metrics is None:
+            self.metrics = [accuracy]
         else:
-            if metrics is None:
-                self.metrics = [accuracy, precision, recall, f1]
-            else:
-                self.metrics = metrics
+            self.metrics = metrics
 
     def _simulation_information(self):
-        get_logger().info('-- # Simulation Description # --')
+        get_logger().info('---------- Simulation Description')
         get_logger().info(f'Window size: {self.window_size / self.dataset.sample_rate} seconds')
         get_logger().info(f'Initial step size : {self.step_size / self.dataset.sample_rate} seconds')
         get_logger().info(
             f'Buffer size: {self.buffer_size / self.window_size * self.window_size / self.dataset.sample_rate} seconds')
-        get_logger().info(f'EEG Channels: {self.EEG_channels}')
-        get_logger().info(f'Filtering: {bool(self.filtering)}')
-        get_logger().info(f'Freeze Time: {self.freeze_time / self.dataset.sample_rate} seconds.')
-        get_logger().info(f'Dataset ID: {self.cue_set}')
         self._dataset_information()
         self._metric_information()
 
     def _dataset_information(self):
         get_logger().info(
             f'Dataset takes estimated: '
-            f'{datetime.timedelta(seconds=round(len(self.dataset.data_device1) / self.dataset.sample_rate))} to simulate.')
+            f'{datetime.timedelta(seconds=round(len(self.dataset.data) / self.dataset.sample_rate))} to '
+            f'simulate.')
         get_logger().info(f'Dataset is sampled at: {self.dataset.sample_rate} frequency.')
-        # get_logger().info(f'Dataset contains: {(len(self.dataset.TriggerPoint)) // 2} cue onsets.')
 
     def _build_data_buffer(self, bpbar, pbar):
-        self.data_buffer = pd.concat(
-            [self.data_buffer, self.dataset.data_device1.iloc[self.iteration:self.iteration + self.step_size]],
+        self.data_buffer = pd.concat([
+            self.data_buffer,
+            self.dataset.data.iloc[self.iteration:
+                                   self.iteration + self.step_size]
+        ],
             ignore_index=True)
         bpbar.update(self.step_size)
         self._time_module(pbar)
+
+    def tune_dwell(self, dwell_dataset):
+        get_logger().info('---------- Dwell Tuning')
+        # runs the dwell dataset and should trigger the least amount of times.
+        # run simulation on the dwell dataset
+        self.freeze_counter = 6  # just to start the first iteration
+
+        while self.freeze_counter > 3:
+            self.PREV_PRED_SIZE += 1
+            self.reset()
+            self.mount_dataset(dwell_dataset)
+            self.simulate(real_time=False, description=False, analyse=False)
+            get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
+
+        self.reset()
+        get_logger().info(f'Acceptable level reached of {self.freeze_counter}'
+                          f' false positive predictions in a '
+                          f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
+        get_logger().info(f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.')
+
+    def reset(self):
+        # reset dataset specific things.
+        get_logger().info('---------- Resetting Simulation')
+        get_logger().info('Resetting simulation specific data. ')
+        self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
+        self.freeze_flag = False
+        self.freeze_counter = 0
+        self.data_buffer_flag = True
+        self.predictions = []
+        self.prediction_frequency = []
+        self.frequency_range = []
+        self.window_size = None
+        self.step_size = None
+        self.sliding_window = None
+        self.data_buffer = pd.DataFrame(columns=self.config.EEG_CHANNELS)
+        self.true_labels = []
+        self.score = {}
 
     def _time_module(self, pbar):
         if self.real_time:
             time_after = time.time()
             elapsed_time = time_after - self.time
-            sleep_time = (self.allowed_time - elapsed_time)
+            sleep_time = (self.step_size / self.dataset.sample_rate - elapsed_time)
             if sleep_time > 0:
                 time.sleep(sleep_time * TIME_TUNER)
             else:
                 get_logger().warning(
-                    f'The previous iteration too more than {self.allowed_time} '
+                    f'The previous iteration too more than {self.step_size} '
                     f'to process - increasing sliding window distance.')
                 self.step_size += TIME_PENALTY
-                self.allowed_time = self.step_size
             # set time again for next iteration
             self.time = time.time()
 
@@ -370,28 +231,30 @@ class Simulation:
         self.iteration += self.step_size
         pbar.update(self.step_size)
 
-    def _filter_module(self):
-        filtered_data = pd.DataFrame(columns=self.EEG_channels)
+    def _filter_module(self, filter_range):
+        filtered_data = pd.DataFrame(columns=self.config.EEG_CHANNELS)
 
-        for channel in self.EEG_channels:
+        for channel in self.config.EEG_CHANNELS:
             filtered_data[channel] = butter_filter(data=self.data_buffer[channel],
-                                                   order=self.EEG_order,
-                                                   cutoff=self.EEG_cutoff,
-                                                   btype=self.EEG_btype
+                                                   order=self.config.EEG_ORDER,
+                                                   cutoff=filter_range,
+                                                   btype=self.config.EEG_BTYPE
                                                    )
 
-        filtered_data[self.EEG_channels] = self.normalization.transform(filtered_data[self.EEG_channels])
-        self.sliding_window.filtered_data = filtered_data.iloc[-self.window_size:].reset_index(drop=True)
+        filtered_data[self.config.EEG_CHANNELS] = self.normalization.transform(filtered_data[self.config.EEG_CHANNELS])
+
+        self.sliding_window = np.array(filtered_data.iloc[-self.window_size:].reset_index(drop=True))
 
     def _freeze_module(self, pbar):
-        temp_freeze_time = 0
+        temp_freeze_time = self.iteration
         self.freeze_counter += 1
-        self._eval_performance()
+        freeze_time = self._eval_performance()
         self._apply_metrics()
 
-        while self.freeze_time > temp_freeze_time:
+        while freeze_time > temp_freeze_time:
             self.data_buffer = pd.concat(
-                [self.data_buffer, self.dataset.data_device1.iloc[self.iteration:self.iteration + self.step_size]],
+                [self.data_buffer, self.dataset.data.iloc[self.iteration:
+                                                          self.iteration + self.step_size]],
                 ignore_index=True)
             self._time_module(pbar)
             temp_freeze_time += self.step_size
@@ -399,54 +262,37 @@ class Simulation:
         pbar.set_postfix_str(
             f'{self._dict_score_pp()}')
         self.freeze_flag = False
-        self.mrcp_detected = False
-        self.prev_pred_buffer = [0] * 5
-        self.data_buffer = self.data_buffer[temp_freeze_time:]
+        self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
+        self.data_buffer = self.data_buffer[-self.buffer_size:]
 
     def _dict_score_pp(self):
         a = [{k: round(v, 2) for k, v in self.score.items()}]
-        str = ''
+        string = ''
         for k, v in a[0].items():
-            str += f'{k}: {v} '
-        return f'Metrics - {str}'
+            string += f'{k}: {v} '
+        return f'Metrics - {string}'
 
     def _initiate_simulation(self, pbar):
-        self.sliding_window.data = self.data_buffer[-self.window_size:]
+        self.sliding_window = self.data_buffer[-self.window_size:]
         get_logger().info(
             f'Data buffer build of size '
             f'{self.buffer_size / self.window_size * self.window_size / self.dataset.sample_rate} seconds.')
-        get_logger().info(f'--- Starting Simulation ---')
+        get_logger().info(f'---------- Starting Simulation')
         self.data_buffer_flag = False
         self._time_module(pbar)
 
     def _real_time_check(self):
         if not self.real_time:
-            get_logger().info('---------- ########## ----------')
+            get_logger().info('---------- Real Time')
             get_logger().info('Real time simulation disabled.')
         else:
-            get_logger().info('---------- ########## ----------')
+            get_logger().info('---------- Real Time')
             get_logger().info('Real time simulation enabled.')
         get_logger().info('Building Data Buffer.')
 
     def _check_heuristic(self):
-        # 4 of the last 5 predictions are MRCP
-        if sum(self.prev_pred_buffer) == 4:
-            self.mrcp_detected = True
-
-        # maybe also check if dip is y amplitude or something (hard to do because there are 9 channels to check through)
-
-    def _analyse_dataset(self):
-        data_buffer_consume = convert_freq_to_datetime(self.buffer_size, self.dataset.sample_rate)
-        self._check_cue_skips(data_buffer_consume, is_tp=True)
-
-    def _check_cue_skips(self, time_skip, is_tp):
-        skip_rows = []
-        if is_tp:
-            for i, row in self.dataset.TriggerPoint.iterrows():
-                skip_rows.append((row['Date'] < self.dataset.time_start_device1 + time_skip).iloc[0]['Date'])
-        if any(skip_rows) and is_tp and sum(skip_rows) > 1:
-            get_logger().warning(
-                f'The current buffer size will skip the first {(sum(skip_rows) - 1) // 2} TriggerPoints.')
+        if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
+            self.freeze_flag = True
 
     def _metric_information(self):
         if self.metrics is not None:
@@ -454,64 +300,55 @@ class Simulation:
             for metric in self.metrics:
                 get_logger().info(f'{metric.__name__}')
 
-    def _build_index(self):
-        raw_index = load_index_list(self.index)
-        pair_index = pair_index_list(raw_index)
-        self.index = pair_index
-
-        get_logger().info(f'Index loaded for simulation dataset id: {self.cue_set}')
-        get_logger().info(f'The index was created on {datetime.datetime.fromtimestamp(self.index_time)}.')
-
     def _prediction_module(self):
-        predictions = []
-        for channel in range(0, len(self.EEG_channels)):
-            feature_vector = np.array(self.sliding_window.feature_vector[self.EEG_channels[channel]].iloc[0]).flatten()
-
-            predictions.append(self.model[channel].predict([feature_vector]).tolist()[0])
-
-        return collections.Counter(predictions).most_common()[0][0]
+        if self.feature_extraction:
+            features = extract_features([self.sliding_window])
+            return self.model.predict(features)[0]
+        else:
+            return self.model.predict(self.sliding_window)
 
     def _eval_performance(self):
-        frequency_range = self.sliding_window.frequency_range
         self.predictions.append(1)
-        self.prediction_frequency.append(frequency_range)
+        self.prediction_frequency.append(self.frequency_range)
         is_in_index = False
 
-        for freq in frequency_range:
-            for pair in self.index:
-                if pair[0] < freq < pair[1]:
-                    is_in_index = True
-
-        if is_in_index:
-            self.true_labels.append(1)
-        else:
+        # we only evaluate center of the prediction in inside the intended range
+        for cluster in self.dataset.clusters:
+            if self.frequency_range[0] < cluster.start < self.frequency_range[2]:
+                self.true_labels.append(1)
+                # return the end of the cluster
+                return max(cluster.end, self.iteration + 2 * self.dataset.sample_rate)
+        if not is_in_index:
             self.true_labels.append(0)
+            # break windowlength
+            return self.iteration + self.config.window_size * self.dataset.sample_rate
 
     def _apply_metrics(self):
         for metric in self.metrics:
             self.score[metric.__name__] = metric(self.true_labels, self.predictions)
 
     def _post_simulation_analysis(self):
-        get_logger().info(f' --- Post Simulation Analysis ---')
+        get_logger().info(f'---------- Post Simulation Analysis')
         get_logger().info(f'{self._dict_score_pp()}')
         self._furthest_prediction_from_mrcp()
         self._distance_to_nearest_mrcp()
+        self._plot_predictions()
 
     def _distance_to_nearest_mrcp(self):
+        # note: freq_range[1] refers to the center of the prediction window
         distances = []
         for freq_range in self.prediction_frequency:
             min_distance = sys.maxsize
-            for i in freq_range:
-                for pair in self.index:
-                    if pair[0] < i < pair[1]:
-                        min_distance = 0
-                    else:
-                        dist = abs(i - pair[0])
-                        if dist < min_distance:
-                            min_distance = dist
-                        dist = abs(i - pair[1])
-                        if dist < min_distance:
-                            min_distance = dist
+            for cluster in self.dataset.clusters:
+                if freq_range[0] < cluster.start < freq_range[1]:
+                    min_distance = 0
+                else:
+                    dist = abs(freq_range[0] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
+                    dist = abs(freq_range[-1] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
             distances.append(min_distance)
         # iterate over pred freq and closest mrcp pair
         mean_distance = (sum(distances) / len(self.prediction_frequency) / self.dataset.sample_rate)
@@ -519,8 +356,9 @@ class Simulation:
             [i for i in self.true_labels if i == 0])) / self.dataset.sample_rate
 
         get_logger().info(
-            f'Prediction lying furthest from MRCP windows {round(max(distances) / self.dataset.sample_rate, 2)} seconds.')
-        get_logger().info(f'Mean time of distances from predictions to MRCP window: {round(mean_distance, 2)} seconds.')
+            f'Prediction lying furthest from intention windows {round(max(distances) / self.dataset.sample_rate, 2)} seconds.')
+        get_logger().info(
+            f'Mean time of distances from predictions to intention window: {round(mean_distance, 2)} seconds.')
         get_logger().info(
             f'Mean time for missed predictions to nearest window: {round(mean_missed_distance, 2)} seconds.')
 
@@ -529,25 +367,24 @@ class Simulation:
         discarded_mrcp = self.buffer_size
         furthest_distance = []
 
-        for pair in self.index:
-            if pair[0] < discarded_mrcp or pair[1] < discarded_mrcp:
+        for cluster in self.dataset.clusters:
+            if cluster.start - self.dataset.sample_rate * 2 < discarded_mrcp or \
+               cluster.start + self.dataset.sample_rate < discarded_mrcp:
                 found_mrcp.append(999)
                 continue
             found = False
-            for p in pair:
-                for i in self.prediction_frequency:
-                    if i[0] < p < i[1]:
-                        found = True
+            for prediction_freq in self.prediction_frequency:
+                if prediction_freq[0] < cluster.start < prediction_freq[-1]:
+                    found = True
             min_distance = sys.maxsize
             if not found:
-                for freq in self.prediction_frequency:
-                    for i in freq:
-                        dist = abs(i - pair[0])
-                        if dist < min_distance:
-                            min_distance = dist
-                        dist = abs(i - pair[1])
-                        if dist < min_distance:
-                            min_distance = dist
+                for prediction_freq in self.prediction_frequency:
+                    dist = abs(prediction_freq[0] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
+                    dist = abs(prediction_freq[-1] - cluster.start)
+                    if dist < min_distance:
+                        min_distance = dist
                 furthest_distance.append(min_distance)
             found_mrcp.append(found)
 
@@ -557,10 +394,68 @@ class Simulation:
                 discard_counter += 1
 
         get_logger().info(f'Total Predictions made by the model {len(self.predictions)}.')
-        get_logger().info(f'Total MRCP found in index for dataset: {len(self.index)}.')
-        get_logger().info(f'Data buffer removed {discard_counter} MRCP window(s) during building process.')
+        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.')
+        get_logger().info(f'Data buffer removed {discard_counter} movement intention windows during building process.')
         get_logger().info(
-            f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} MRCP Windows.')
-        get_logger().info(
-            f'The most missed MRCP window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)} seconds '
-            f'to the nearest prediction.')
+            f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} '
+            f'movement intention windows.')
+        if len(furthest_distance) > 0:
+            get_logger().info(
+                f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
+                f' seconds to the nearest prediction.')
+        else:
+            get_logger().info('All movement intention windows were hit!')
+
+    def _plot_predictions(self):
+        plt.clf()
+        fig = plt.figure(figsize=(40, 8))
+        plot_arr = []
+        max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
+        blinks = self._blink_detection()
+
+        for cluster in self.dataset.clusters:
+            # dashed lines 2 seconds before onset and 1 second after
+            #plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
+            plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
+            plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
+                        cluster.start + self.dataset.sample_rate,
+                        alpha=0.80,
+                        color='lightblue')
+            plot_arr.append(self.dataset.filtered_data.iloc[cluster.start:cluster.end])
+
+        plt.plot(np.abs(self.dataset.filtered_data), color='black')
+        for vals in plot_arr:
+            plt.plot(np.abs(vals))
+
+        for prediction, correct in zip(self.prediction_frequency, self.true_labels):
+
+            if correct:
+                plt.gca().add_patch(
+                    patches.Rectangle((prediction[0], max_height * 0.7), abs(prediction[0] - prediction[-1]),
+                                      max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='green', fill=True,
+                                      edgecolor='black'))
+            elif not correct:
+                plt.gca().add_patch(
+                    patches.Rectangle((prediction[0], max_height * 0.4), abs(prediction[0] - prediction[-1]),
+                                      max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='red', fill=True,
+                                      edgecolor='black'))
+        for b in blinks:
+            size = self.prediction_frequency[0]
+            #
+            plt.gca().add_patch(
+                patches.Rectangle((b, max_height * 0.45), abs(size[0] - size[-1]) * 0.3,
+                                  max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
+            )
+        plt.axvspan(0, self.config.buffer_size * self.dataset.sample_rate, alpha=0.80, color='yellow')
+
+        plt.xlabel('Time (s)')
+        plt.ylabel('mV (Filtered)', labelpad=-2)
+        plt.autoscale()
+        plt.show()
+
+    def _blink_detection(self):
+        eog_cleaned = nk.eog_clean(self.dataset.data[self.config.EOG_CHANNEL], sampling_rate=self.dataset.sample_rate,
+                                   method='neurokit')
+        blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='mne')
+
+        return blinks

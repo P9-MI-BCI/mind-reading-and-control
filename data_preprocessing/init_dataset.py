@@ -28,13 +28,15 @@ def init(data, config, open_l=None, filename=None):
     else:
         dataset.label = open_l
 
+    dataset.data[config.EOG_CHANNEL] = data['data_device1'][:, 9]
+
     return dataset
 
 
 def create_dataset(path: str, config):
     train_data = []
 
-    if config.include_all_subjects and isinstance(path, list):
+    if config.transfer_learning and isinstance(path, list):
         for t_path in path:
             names, data, filenames = read_data(t_path)
             assert len(data) == len(names)
@@ -79,13 +81,13 @@ def read_data(path: str):
 
 
 def get_dataset_paths(subject_id: int, config):
-    assert config.include_all_subjects is not None
-    if config.include_all_subjects:
+    assert config.transfer_learning is not None
+    if config.transfer_learning:
         training_p = []
-        for sub_temp in range(9):
-            if sub_temp is not subject_id:
-                training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
-
+        for sub_temp in range(10):
+            if sub_temp == subject_id:
+                continue
+            training_p.append(os.path.join(DATASET_PATH, f'subject_{sub_temp}', 'training/*'))
     else:
         training_p = os.path.join(DATASET_PATH, f'subject_{subject_id}', 'training/*')
 
@@ -101,3 +103,12 @@ def format_input(arg: str):
         return True
     elif arg == 'n':
         return False
+
+
+def print_hypothesis_options():
+    print("1. A combination of features extracted from different deep learning algorithms will improve the classification.")
+    print("2. The electrode layout will allow for differentiation between rest and movement in the EEG signals.")
+    print("3. A model can be trained to predict a new subject without any calibration.")
+    print("4. Calibration will improve the accuracy of the model when predicting on a new subject.")
+    print("5. Deep feature extraction will generalize better to cross-session datasets compared to handcrafted features.")
+    print("6. A high number of recorded movements from each subject will help improve classification of our models.")
