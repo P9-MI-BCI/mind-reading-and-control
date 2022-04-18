@@ -65,11 +65,6 @@ def data_filtering(filter_range, config, dataset: Dataset):
 
 
 def multi_dataset_filtering(filter_range, config, datasets):
-    try:
-        iter(datasets)
-    except TypeError:
-        if datasets is not None:
-            datasets.filtered_data = data_filtering(filter_range, config, datasets)
-    else:
-        for dataset in datasets:
-            dataset.filtered_data = data_filtering(filter_range, config, dataset)
+    for dataset in datasets:
+        #temp = data_filtering(filter_range, config, dataset)
+        dataset.filtered_data[config.EEG_CHANNELS] = data_filtering(filter_range, config, dataset)

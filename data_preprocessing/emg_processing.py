@@ -61,6 +61,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2, stat
         for cluster in emg_clusters:
             cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster.start:cluster.end])
 
+        fig = plt.figure(figsize=(40, 8))
         plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
 
         for vals in cluster_plot_arr:
@@ -70,10 +71,11 @@ def onset_detection(dataset: Dataset, config, is_online=False, prox_coef=2, stat
         plt.title(dataset.filename)
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
-        plt.autoscale()
+        # plt.autoscale()
         plt.show()
 
     dataset.clusters = emg_clusters
+    dataset.filtered_data[config.EMG_CHANNEL] = filtered_data[config.EMG_CHANNEL]
     return filtered_data[config.EMG_CHANNEL]
 
 
@@ -130,7 +132,6 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, prox
             else:
                 prev_cluster = clusters
                 distance += 100
-
 
     try:
         # Remove outliers by looking at their proximity
@@ -255,6 +256,7 @@ def remove_outliers_by_peak_activity(clusters, emg_data):
 
 # We want to merge clusters who are in close proximity to eachother
 def remove_outliers_by_x_axis_distance(clusters, prox_coef):
+    # TODO: Try median instead of prox_coef
     clusters_to_remove = []
     t_clusters = []
 
@@ -293,15 +295,9 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 
 
 def multi_dataset_onset_detection(datasets, config, is_online=False):
-    try:
-        iter(datasets)
-    except TypeError:
-        if datasets is not None:
-            datasets.filtered_data = onset_detection(datasets, config, is_online)
-            datasets.data = datasets.data.iloc[1:-1, :]
-            datasets.data.reset_index(drop=True, inplace=True)
-    else:
         for dataset in datasets:
-            dataset.filtered_data = onset_detection(dataset, config, is_online)
-            dataset.data = dataset.data.iloc[1:-1, :]
-            dataset.data.reset_index(drop=True, inplace=True)
+            temp = onset_detection(dataset, config, is_online)
+            dataset.filtered_data[config.EMG_CHANNEL] = temp
+            #dataset.filtered_data[config.EMG_CHANNEL] = temp
+            #dataset.data = dataset.data.iloc[1:-1, :]
+            #dataset.data.reset_index(drop=True, inplace=True)
