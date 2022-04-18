@@ -27,7 +27,7 @@ def check_config_files():
 
 # Data for 10 subjects should exist - creates folders for each subject if none yet exist.
 def check_data_folders():
-    valid_subjects = list(range(9))
+    valid_subjects = list(range(10))
 
     for subject in valid_subjects:
         create_dir(os.path.join(DATASET_PATH, f'subject_{subject}'), recursive=True)
