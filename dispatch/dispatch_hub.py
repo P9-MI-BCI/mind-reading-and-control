@@ -24,6 +24,3 @@ def dispatch(config):
     else:
         get_logger().info('No valid hypothesis selected - exiting')
         exit()
-
-
-

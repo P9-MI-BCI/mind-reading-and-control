@@ -83,5 +83,6 @@ def format_dataset(data: [pd.DataFrame], channel=0, features='raw') -> ([], []):
             y.append(window.label)
             x.append(np.array(window.feature_vector[channel].iloc[0]).flatten())
 
+
     # data, target
     return x, y
