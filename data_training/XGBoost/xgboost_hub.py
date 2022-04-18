@@ -45,15 +45,17 @@ def xgboost_training(X, Y):
         validation_prediction = model.predict(X[val_index])
         results = model.evals_result()
         epochs = len(results['validation_0']['error'])
-        x_axis = range(0, epochs)
-        epochs_avg.append(epochs)
-        fig, ax = pyplot.subplots(figsize=(12, 12))
-        ax.plot(x_axis, results['validation_0']['auc'], label='Train')
-        ax.plot(x_axis, results['validation_1']['auc'], label='Test')
-        ax.legend()
+         
+        if logger.get_logger().level == 10:
+            x_axis = range(0, epochs)
+            epochs_avg.append(epochs)
+            fig, ax = pyplot.subplots(figsize=(12, 12))
+            ax.plot(x_axis, results['validation_0']['auc'], label='Train')
+            ax.plot(x_axis, results['validation_1']['auc'], label='Test')
+            ax.legend()
 
-        pyplot.ylabel('AUC')
-        pyplot.show()
+            pyplot.ylabel('AUC')
+            pyplot.show()
         accuracy = accuracy_score(validation_prediction, Y[val_index])
         cv_scores[f'split_{split}'] = accuracy
         split += 1
