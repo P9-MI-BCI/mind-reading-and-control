@@ -105,10 +105,11 @@ def format_input(arg: str):
         return False
 
 
-def print_hypothesis_options():
+def print_module_options():
     print("1. A combination of features extracted from different deep learning algorithms will improve the classification.")
     print("2. The electrode layout will allow for differentiation between rest and movement in the EEG signals.")
     print("3. A model can be trained to predict a new subject without any calibration.")
     print("4. Calibration will improve the accuracy of the model when predicting on a new subject.")
     print("5. Deep feature extraction will generalize better to cross-session datasets compared to handcrafted features.")
     print("6. A high number of recorded movements from each subject will help improve classification of our models.")
+    print("7. Analysis (SD, RSD, mean) of the data recorded from each session of each subject")
