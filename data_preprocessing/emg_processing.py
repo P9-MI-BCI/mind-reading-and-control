@@ -19,8 +19,8 @@ def emg_amplitude_tkeo(filtered_data):
     return tkeo
 
 
-def onset_detection(dataset: Dataset, config, is_online=False, static_clusters=False,
-                    proximity_outliers=False, normalization=False) -> [[int]]:
+def onset_detection(dataset: Dataset, config, static_clusters=True,
+                    proximity_outliers=True, normalization=True) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -49,9 +49,8 @@ def onset_detection(dataset: Dataset, config, is_online=False, static_clusters=F
 
     # Group onsets based on time
     emg_clusters, filtered_data[config.EMG_CHANNEL], threshold = emg_clustering(
-        emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets,
-        is_online=is_online, threshold=threshold, static_clusters=static_clusters,
-        proximity_outliers=proximity_outliers, normalization=normalization)
+        emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, threshold=threshold,
+        static_clusters=static_clusters, proximity_outliers=proximity_outliers, normalization=normalization)
 
     # Plotting of EMG signal and clusters
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
@@ -78,7 +77,7 @@ def onset_detection(dataset: Dataset, config, is_online=False, static_clusters=F
     return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, normalization=True,
+def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                    threshold=None, static_clusters=True, proximity_outliers=True) -> [
     [int]]:
     if distance is None:
@@ -153,9 +152,11 @@ def emg_clustering(emg_data, onsets: [int], distance=None, is_online=False, norm
             threshold = threshold
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-            cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
-                                                               is_online=is_online, normalization=False,
-                                                               threshold=threshold, static_clusters=static_clusters,
+            cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data),
+                                                               onsets=emg_onsets,
+                                                               normalization=False,
+                                                               threshold=threshold,
+                                                               static_clusters=static_clusters,
                                                                proximity_outliers=proximity_outliers)
 
         return cluster_list, emg_data, threshold
