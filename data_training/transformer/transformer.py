@@ -8,9 +8,9 @@ learning_rate = 0.001
 weight_decay = 0.0001
 batch_size = 128
 num_epochs = 100
-image_size = 72  # We'll resize input images to this size
-patch_size = 6  # Size of the patches to be extract from the input images
-num_patches = (image_size // patch_size) ** 2
+image_length = 100
+image_height = 3
+num_patches = 72
 projection_dim = 64
 num_heads = 4
 transformer_units = [
@@ -23,12 +23,7 @@ mlp_head_units = [2048, 1024]
 data_augmentation = keras.Sequential(
     [
         layers.Normalization(),
-        layers.Resizing(image_size, image_size),
-        layers.RandomFlip("horizontal"),
-        layers.RandomRotation(factor=0.02),
-        layers.RandomZoom(
-            height_factor=0.2, width_factor=0.2
-        ),
+        layers.Resizing(9, 2400),
     ],
     name="data_augmentation",
 )
@@ -42,16 +37,17 @@ def mlp(x, hidden_units, dropout_rate):
 
 
 class Patches(layers.Layer):
-    def __init__(self, patch_size):
+    def __init__(self, height, length):
         super(Patches, self).__init__()
-        self.patch_size = patch_size
+        self.height = height
+        self.length = length
 
     def call(self, images):
         batch_size = tf.shape(images)[0]
         patches = tf.image.extract_patches(
             images=images,
-            sizes=[1, self.patch_size, self.patch_size, 1],
-            strides=[1, self.patch_size, self.patch_size, 1],
+            sizes=[1, self.height, self.length, 1],
+            strides=[1, self.height, self.length, 1],
             rates=[1, 1, 1, 1],
             padding="VALID",
         )
@@ -80,7 +76,7 @@ def create_vit_classifier(input_shape):
 
     augmented = data_augmentation(inputs)
 
-    patches = Patches(patch_size)(augmented)
+    patches = Patches(image_height, image_length)(augmented)
     # Encode patches.
     encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
 

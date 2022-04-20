@@ -33,7 +33,7 @@ def run(config):
     multi_dataset_onset_detection(online_data, config)
     dwell_data.clusters = []
 
-    data_preparation_with_filtering(training_data, config)
+    # data_preparation_with_filtering(training_data, config)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
