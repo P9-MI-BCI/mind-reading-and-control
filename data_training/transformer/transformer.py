@@ -6,8 +6,8 @@ from keras import layers
 
 learning_rate = 0.001
 weight_decay = 0.0001
-batch_size = 128
-num_epochs = 100
+batch_size = 256
+num_epochs = 3
 image_length = 100
 image_height = 3
 num_patches = 72
@@ -131,17 +131,17 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
     history = model.fit(
         x=x_train,
         y=y_train,
+        validation_data=(x_test, y_test),
         batch_size=batch_size,
         epochs=num_epochs,
-        validation_split=0.1,
         callbacks=[checkpoint_callback],
     )
 
     model.load_weights(checkpoint_filepath)
     accuracy = model.evaluate(x_test, y_test)
-    print(f"Test accuracy: {round(accuracy * 100, 2)}%")
+    print(f"Test accuracy: {accuracy}%")
 
-    return model, history
+    return model
 
 
 def transformer(X, Y):
@@ -150,8 +150,8 @@ def transformer(X, Y):
     skf = StratifiedKFold(n_splits=5, shuffle=True)
     model = create_vit_classifier(input_shape)
     for train_index, val_index in skf.split(X, Y):
-        run_experiment(model, X[train_index], Y[train_index], X[val_index], Y[val_index])
-
-    model = run_experiment(model, X, Y, X, Y)
+        model = run_experiment(model, X[train_index], Y[train_index], X[val_index], Y[val_index])
+        break
+    # model = run_experiment(model, X, Y, X, Y)
 
     return model
