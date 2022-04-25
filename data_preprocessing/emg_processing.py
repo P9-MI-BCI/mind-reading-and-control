@@ -130,6 +130,14 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
             else:
                 prev_cluster = clusters
                 distance += 100
+
+    for cluster in cluster_list:
+        foo = []
+        foo.append(cluster.length)
+    for cluster in cluster_list:
+        if cluster.length < np.median(foo) / 4:
+            emg_clustering(emg_data=emg_data, onsets=onsets, distance=distance + 60, normalization=normalization,
+                           threshold=threshold, static_clusters=static_clusters, proximity_outliers=proximity_outliers)
     try:
         # Remove outliers by looking at their proximity
         if proximity_outliers:
@@ -157,7 +165,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                                                                normalization=False,
                                                                threshold=threshold,
                                                                static_clusters=static_clusters,
-                                                               proximity_outliers=proximity_outliers)
+                                                               proximity_outliers=False)
 
         return cluster_list, emg_data, threshold
     except AssertionError:
@@ -175,16 +183,16 @@ def normalize_peaks(clusters, emg_data):
 
     # Half along the y-axis any cluster with indices over Q3
     for cluster in clusters:
-        if Q3 < emg_data[cluster.peak]:
+        if Q1 < emg_data[cluster.peak]:
             for index in cluster.data:
-                while Q3 < emg_data[index]:
+                while Q1 < emg_data[index]:
                     emg_data[index] = emg_data[index] / 2
 
         # Increase by the IQR Value along the y-axis for the clusters below Q1
-        if Q1 > emg_data[cluster.peak]:
-            for index in cluster.data:
-                if Q1 > emg_data[index]:
-                    emg_data[index] = emg_data[index] + iqr_val
+        # if Q1 > emg_data[cluster.peak]:
+        #     for index in cluster.data:
+        #         if Q1 > emg_data[index]:
+        #             emg_data[index] = emg_data[index] + iqr_val
 
     o, t = biosppy.signals.emg.find_onsets(signal=emg_data.to_numpy(), sampling_rate=1200)
 
@@ -205,29 +213,17 @@ def remove_outliers_by_x_axis_distance(clusters):
     for i in range(0, len(clusters) - 2):
         # Check for all clusters if the subsequent cluster is closer in proximity than median/2
         if abs(clusters[i].end - clusters[i + 1].start) < prox_coef:
-            if len(clusters[i].data) < len(clusters[i + 1].data):
-                clusters[i + 1].data = np.append(clusters[i + 1].data, clusters[i].data)
-                clusters[i + 1].create_info()
-                clusters_to_remove.append(clusters[i])
-                i += 1
-            else:
-                clusters[i].data = np.append(clusters[i].data, clusters[i + 1].data)
-                clusters[i].create_info()
-                clusters_to_remove.append(clusters[i + 1])
+            clusters[i].merge(clusters[i + 1])
+            clusters_to_remove.append(clusters[i + 1])
+            i += 1
 
     # Handle 'edge' case for last element of array
     if abs(clusters[-1].start - clusters[-2].end) < prox_coef:
-        if len(clusters[-1].data) < len(clusters[-2].data):
-            clusters[-2].data = np.append(clusters[-2].data, clusters[-1].data)
-            clusters[-2].create_info()
-            clusters_to_remove.append(clusters[-1])
-        else:
-            clusters[-1].data = np.append(clusters[-1].data, clusters[-2].data)
-            clusters[-1].create_info()
-            clusters_to_remove.append(clusters[-2])
+        clusters[-2].merge(clusters[-1])
+        clusters_to_remove.append(clusters[-1])
 
     if clusters_to_remove:
-        get_logger().debug(f"Removed {len(clusters_to_remove)} clusters because of proximity")
+        get_logger().debug(f"Merged {len(clusters_to_remove)} clusters because of proximity")
     for cluster in clusters:
         if cluster not in clusters_to_remove:
             t_clusters.append(cluster)
