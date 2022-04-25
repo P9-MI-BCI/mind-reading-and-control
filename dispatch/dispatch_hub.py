@@ -5,6 +5,8 @@ import hypotheses.hypothesis_four as hypothesis_four
 import hypotheses.hypothesis_five as hypothesis_five
 import hypotheses.hypothesis_six as hypothesis_six
 import modules.session_analysis as session_analysis
+import modules.filter_testing as filter_testing
+import modules.brain_activity_visualization as brain_activity_visualization
 from utility.logger import get_logger
 
 
@@ -24,6 +26,10 @@ def dispatch(config):
         hypothesis_six.run(config)
     elif config.module_choice == 7:
         session_analysis.run(config)
+    elif config.module_choice == 8:
+        filter_testing.run(config)
+    elif config.module_choice == 9:
+        brain_activity_visualization.run(config)
     else:
         get_logger().info('No valid module selected - exiting')
         exit()

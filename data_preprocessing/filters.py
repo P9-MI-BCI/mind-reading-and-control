@@ -48,22 +48,32 @@ def butter_filter(data: pd.DataFrame, order: int, cutoff, btype: str, freq: int 
         get_logger().error('Error in filter type or len(cutoff), check params', btype)
 
 
-def data_filtering(filter_range, config, dataset: Dataset):
+def data_filtering(filter_range, config, dataset: Dataset, notch: bool):
     try:
         assert dataset
         filtered_data = pd.DataFrame()
         for channel in config.EEG_CHANNELS:
-            filtered_data[channel] = butter_filter(data=dataset.data[channel],
-                                                   order=config.EEG_ORDER,
-                                                   cutoff=filter_range,
-                                                   btype=config.EEG_BTYPE,
-                                                   freq=dataset.sample_rate)
+            if notch:
+                filtered_data[channel] = butter_filter(data=dataset.data[channel],
+                                                       order=config.EEG_ORDER,
+                                                       cutoff=filter_range,
+                                                       btype='notch',
+                                                       freq=dataset.sample_rate)
+            else:
+                filtered_data[channel] = butter_filter(data=dataset.data[channel],
+                                                       order=config.EEG_ORDER,
+                                                       cutoff=filter_range,
+                                                       btype=config.EEG_BTYPE,
+                                                       freq=dataset.sample_rate)
 
         return filtered_data[config.EEG_CHANNELS]
     except AssertionError:
         get_logger().exception(f'{data_filtering.__name__} received an empty dataset.')
 
 
-def multi_dataset_filtering(filter_range, config, datasets):
+def multi_dataset_filtering(filter_range, config, datasets, notch: bool = False):
     for dataset in datasets:
-        dataset.filtered_data[config.EEG_CHANNELS] = data_filtering(filter_range, config, dataset)
+        if notch:
+            dataset.filtered_data = data_filtering(filter_range, config, dataset, notch)
+        else:
+            dataset.filtered_data = data_filtering(filter_range, config, dataset, notch)

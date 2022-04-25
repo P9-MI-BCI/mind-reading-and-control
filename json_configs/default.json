@@ -5,6 +5,7 @@
   "EOG_CHANNEL": "EOG",
   "AGGREGATE_STRATEGY": "cluster_onset",
   "EEG_BTYPE": "bandpass",
+  "NOTCH": 50,
   "BASELINE": [
     0.01,
     100
