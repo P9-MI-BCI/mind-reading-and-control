@@ -85,9 +85,10 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
 
     prev_cluster = []
     stop_loop = 0
+    noise_detected = False
 
     while True:
-        clusters = []
+        removed_cluster = False
         temp_clusters = []
         cluster_list = []
         # For indices in detected onsets
@@ -101,47 +102,57 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                 temp_clusters.append(idx)
             # Else create cluster object and add index to next cluster list
             else:
-                clusters.append(temp_clusters)
                 temp_clusterobj = Cluster(data=temp_clusters)
                 temp_clusterobj.create_info()
                 cluster_list.append(temp_clusterobj)
                 temp_clusters = [idx]
 
         # For last cluster
-        clusters.append(temp_clusters)
         temp_clusterobj = Cluster(data=temp_clusters)
         temp_clusterobj.create_info()
         cluster_list.append(temp_clusterobj)
 
         # Check if no changes in previous iteration and break, else increase distance
         if static_clusters:
-            if len(clusters) == 20:
+            foo = []
+            small_clusters = 0
+            if len(cluster_list) == 21:
+                for cluster in cluster_list:
+                    foo.append(len(cluster.data))
+                median = np.median(foo)
+                # TODO: Try this some more:
+                # small_clusters = [small_clusters+1 for size in foo if size < median*0.5]
+                for cluster in cluster_list:
+                    if len(cluster.data) < median * 0.1:
+                        cluster_list.remove(cluster)
+                        removed_cluster = True
+                        noise_detected = True
+                if removed_cluster:
+                    break
+                else:
+                    distance += 20
+            if len(cluster_list) == 20:
                 break
-            elif len(clusters) > 20:
+            elif len(cluster_list) > 20:
                 distance += 20
-            elif len(clusters) < 20 and stop_loop < 20:
+            elif len(cluster_list) < 20 and stop_loop < 20:
                 stop_loop += 1
                 distance -= 1
+                noise_detected = True
             else:
                 break
         else:
-            if prev_cluster == clusters:
+            if prev_cluster == cluster_list:
                 break
             else:
-                prev_cluster = clusters
+                prev_cluster = cluster_list
                 distance += 100
 
-    for cluster in cluster_list:
-        foo = []
-        foo.append(cluster.length)
-    for cluster in cluster_list:
-        if cluster.length < np.median(foo) / 4:
-            emg_clustering(emg_data=emg_data, onsets=onsets, distance=distance + 60, normalization=normalization,
-                           threshold=threshold, static_clusters=static_clusters, proximity_outliers=proximity_outliers)
+
     try:
         # Remove outliers by looking at their proximity
         if proximity_outliers:
-            assert len(clusters) > 2
+            assert len(cluster_list) > 2
             cluster_list = remove_outliers_by_x_axis_distance(cluster_list)
 
         # Find peaks of clusters
@@ -157,7 +168,8 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
         # Normalize the EMG data a single time
         if normalization:
             onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
-            threshold = threshold
+            if noise_detected:  # or small_clusters:
+                threshold = threshold * 0.5
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
             cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data),
@@ -181,7 +193,7 @@ def normalize_peaks(clusters, emg_data):
     Q1 = np.quantile(peaks, 0.25)
     Q3 = np.quantile(peaks, 0.75)
 
-    # Half along the y-axis any cluster with indices over Q3
+    # Half along the y-axis any cluster with indices over Q1 until they are below Q1
     for cluster in clusters:
         if Q1 < emg_data[cluster.peak]:
             for index in cluster.data:
