@@ -56,18 +56,18 @@ def outlier_test(config, label_config, gridsearch=False):
                                 get_logger().warning(
                                     f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
                                     f"with current outlier parameters")
-                                get_logger().debug([f'Static clustering: {static_clusters}',
-                                                    f'Proximity outlier removal: {proximity_outliers}',
-                                                    f'Normalization: {normalization}',
-                                                    f'Filename: {dataset.filename}'])
-                                if ((static_clusters, proximity_outliers) in grid_results):
-                                    grid_results[(static_clusters, proximity_outliers)] += 1
+                                # get_logger().debug([f'Static clustering: {static_clusters}',
+                                #                     f'Proximity outlier removal: {proximity_outliers}',
+                                #                     f'Normalization: {normalization}',
+                                #                     f'Filename: {dataset.filename}'])
+                                if ((static_clusters, proximity_outliers, normalization) in grid_results):
+                                    grid_results[(static_clusters, proximity_outliers, normalization)] += 1
                                 else:
-                                    grid_results[(static_clusters, proximity_outliers)] = 1
+                                    grid_results[(static_clusters, proximity_outliers, normalization)] = 1
         print('Results of outlier gridsearch:\n')
         for k, v in grid_results.items():
             print(f'Static clustering: {k[0]}, Proximity outlier merging: {k[1]}, Normalization: {k[2]}, '
-                  f'Datasets where clusters != 20: {v}\n')
+                  f'Datasets where clusters != 20: {v}')
 
     # try:
     else:

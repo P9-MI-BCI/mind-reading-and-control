@@ -88,6 +88,7 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
     noise_detected = False
 
     while True:
+        clusters = []
         removed_cluster = False
         temp_clusters = []
         cluster_list = []
@@ -102,31 +103,33 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                 temp_clusters.append(idx)
             # Else create cluster object and add index to next cluster list
             else:
+                clusters.append(temp_clusters)
                 temp_clusterobj = Cluster(data=temp_clusters)
                 temp_clusterobj.create_info()
                 cluster_list.append(temp_clusterobj)
                 temp_clusters = [idx]
 
         # For last cluster
+        clusters.append(temp_clusters)
         temp_clusterobj = Cluster(data=temp_clusters)
         temp_clusterobj.create_info()
         cluster_list.append(temp_clusterobj)
 
         # Check if no changes in previous iteration and break, else increase distance
+        # small_clusters = []
         if static_clusters:
             foo = []
-            small_clusters = 0
             if len(cluster_list) == 21:
                 for cluster in cluster_list:
                     foo.append(len(cluster.data))
                 median = np.median(foo)
                 # TODO: Try this some more:
-                # small_clusters = [small_clusters+1 for size in foo if size < median*0.5]
+                # small_clusters = [1 for size in foo if size < median*0.5]
                 for cluster in cluster_list:
                     if len(cluster.data) < median * 0.1:
                         cluster_list.remove(cluster)
                         removed_cluster = True
-                        noise_detected = True
+                        # noise_detected = True
                 if removed_cluster:
                     break
                 else:
@@ -138,14 +141,14 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
             elif len(cluster_list) < 20 and stop_loop < 20:
                 stop_loop += 1
                 distance -= 1
-                noise_detected = True
+                # noise_detected = True
             else:
                 break
         else:
-            if prev_cluster == cluster_list:
+            if prev_cluster == clusters:
                 break
             else:
-                prev_cluster = cluster_list
+                prev_cluster = clusters
                 distance += 100
 
 
@@ -168,8 +171,8 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
         # Normalize the EMG data a single time
         if normalization:
             onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
-            if noise_detected:  # or small_clusters:
-                threshold = threshold * 0.5
+            # if not noise_detected: #and len(small_clusters) < 3:
+            threshold = threshold * 0.85
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
             cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data),
@@ -189,9 +192,7 @@ def normalize_peaks(clusters, emg_data):
     for cluster in clusters:
         peaks.append(emg_data[cluster.peak])
 
-    iqr_val = iqr(peaks, axis=0)
     Q1 = np.quantile(peaks, 0.25)
-    Q3 = np.quantile(peaks, 0.75)
 
     # Half along the y-axis any cluster with indices over Q1 until they are below Q1
     for cluster in clusters:
@@ -199,12 +200,6 @@ def normalize_peaks(clusters, emg_data):
             for index in cluster.data:
                 while Q1 < emg_data[index]:
                     emg_data[index] = emg_data[index] / 2
-
-        # Increase by the IQR Value along the y-axis for the clusters below Q1
-        # if Q1 > emg_data[cluster.peak]:
-        #     for index in cluster.data:
-        #         if Q1 > emg_data[index]:
-        #             emg_data[index] = emg_data[index] + iqr_val
 
     o, t = biosppy.signals.emg.find_onsets(signal=emg_data.to_numpy(), sampling_rate=1200)
 
