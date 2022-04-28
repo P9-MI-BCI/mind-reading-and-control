@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -6,6 +7,9 @@ from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering
 from data_visualization import mne_visualization
 from classes.Dataset import Dataset
+from definitions import OUTPUT_PATH
+from utility.save_figure import save_figure
+from utility.logger import get_logger
 
 
 def run(config):
@@ -19,11 +23,11 @@ def run(config):
         multi_dataset_onset_detection(training_data, config)
         multi_dataset_filtering(config.DELTA_BAND, config, training_data)
 
-        averaged_brain_activity(training_data, config)
+        averaged_brain_activity(training_data, config, subject_id, save_fig=False)
     # mne_visualization.visualize_mne(training_data, config)
 
 
-def averaged_brain_activity(datasets: [Dataset], config):
+def averaged_brain_activity(datasets: [Dataset], config, subject_id: int, save_fig: bool = False):
     channels = config.EEG_CHANNELS
     window_sz = 1200
 
@@ -42,12 +46,32 @@ def averaged_brain_activity(datasets: [Dataset], config):
         cluster_mean = cluster_df.mean()
         cluster_means.append(cluster_mean)
 
-    plt.figure()
-    plt.pcolor(cluster_means)
+    fig, ax = plt.subplots()
+    ax.pcolor(cluster_means)
+    ax.axvline(config.SAMPLE_RATE, ls='--', color='black')
+
+    # Color bar
+    im = plt.pcolor(cluster_means)
+    cbar = fig.colorbar(ax=ax, mappable=im, )
+    cbar.set_label('Mean Amplitude, uV')
+
+    plt.xlabel('Frequency')
+    plt.ylabel('Channels')
+    ax.set_yticklabels(channels)
+    ax.set_title(f'Subject {subject_id}')
+    plt.tight_layout()
+
+    if save_fig:
+        path = os.path.join(OUTPUT_PATH, 'session_analysis', f'subject_{subject_id}', f'brain_activity_avg.png')
+        file = os.path.split(path)[1]
+        try:
+            save_figure(path, fig, overwrite=True)
+        except FileExistsError:
+            get_logger().exception(f'Found file already exists: {file} you can '
+                                   f'overwrite the file by setting overwrite=True')
     plt.show()
 
     return cluster_means
-
 
 
 def visualize_brain_activity(datasets: [Dataset], config):
