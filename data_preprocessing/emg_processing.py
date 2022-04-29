@@ -19,8 +19,8 @@ def emg_amplitude_tkeo(filtered_data):
     return tkeo
 
 
-def onset_detection(dataset: Dataset, config, prox_coef=2, static_clusters=True,
-                    proximity_outliers=True, iter_threshold=False, normalization=True) -> [[int]]:
+def onset_detection(dataset: Dataset, config, static_clusters=True,
+                    proximity_outliers=True, normalization=True) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -49,9 +49,8 @@ def onset_detection(dataset: Dataset, config, prox_coef=2, static_clusters=True,
 
     # Group onsets based on time
     emg_clusters, filtered_data[config.EMG_CHANNEL], threshold = emg_clustering(
-        emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, prox_coef=prox_coef,
-        normalization=normalization, threshold=threshold, iter_threshold=iter_threshold,
-        static_clusters=static_clusters, proximity_outliers=proximity_outliers)
+        emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, threshold=threshold,
+        static_clusters=static_clusters, proximity_outliers=proximity_outliers, normalization=normalization)
 
     # Plotting of EMG signal and clusters
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
@@ -61,7 +60,7 @@ def onset_detection(dataset: Dataset, config, prox_coef=2, static_clusters=True,
         for cluster in emg_clusters:
             cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster.start:cluster.end])
 
-        fig = plt.figure(figsize=(40, 8))
+        fig = plt.figure(figsize=(20, 8))
         plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
 
         for vals in cluster_plot_arr:
@@ -71,24 +70,26 @@ def onset_detection(dataset: Dataset, config, prox_coef=2, static_clusters=True,
         plt.title(dataset.filename)
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
-        # plt.autoscale()
+        plt.autoscale()
         plt.show()
 
     dataset.clusters = emg_clusters
-    return filtered_data
+    return filtered_data[config.EMG_CHANNEL]
 
 
-def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normalization=True,
-                   threshold=None, iter=0, iter_threshold=True, static_clusters=True, proximity_outliers=True) -> [
+def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
+                   threshold=None, static_clusters=True, proximity_outliers=True) -> [
     [int]]:
     if distance is None:
         distance = 100
 
     prev_cluster = []
     stop_loop = 0
+    noise_detected = False
 
     while True:
         clusters = []
+        removed_cluster = False
         temp_clusters = []
         cluster_list = []
         # For indices in detected onsets
@@ -115,14 +116,32 @@ def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normaliz
         cluster_list.append(temp_clusterobj)
 
         # Check if no changes in previous iteration and break, else increase distance
-        if (static_clusters):
-            if len(clusters) == 20:
+        # small_clusters = []
+        if static_clusters:
+            foo = []
+            if len(cluster_list) == 21:
+                for cluster in cluster_list:
+                    foo.append(len(cluster.data))
+                median = np.median(foo)
+                # TODO: Try this some more:
+                # small_clusters = [1 for size in foo if size < median*0.5]
+                for cluster in cluster_list:
+                    if len(cluster.data) < median * 0.1:
+                        cluster_list.remove(cluster)
+                        removed_cluster = True
+                        # noise_detected = True
+                if removed_cluster:
+                    break
+                else:
+                    distance += 20
+            if len(cluster_list) == 20:
                 break
-            elif len(clusters) > 20:
+            elif len(cluster_list) > 20:
                 distance += 20
-            elif len(clusters) < 20 and stop_loop < 20:
+            elif len(cluster_list) < 20 and stop_loop < 20:
                 stop_loop += 1
                 distance -= 1
+                # noise_detected = True
             else:
                 break
         else:
@@ -132,11 +151,12 @@ def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normaliz
                 prev_cluster = clusters
                 distance += 100
 
+
     try:
         # Remove outliers by looking at their proximity
-        if (proximity_outliers):
-            assert len(clusters) > 2
-            cluster_list = remove_outliers_by_x_axis_distance(cluster_list, prox_coef)
+        if proximity_outliers:
+            assert len(cluster_list) > 2
+            cluster_list = remove_outliers_by_x_axis_distance(cluster_list)
 
         # Find peaks of clusters
         for onset_cluster in cluster_list:
@@ -149,54 +169,18 @@ def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normaliz
             onset_cluster.peak = index
 
         # Normalize the EMG data a single time
-        if (normalization):
+        if normalization:
             onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
-            threshold = threshold
+            # if not noise_detected: #and len(small_clusters) < 3:
+            threshold = threshold * 0.85
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-            cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
-                                                               prox_coef=prox_coef, normalization=False,
-                                                               threshold=threshold, iter=iter,
-                                                               iter_threshold=iter_threshold,
+            cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data),
+                                                               onsets=emg_onsets,
+                                                               normalization=False,
+                                                               threshold=threshold,
                                                                static_clusters=static_clusters,
-                                                               proximity_outliers=proximity_outliers)
-
-        if (iter_threshold):
-            # If there are less than 20 clusters, increase threshold by 20% maximum 10 times
-            if (len(cluster_list) < 20 and iter < 10):
-                threshold += threshold * 0.20
-                emg_rectified = np.abs(emg_data) > threshold
-                emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-                cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
-                                                                   prox_coef=prox_coef, normalization=False,
-                                                                   threshold=threshold, iter=iter + 1,
-                                                                   iter_threshold=iter_threshold,
-                                                                   static_clusters=static_clusters,
-                                                                   proximity_outliers=proximity_outliers)
-            # If there are 20 clusters, reduce threshold by 10% maximum 10 times
-            elif (len(cluster_list) == 20 and iter < 10):
-                threshold -= threshold * 0.05
-                emg_rectified = np.abs(emg_data) > threshold
-                emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-                cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
-                                                                   prox_coef=prox_coef, normalization=False,
-                                                                   threshold=threshold, iter=iter + 1,
-                                                                   iter_threshold=iter_threshold,
-                                                                   static_clusters=static_clusters,
-                                                                   proximity_outliers=proximity_outliers)
-
-            # If we broke a dataset and it now does not have 20 clusters, increase threshold by 15% once
-            elif ((len(cluster_list) != 20 and 1 < iter <= 10) or len(cluster_list) == 20 and iter == 10):
-                print('ja')
-                threshold += threshold * 0.15
-                emg_rectified = np.abs(emg_data) > threshold
-                emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
-                cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data), onsets=emg_onsets,
-                                                                   prox_coef=prox_coef, normalization=False,
-                                                                   threshold=threshold, iter=11,
-                                                                   iter_threshold=iter_threshold,
-                                                                   static_clusters=static_clusters,
-                                                                   proximity_outliers=proximity_outliers)
+                                                               proximity_outliers=False)
 
         return cluster_list, emg_data, threshold
     except AssertionError:
@@ -204,86 +188,49 @@ def emg_clustering(emg_data, onsets: [int], distance=None, prox_coef=2, normaliz
 
 
 def normalize_peaks(clusters, emg_data):
-    # TODO: Consider hardcap of how high cluster can be
     peaks = []
     for cluster in clusters:
         peaks.append(emg_data[cluster.peak])
 
-    iqr_val = iqr(peaks, axis=0)
     Q1 = np.quantile(peaks, 0.25)
-    Q3 = np.quantile(peaks, 0.75)
 
-    # Half along the y-axis any cluster with indices over Q3
+    # Half along the y-axis any cluster with indices over Q1 until they are below Q1
     for cluster in clusters:
-        if Q3 < emg_data[cluster.peak]:
+        if Q1 < emg_data[cluster.peak]:
             for index in cluster.data:
-                while Q3 < emg_data[index]:
+                while Q1 < emg_data[index]:
                     emg_data[index] = emg_data[index] / 2
-
-        # Increase by the IQR Value along the y-axis for the clusters below Q1
-        if Q1 > emg_data[cluster.peak]:
-            for index in cluster.data:
-                if Q1 > emg_data[index]:
-                    emg_data[index] = emg_data[index] + iqr_val
 
     o, t = biosppy.signals.emg.find_onsets(signal=emg_data.to_numpy(), sampling_rate=1200)
 
     return o, t, emg_data
 
 
-# Compare all peaks and remove outliers below Q1
-# We don't care about outliers above Q3 as they have shown clear excess in force
-def remove_outliers_by_peak_activity(clusters, emg_data):
-    peaks = []
-    for cluster in clusters:
-        peaks.append(emg_data[cluster.peak])
-
-    iqr_val = iqr(peaks, axis=0)
-    Q1 = np.quantile(peaks, 0.25)
-    Q3 = np.quantile(peaks, 0.75)
-
-    t_clusters = []
-
-    for cluster in clusters:
-        if Q1 - iqr_val * 0.7 < emg_data[cluster.peak]:
-            t_clusters.append(cluster)
-
-    return t_clusters, emg_data
-
-
-# We want to merge clusters who are in close proximity to eachother
-def remove_outliers_by_x_axis_distance(clusters, prox_coef):
-    # TODO: Try median instead of prox_coef
+# We want to merge clusters who are in proximity to each other
+def remove_outliers_by_x_axis_distance(clusters):
     clusters_to_remove = []
     t_clusters = []
+    distances = []
+
+    # Calculate median of distances
+    for i in range(0, len(clusters) - 1):
+        distances.append(abs(clusters[i].end - clusters[i + 1].start))
+    prox_coef = np.median(distances) / 2
 
     for i in range(0, len(clusters) - 2):
-        # Check for all clusters if the subsequent cluster is closer in proximity than x*fs
-        if abs(clusters[i].end - clusters[i + 1].start) < prox_coef * 1200:
-            # Check which one of the clusters are the largest (naive way of selecting which one is cluster and which one is outlier)
-            if len(clusters[i].data) < len(clusters[i + 1].data):
-                clusters[i + 1].data = np.append(clusters[i + 1].data, clusters[i].data)
-                clusters[i + 1].create_info()
-                clusters_to_remove.append(clusters[i])
-                i += 1
-            else:
-                clusters[i].data = np.append(clusters[i].data, clusters[i + 1].data)
-                clusters[i].create_info()
-                clusters_to_remove.append(clusters[i + 1])
+        # Check for all clusters if the subsequent cluster is closer in proximity than median/2
+        if abs(clusters[i].end - clusters[i + 1].start) < prox_coef:
+            clusters[i].merge(clusters[i + 1])
+            clusters_to_remove.append(clusters[i + 1])
+            i += 1
 
     # Handle 'edge' case for last element of array
-    if abs(clusters[-1].start - clusters[-2].end) < prox_coef * 1200:
-        if len(clusters[-1].data) < len(clusters[-2].data):
-            clusters[-2].data = np.append(clusters[-2].data, clusters[-1].data)
-            clusters[-2].create_info()
-            clusters_to_remove.append(clusters[-1])
-        else:
-            clusters[-1].data = np.append(clusters[-1].data, clusters[-2].data)
-            clusters[-1].create_info()
-            clusters_to_remove.append(clusters[-2])
+    if abs(clusters[-1].start - clusters[-2].end) < prox_coef:
+        clusters[-2].merge(clusters[-1])
+        clusters_to_remove.append(clusters[-1])
 
-    if (clusters_to_remove):
-        get_logger().debug(f"Removed {len(clusters_to_remove)} clusters because of proximity")
+    if clusters_to_remove:
+        get_logger().debug(f"Merged {len(clusters_to_remove)} clusters because of proximity")
     for cluster in clusters:
         if cluster not in clusters_to_remove:
             t_clusters.append(cluster)
@@ -292,6 +239,5 @@ def remove_outliers_by_x_axis_distance(clusters, prox_coef):
 
 
 def multi_dataset_onset_detection(datasets, config):
-        for dataset in datasets:
-            dataset.filtered_data = onset_detection(dataset, config)
-
+    for dataset in datasets:
+        dataset.filtered_data = onset_detection(dataset, config)
