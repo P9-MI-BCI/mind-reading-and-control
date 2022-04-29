@@ -4,7 +4,7 @@ from data_preprocessing.handcrafted_feature_extraction import extract_features
 from data_training.XGBoost.xgboost_hub import xgboost_training
 
 
-def xgboost_simulation(X, Y, scaler, config, online_data):
+def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data):
     # Simulation
     simulation = Simulation(config)
 
@@ -21,7 +21,7 @@ def xgboost_simulation(X, Y, scaler, config, online_data):
     # optimized_xgboost(X, Y)
 
     simulation.load_models(model)
-    simulation.tune_dwell(online_data[0])
+    simulation.tune_dwell(dwell_data)
 
     # test the first dataset
     simulation.mount_dataset(online_data[0])

@@ -27,7 +27,7 @@ def run(config):
     """
     subject_id = int(input("Choose subject to predict on 0-9\n"))
     config.transfer_learning = False
-    config.rest_classification = False
+    config.rest_classification = True
 
     training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
 
@@ -39,16 +39,20 @@ def run(config):
     multi_dataset_onset_detection(online_data, config)
     dwell_data.clusters = []
 
-    data_preparation_with_filtering(training_data, config)
+    data_preparation_with_filtering(training_data, config, config.EEGNET_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    transformer_simulation(X, Y, scaler, config, online_data)
-    xgboost_simulation(X, Y, scaler, config, online_data)
-    eegnet_simulation(X, Y, scaler, config, online_data)
-    deepconvnet_simulation(X, Y, scaler, config, online_data)
-    shallowconvnet_simulation(X, Y, scaler, config, online_data)
-    cspsvm_simulation(X, Y, scaler, config, online_data)
+    # cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data)
+    eegnet_simulation(X, Y, scaler, config, online_data, dwell_data)
+    deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)
+    shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)
 
+    data_preparation_with_filtering(training_data, config, config.DELTA_BAND)
+    X, Y = load_data_from_temp()
+    X, Y = shuffle(X, Y)
+    X, scaler = normalization(X)
+    xgboost_simulation(X, Y, scaler, config, online_data, dwell_data)
+    transformer_simulation(X, Y, scaler, config, online_data, dwell_data)
 

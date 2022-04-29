@@ -43,6 +43,7 @@ def svm_cv(X, Y):
 
     cv_scores = pd.DataFrame(cv_scores, index=[0])
     cv_scores['mean'] = cv_scores.mean(axis=1)
+    cv_scores['std'] = cv_scores.std(axis=1)
     print(f'{cv_scores}')
 
     return model

@@ -178,7 +178,7 @@ def get_online_data_labels(subject_id: int):
     return test_data_labels
 
 
-def data_preparation_with_filtering(datasets, config):
+def data_preparation_with_filtering(datasets, config, filter_band_range):
     dataset_num = 0
     temp_file_name = 'temp_data_'
     temp_label_name = 'temp_label_'
@@ -227,12 +227,12 @@ def data_preparation_with_filtering(datasets, config):
                 elif any(is_in_cluster):
                     Y.append(1)
 
-                    sliding_window = filter_module(config, config.DELTA_BAND, data_buffer, dataset.sample_rate)
+                    sliding_window = filter_module(config, filter_band_range, data_buffer, dataset.sample_rate)
                     X.append(sliding_window)
                 elif not any(is_in_cluster) and sum(Y) > len(Y) / 2:
                     Y.append(0)
 
-                    sliding_window = filter_module(config, config.DELTA_BAND, data_buffer, dataset.sample_rate)
+                    sliding_window = filter_module(config, filter_band_range, data_buffer, dataset.sample_rate)
                     X.append(sliding_window)
 
                 step_i += int(config.step_size * dataset.sample_rate)

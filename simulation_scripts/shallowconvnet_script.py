@@ -2,7 +2,7 @@ from classes.Simulation import Simulation
 from data_training.EEGModels.training import get_ShallowConvNet, stratified_kfold_cv
 
 
-def shallowconvnet_simulation(X, Y, scaler, config, online_data):
+def shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data):
     shallow_deep_net = get_ShallowConvNet(X)
 
     model = stratified_kfold_cv(X, Y, shallow_deep_net)
@@ -16,7 +16,7 @@ def shallowconvnet_simulation(X, Y, scaler, config, online_data):
 
     # First model
     simulation.load_models(model)
-    simulation.tune_dwell(online_data[0])
+    simulation.tune_dwell(dwell_data)
 
     # test the first dataset
     simulation.mount_dataset(online_data[0])

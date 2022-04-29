@@ -2,7 +2,7 @@ from classes.Simulation import Simulation
 from data_training.transformer.transformer import transformer
 
 
-def transformer_simulation(X, Y, scaler, config, online_data):
+def transformer_simulation(X, Y, scaler, config, online_data, dwell_data):
 
     model = transformer(X, Y)
 
@@ -15,7 +15,7 @@ def transformer_simulation(X, Y, scaler, config, online_data):
 
     # First model
     simulation.load_models(model)
-    simulation.tune_dwell(online_data[0])
+    simulation.tune_dwell(dwell_data)
 
     # test the first dataset
     simulation.mount_dataset(online_data[0])

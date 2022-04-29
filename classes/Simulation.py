@@ -1,12 +1,12 @@
 import sys
 
+import mne.decoding
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from classes.Dataset import Dataset
 import time
 import matplotlib.pyplot as plt
-from data_preprocessing.handcrafted_feature_extraction import extract_features
 from data_training.measurements import accuracy
 from utility.logger import get_logger
 import datetime
@@ -16,6 +16,7 @@ import neurokit2 as nk
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
+
 
 class Simulation:
 
@@ -304,10 +305,16 @@ class Simulation:
 
     def _prediction_module(self):
         if self.feature_extraction:
-            features = self.extraction_method([self.sliding_window])
+            if isinstance(self.extraction_method, mne.decoding.CSP):
+                reshaped = self.sliding_window.reshape(1, self.sliding_window.shape[1], self.sliding_window.shape[0])
+                features = self.extraction_method.transform(reshaped)
+            else:
+                features = self.extraction_method(self.sliding_window)
             return self.model.predict(features)[0]
         else:
-            return self.model.predict(self.sliding_window)
+            prediction = self.model.predict(self.sliding_window)[0][0]
+            # return closest int
+            return round(prediction)
 
     def _eval_performance(self):
         self.predictions.append(1)
@@ -332,9 +339,30 @@ class Simulation:
     def _post_simulation_analysis(self):
         get_logger().info(f'---------- Post Simulation Analysis')
         get_logger().info(f'{self._dict_score_pp()}')
-        self._furthest_prediction_from_mrcp()
-        self._distance_to_nearest_mrcp()
+        discard_counter, found_mrcp, furthest_distance = self._furthest_prediction_from_mrcp()
+        mean_distance, mean_missed_distance, furthest_prediction = self._distance_to_nearest_mrcp()
+
         self._plot_predictions()
+
+        get_logger().info(f'Total Predictions made by the model {len(self.predictions)}.')
+        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.')
+        get_logger().info(f'Data buffer removed {discard_counter} movement intention windows during building process.')
+        get_logger().info(
+            f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} '
+            f'movement intention windows.')
+        if len(furthest_distance) > 0:
+            get_logger().info(
+                f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
+                f' seconds to the nearest prediction.')
+        else:
+            get_logger().info('All movement intention windows were hit!')
+
+        get_logger().info(
+            f'Prediction lying furthest from intention windows {furthest_prediction} seconds.')
+        get_logger().info(
+            f'Mean time of distances from predictions to intention window: {mean_distance} seconds.')
+        get_logger().info(
+            f'Mean time for missed predictions to nearest window: {mean_missed_distance} seconds.')
 
     def _distance_to_nearest_mrcp(self):
         # note: freq_range[1] refers to the center of the prediction window
@@ -357,12 +385,8 @@ class Simulation:
         mean_missed_distance = (sum([i for i in distances if i != 0]) / len(
             [i for i in self.true_labels if i == 0])) / self.dataset.sample_rate
 
-        get_logger().info(
-            f'Prediction lying furthest from intention windows {round(max(distances) / self.dataset.sample_rate, 2)} seconds.')
-        get_logger().info(
-            f'Mean time of distances from predictions to intention window: {round(mean_distance, 2)} seconds.')
-        get_logger().info(
-            f'Mean time for missed predictions to nearest window: {round(mean_missed_distance, 2)} seconds.')
+        return round(mean_distance, 2), round(mean_missed_distance, 2), \
+               round(max(distances) / self.dataset.sample_rate, 2)
 
     def _furthest_prediction_from_mrcp(self):
         found_mrcp = []
@@ -371,7 +395,7 @@ class Simulation:
 
         for cluster in self.dataset.clusters:
             if cluster.start - self.dataset.sample_rate * 2 < discarded_mrcp or \
-               cluster.start + self.dataset.sample_rate < discarded_mrcp:
+                    cluster.start + self.dataset.sample_rate < discarded_mrcp:
                 found_mrcp.append(999)
                 continue
             found = False
@@ -395,18 +419,7 @@ class Simulation:
             if i == 999:
                 discard_counter += 1
 
-        get_logger().info(f'Total Predictions made by the model {len(self.predictions)}.')
-        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.')
-        get_logger().info(f'Data buffer removed {discard_counter} movement intention windows during building process.')
-        get_logger().info(
-            f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} '
-            f'movement intention windows.')
-        if len(furthest_distance) > 0:
-            get_logger().info(
-                f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
-                f' seconds to the nearest prediction.')
-        else:
-            get_logger().info('All movement intention windows were hit!')
+        return discard_counter, found_mrcp, furthest_distance
 
     def _plot_predictions(self):
         plt.clf()
@@ -417,7 +430,6 @@ class Simulation:
 
         for cluster in self.dataset.clusters:
             # dashed lines 2 seconds before onset and 1 second after
-            #plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
             plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
             plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
                         cluster.start + self.dataset.sample_rate,
@@ -461,3 +473,7 @@ class Simulation:
         blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='mne')
 
         return blinks
+
+    def log_results(self, filepath):
+
+        pass

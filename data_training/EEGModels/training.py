@@ -35,7 +35,7 @@ def stratified_kfold_cv(X, Y, model):
                   verbose=0,
                   validation_data=(X_val_reshaped, Y[val_index]),
                   callbacks=[TqdmCallback(verbose=0),
-                             EarlyStopping(monitor='val_loss', patience=30)])
+                             EarlyStopping(monitor='val_loss', patience=10)])
 
         # reset the model before training
         accuracy = model.evaluate(X_val_reshaped, Y[val_index])

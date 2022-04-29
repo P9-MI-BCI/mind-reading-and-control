@@ -10,7 +10,7 @@
     100
   ],
   "DELTA_BAND": [
-    0.05,
+    0.5,
     4
   ],
   "THETA_BAND": [
@@ -28,6 +28,10 @@
   "GAMMA_BAND": [
     31,
     100
+  ],
+  "EEGNET_BAND": [
+    0.1,
+    40
   ],
   "EEG_ORDER": 2,
   "EMG_BTYPE_BANDPASS": "bandpass",

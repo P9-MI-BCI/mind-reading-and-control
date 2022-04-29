@@ -2,7 +2,6 @@ from data_preprocessing.data_distribution import normalization, online_data_labe
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
-from data_training.EEGModels.training import EEGModels_training_hub
 
 
 # Hypothesis three aims to test if training only on cross subject data is sufficient to achieve a 50%+ accuracy on
@@ -37,4 +36,4 @@ def run(config):
     X, Y = data_preparation(training_data, config)
     X, scaler = normalization(X)
     online_X, online_Y = online_data_labeling(online_data, config, scaler, subject_id)
-    EEGModels_training_hub(X, Y, online_X, online_Y)
+    # EEGModels_training_hub(X, Y, online_X, online_Y)

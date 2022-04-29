@@ -5,9 +5,11 @@ import hypotheses.hypothesis_four as hypothesis_four
 import hypotheses.hypothesis_five as hypothesis_five
 import hypotheses.hypothesis_six as hypothesis_six
 from utility.logger import get_logger
+import numpy as np
 
 
 def dispatch(config):
+    np.random.seed(159)
 
     if config.hypothesis_choice == 1:
         hypothesis_one.run(config)
