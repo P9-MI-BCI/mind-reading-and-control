@@ -8,6 +8,12 @@ from data_preprocessing.data_distribution import data_preparation, normalization
     load_scaler
 from data_training.XGBoost.xgboost_hub import xgboost_training, optimized_xgboost
 from data_training.transformer.transformer import transformer
+from simulation_scripts.cspsvm_script import cspsvm_simulation
+from simulation_scripts.deepconvnet_script import deepconvnet_simulation
+from simulation_scripts.eegnet_script import eegnet_simulation
+from simulation_scripts.shallowconvnet_script import shallowconvnet_simulation
+from simulation_scripts.transformer_script import transformer_simulation
+from simulation_scripts.xgboost_script import xgboost_simulation
 
 """
 Hypothesis five aims to test whether deep feature extraction models will perform better than handcrafted ones. It
@@ -21,7 +27,7 @@ def run(config):
     """
     subject_id = int(input("Choose subject to predict on 0-9\n"))
     config.transfer_learning = False
-    config.rest_classification = True
+    config.rest_classification = False
 
     training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
 
@@ -33,56 +39,16 @@ def run(config):
     multi_dataset_onset_detection(online_data, config)
     dwell_data.clusters = []
 
-    # data_preparation_with_filtering(training_data, config)
+    data_preparation_with_filtering(training_data, config)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    scaler = load_scaler()
-    model = transformer(X, Y)
-
-    # Simulation
-    simulation = Simulation(config)
-
-    simulation.set_normalizer(scaler)
-    simulation.set_filter(config.DELTA_BAND)
-    simulation.set_feature_extraction(True)
-    simulation.set_evaluation_metrics()
-
-    # First model
-    simulation.load_models(model)
-    simulation.tune_dwell(online_data[0])
-
-    # test the first dataset
-    simulation.mount_dataset(online_data[0])
-    simulation.simulate(real_time=False)
-
-    simulation.reset()
-
-    # test the second dataset
-    simulation.mount_dataset(online_data[1])
-    simulation.simulate(real_time=False)
-
-    # simulate for xgboost
-    X = extract_features(X)
-    features_to_file(X, Y, scaler)
-    X, Y = load_features_from_file()
-    model = xgboost_training(X, Y)
-    # optimized_xgboost(X, Y)
-
-    simulation.reset()
-
-    simulation.load_models(model)
-    simulation.tune_dwell(online_data[0])
-
-    # test the first dataset
-    simulation.mount_dataset(online_data[0])
-    simulation.simulate(real_time=False)
-
-    simulation.reset()
-
-    # test the second dataset
-    simulation.mount_dataset(online_data[1])
-    simulation.simulate(real_time=False)
+    transformer_simulation(X, Y, scaler, config, online_data)
+    xgboost_simulation(X, Y, scaler, config, online_data)
+    eegnet_simulation(X, Y, scaler, config, online_data)
+    deepconvnet_simulation(X, Y, scaler, config, online_data)
+    shallowconvnet_simulation(X, Y, scaler, config, online_data)
+    cspsvm_simulation(X, Y, scaler, config, online_data)
 
 

@@ -1,5 +1,6 @@
 import pandas as pd
 
+
 class Dataset:
 
     def __init__(self, sample_rate=0, data=pd.DataFrame(), filtered_data=pd.DataFrame(), label=999, clusters=0,

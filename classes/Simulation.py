@@ -43,6 +43,7 @@ class Simulation:
         self.config = config
         self.filter = None
         self.feature_extraction = None
+        self.extraction_method = None
         self.buffer_size = self.config.window_size * config.buffer_size
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
@@ -69,9 +70,10 @@ class Simulation:
     def set_filter(self, filter_range):
         self.filter = filter_range
 
-    def set_feature_extraction(self, extract):
+    def set_feature_extraction(self, extract, method):
         if extract:
             self.feature_extraction = True
+            self.extraction_method = method
         else:
             self.feature_extraction = False
 
@@ -302,7 +304,7 @@ class Simulation:
 
     def _prediction_module(self):
         if self.feature_extraction:
-            features = extract_features([self.sliding_window])
+            features = self.extraction_method([self.sliding_window])
             return self.model.predict(features)[0]
         else:
             return self.model.predict(self.sliding_window)

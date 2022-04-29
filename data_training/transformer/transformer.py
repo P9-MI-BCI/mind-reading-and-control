@@ -3,6 +3,8 @@ import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold
 from tensorflow import keras
 from keras import layers
+from keras.callbacks import EarlyStopping
+import pandas as pd
 
 learning_rate = 0.001
 weight_decay = 0.0001
@@ -10,7 +12,7 @@ batch_size = 256
 num_epochs = 3
 image_length = 100
 image_height = 3
-num_patches = 72
+num_patches = 168
 projection_dim = 64
 num_heads = 4
 transformer_units = [
@@ -22,7 +24,6 @@ mlp_head_units = [2048, 1024]
 
 data_augmentation = keras.Sequential(
     [
-        layers.Normalization(),
         layers.Resizing(9, 2400),
     ],
     name="data_augmentation",
@@ -47,7 +48,7 @@ class Patches(layers.Layer):
         patches = tf.image.extract_patches(
             images=images,
             sizes=[1, self.height, self.length, 1],
-            strides=[1, self.height, self.length, 1],
+            strides=[1, 1, self.length, 1],
             rates=[1, 1, 1, 1],
             padding="VALID",
         )
@@ -128,30 +129,36 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
     )
     x_train = x_train.reshape((x_train.shape[0], x_train[0].shape[1], x_train[0].shape[0], 1))
     x_test = x_test.reshape((x_test.shape[0], x_test[0].shape[1], x_test[0].shape[0], 1))
-    history = model.fit(
+    model.fit(
         x=x_train,
         y=y_train,
         validation_data=(x_test, y_test),
         batch_size=batch_size,
         epochs=num_epochs,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback,
+                   EarlyStopping(monitor='val_loss', patience=10)],
     )
 
     model.load_weights(checkpoint_filepath)
     accuracy = model.evaluate(x_test, y_test)
     print(f"Test accuracy: {accuracy}%")
 
-    return model
+    return model, accuracy
 
 
 def transformer(X, Y):
     Y = np.array(Y)
     input_shape = (9, 2400, 1)
     skf = StratifiedKFold(n_splits=5, shuffle=True)
-    model = create_vit_classifier(input_shape)
+    cv_scores = {}
+    split = 0
     for train_index, val_index in skf.split(X, Y):
-        model = run_experiment(model, X[train_index], Y[train_index], X[val_index], Y[val_index])
-        break
-    # model = run_experiment(model, X, Y, X, Y)
+        model = create_vit_classifier(input_shape)
+        model, accuracy = run_experiment(model, X[train_index], Y[train_index], X[val_index], Y[val_index])
+        cv_scores[f'split_{split}'] = accuracy
+        split += 1
 
+    cv_scores = pd.DataFrame(cv_scores, index=[0])
+    cv_scores['mean'] = cv_scores.mean(axis=1)
+    print(f'{cv_scores}')
     return model

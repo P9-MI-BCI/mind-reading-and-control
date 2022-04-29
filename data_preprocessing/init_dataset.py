@@ -15,7 +15,6 @@ def init(data, config, open_l=None, filename=None):
     dataset.data = pd.DataFrame(data=data['data_device1'][:, :len(config.EEG_CHANNELS)],
                                 columns=config.EEG_CHANNELS)
 
-    # todo update whenever we know the emg channels
     if open_l:
         dataset.data[config.EMG_CHANNEL] = data['data_device1'][:, 12]
     else:
