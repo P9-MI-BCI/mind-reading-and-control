@@ -1,10 +1,19 @@
+from datetime import datetime
+
 from classes.Simulation import Simulation
 from data_training.transformer.transformer import transformer
+import time
+
+from utility.logger import result_logger
 
 
 def transformer_simulation(X, Y, scaler, config, online_data, dwell_data):
+    now = datetime.now()
 
-    model = transformer(X, Y)
+    now = now.strftime("%H:%M:%S")
+    transformer_logger_location = 'transformer.txt'
+    result_logger(transformer_logger_location, f'TRANSFORMER SIMULATION MODULE ----------- {now}\n')
+    model = transformer(X, Y, logger_location=transformer_logger_location)
 
     # Simulation
     simulation = Simulation(config)
@@ -12,6 +21,7 @@ def transformer_simulation(X, Y, scaler, config, online_data, dwell_data):
     simulation.set_normalizer(scaler)
     simulation.set_filter(config.DELTA_BAND)
     simulation.set_evaluation_metrics()
+    simulation.set_logger_location(transformer_logger_location)
 
     # First model
     simulation.load_models(model)

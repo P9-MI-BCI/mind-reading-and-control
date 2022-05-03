@@ -44,7 +44,7 @@ def run(config):
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    # cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data)
+    cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data)
     eegnet_simulation(X, Y, scaler, config, online_data, dwell_data)
     deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)
     shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)

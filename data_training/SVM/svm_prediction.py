@@ -5,6 +5,9 @@ from data_training.scikit_classifiers import scikit_classifier, scikit_classifie
 from sklearn import svm
 import pandas as pd
 
+from utility.logger import result_logger
+
+
 def svm_classifier(train_data, test_data, channels=None, features='raw'):
     model = svm.SVC()
 
@@ -41,9 +44,14 @@ def svm_cv(X, Y):
         cv_scores[f'split_{split}'] = accuracy
         split += 1
 
+    model = svm.SVC()
+    model.fit(X, Y)
+
     cv_scores = pd.DataFrame(cv_scores, index=[0])
     cv_scores['mean'] = cv_scores.mean(axis=1)
     cv_scores['std'] = cv_scores.std(axis=1)
     print(f'{cv_scores}')
 
+    result_logger('csp_svm.txt', 'Training 5 fold cross validation\n')
+    result_logger('csp_svm.txt', f'{cv_scores}\n')
     return model

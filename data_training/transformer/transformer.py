@@ -6,10 +6,12 @@ from keras import layers
 from keras.callbacks import EarlyStopping
 import pandas as pd
 
+from utility.logger import result_logger
+
 learning_rate = 0.001
 weight_decay = 0.0001
 batch_size = 256
-num_epochs = 3
+num_epochs = 1
 image_length = 100
 image_height = 3
 num_patches = 168
@@ -143,10 +145,10 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
     accuracy = model.evaluate(x_test, y_test)
     print(f"Test accuracy: {accuracy}%")
 
-    return model, accuracy
+    return model, accuracy[-1]
 
 
-def transformer(X, Y):
+def transformer(X, Y, logger_location=None):
     Y = np.array(Y)
     input_shape = (9, 2400, 1)
     skf = StratifiedKFold(n_splits=5, shuffle=True)
@@ -160,5 +162,9 @@ def transformer(X, Y):
 
     cv_scores = pd.DataFrame(cv_scores, index=[0])
     cv_scores['mean'] = cv_scores.mean(axis=1)
+    cv_scores['std'] = cv_scores.std(axis=1)
     print(f'{cv_scores}')
+    if logger_location is not None:
+        result_logger(logger_location, 'Training 5 fold cross validation.\n')
+        result_logger(logger_location, f'{cv_scores}.\n')
     return model

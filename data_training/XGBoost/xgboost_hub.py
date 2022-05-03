@@ -6,6 +6,8 @@ import pandas as pd
 from matplotlib import pyplot
 from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 
+from utility.logger import result_logger
+
 space = {'max_depth': hp.quniform("max_depth", 3, 18, 1),
          'gamma': hp.uniform('gamma', 1, 9),
          'reg_alpha': hp.quniform('reg_alpha', 40, 180, 1),
@@ -20,7 +22,7 @@ space = {'max_depth': hp.quniform("max_depth", 3, 18, 1),
 params= {}
 
 
-def xgboost_training(X, Y):
+def xgboost_training(X, Y, logger_location=None):
     skf = StratifiedKFold(n_splits=5, shuffle=True)
 
     cv_scores = {}
@@ -64,6 +66,7 @@ def xgboost_training(X, Y):
     print('Cross Validation Results:')
     cv_scores = pd.DataFrame(cv_scores, index=[0])
     cv_scores['mean'] = cv_scores.mean(axis=1)
+    cv_scores['std'] = cv_scores.std(axis=1)
     print(f'{cv_scores}')
     logger.get_logger().info(f'Fitting entire dataset prior to online prediction')
     model = xgb.XGBClassifier(use_label_encoder=False,
@@ -78,6 +81,10 @@ def xgboost_training(X, Y):
                               )
 
     model.fit(X, Y, verbose=False)
+
+    if logger_location is not None:
+        result_logger(logger_location, f'Training 5 fold cross validation.\n')
+        result_logger(logger_location, f'{cv_scores}\n')
 
     return model
 

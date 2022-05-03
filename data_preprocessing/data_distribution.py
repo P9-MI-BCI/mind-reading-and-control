@@ -15,7 +15,7 @@ from classes import Window, Dataset
 from sklearn.preprocessing import StandardScaler
 
 from data_preprocessing.filters import butter_filter
-from utility.file_util import file_exist
+from utility.file_util import file_exist, create_dir
 from definitions import DATASET_PATH, OUTPUT_PATH
 import pickle
 import os
@@ -236,7 +236,7 @@ def data_preparation_with_filtering(datasets, config, filter_band_range):
                     X.append(sliding_window)
 
                 step_i += int(config.step_size * dataset.sample_rate)
-                
+
             with open(os.path.join(OUTPUT_PATH, 'data', f'{temp_file_name}{dataset_num}'), 'wb') as f:
                  pickle.dump(X, f)
           

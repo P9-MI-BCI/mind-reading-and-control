@@ -1,5 +1,5 @@
 import logging
-from data_preprocessing.init_dataset import format_input, print_hypothesis_options
+from data_preprocessing.init_dataset import print_hypothesis_options
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
 from dispatch import preliminary

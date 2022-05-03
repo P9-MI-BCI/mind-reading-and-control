@@ -10,8 +10,6 @@ class Cluster:
         self.end = 0
         self.length = 0
 
-
-
     def create_info(self):
         self.data.sort()
         self.start = self.data[0]

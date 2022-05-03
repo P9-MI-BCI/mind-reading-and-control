@@ -1,11 +1,12 @@
 import os
 from utility.file_util import create_dir, file_exist
 from utility.logger import get_logger
+import time
 
 
 def save_figure(path: str, fig, overwrite: bool = False):
     parent, file = os.path.split(path)
-    create_dir(parent, recursive=True)
+    # create_dir(parent, recursive=True)
 
     if not file_exist(path):
         fig.savefig(path)
@@ -14,4 +15,6 @@ def save_figure(path: str, fig, overwrite: bool = False):
         fig.savefig(path)
         get_logger().info(f'Figure overwritten: {path}')
     elif file_exist(path):
-        raise FileExistsError(f'Plot is already saved at {path}')
+        now = time.time()
+        fig.savefig(os.path.join(path, str(now)))
+        # raise FileExistsError(f'Plot is already saved at {path}')

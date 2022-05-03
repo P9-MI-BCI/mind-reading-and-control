@@ -1,3 +1,4 @@
+import os
 import sys
 
 import mne.decoding
@@ -8,11 +9,14 @@ from classes.Dataset import Dataset
 import time
 import matplotlib.pyplot as plt
 from data_training.measurements import accuracy
-from utility.logger import get_logger
+from definitions import OUTPUT_PATH
+from utility.logger import get_logger, result_logger
 import datetime
 from data_preprocessing.filters import butter_filter
 import matplotlib.patches as patches
 import neurokit2 as nk
+
+from utility.save_figure import save_figure
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -45,6 +49,7 @@ class Simulation:
         self.filter = None
         self.feature_extraction = None
         self.extraction_method = None
+        self.logger_location = None
         self.buffer_size = self.config.window_size * config.buffer_size
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
@@ -77,6 +82,9 @@ class Simulation:
             self.extraction_method = method
         else:
             self.feature_extraction = False
+
+    def set_logger_location(self, path):
+        self.logger_location = path
 
     def simulate(self, real_time: bool, description: bool = True, analyse: bool = True):
         assert bool(self.dataset)
@@ -197,6 +205,14 @@ class Simulation:
                           f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
         get_logger().info(f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.')
 
+        if self.logger_location is not None:
+            result_logger(self.logger_location, f'Dwell Tuning -- ')
+            result_logger(self.logger_location, f'Acceptable level reached of {self.freeze_counter}'
+                                           f' false positive predictions in a '
+                                           f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
+            result_logger(self.logger_location, f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.\n')
+
+
     def reset(self):
         # reset dataset specific things.
         get_logger().info('---------- Resetting Simulation')
@@ -312,8 +328,10 @@ class Simulation:
                 features = self.extraction_method(self.sliding_window)
             return self.model.predict(features)[0]
         else:
-            prediction = self.model.predict(self.sliding_window)[0][0]
+            reshaped = self.sliding_window.reshape(1, self.sliding_window.shape[1], self.sliding_window.shape[0], 1)
+            prediction = self.model.predict(reshaped)[0][0]
             # return closest int
+            print(round(prediction))
             return round(prediction)
 
     def _eval_performance(self):
@@ -344,25 +362,20 @@ class Simulation:
 
         self._plot_predictions()
 
-        get_logger().info(f'Total Predictions made by the model {len(self.predictions)}.')
-        get_logger().info(f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.')
-        get_logger().info(f'Data buffer removed {discard_counter} movement intention windows during building process.')
-        get_logger().info(
-            f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} '
-            f'movement intention windows.')
-        if len(furthest_distance) > 0:
-            get_logger().info(
-                f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)}'
-                f' seconds to the nearest prediction.')
-        else:
-            get_logger().info('All movement intention windows were hit!')
-
-        get_logger().info(
-            f'Prediction lying furthest from intention windows {furthest_prediction} seconds.')
-        get_logger().info(
-            f'Mean time of distances from predictions to intention window: {mean_distance} seconds.')
-        get_logger().info(
-            f'Mean time for missed predictions to nearest window: {mean_missed_distance} seconds.')
+        if self.logger_location is not None:
+            result_logger(self.logger_location, 'Simulation Analysis -- ')
+            result_logger(self.logger_location, f'{self._dict_score_pp()}')
+            result_logger(self.logger_location, f'Total Predictions made by the model {len(self.predictions)}.\n')
+            result_logger(self.logger_location, f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.\n')
+            result_logger(self.logger_location, f'Data buffer removed {discard_counter} movement intention windows during building process.\n')
+            result_logger(self.logger_location, f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} movement intention windows.\n')
+            if len(furthest_distance) > 0:
+                result_logger(self.logger_location, f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)} seconds to the nearest prediction.\n')
+            else:
+                result_logger(self.logger_location, 'All movement intention windows were hit!\n')
+            result_logger(self.logger_location, f'Prediction lying furthest from intention windows {furthest_prediction} seconds.\n')
+            result_logger(self.logger_location, f'Mean time of distances from predictions to intention window: {mean_distance} seconds.\n')
+            result_logger(self.logger_location, f'Mean time for missed predictions to nearest window: {mean_missed_distance} seconds.\n')
 
     def _distance_to_nearest_mrcp(self):
         # note: freq_range[1] refers to the center of the prediction window
@@ -465,7 +478,11 @@ class Simulation:
         plt.xlabel('Time (s)')
         plt.ylabel('mV (Filtered)', labelpad=-2)
         plt.autoscale()
-        plt.show()
+
+        if self.logger_location is not None:
+            save_figure(os.path.join(OUTPUT_PATH, 'results', self.logger_location[:-4]), fig, overwrite=False)
+
+        # plt.show()
 
     def _blink_detection(self):
         eog_cleaned = nk.eog_clean(self.dataset.data[self.config.EOG_CHANNEL], sampling_rate=self.dataset.sample_rate,

@@ -8,7 +8,7 @@ import json
 import numpy as np
 
 from classes.Dict import AttrDict
-from definitions import ROOT_PATH, DATASET_PATH
+from definitions import ROOT_PATH, DATASET_PATH, OUTPUT_PATH
 from utility.file_util import create_dir, file_exist
 from utility.logger import get_logger
 
@@ -34,6 +34,10 @@ def check_data_folders():
         create_dir(os.path.join(DATASET_PATH, f'subject_{subject}', 'training'))
         create_dir(os.path.join(DATASET_PATH, f'subject_{subject}', 'online_test'))
         create_dir(os.path.join(DATASET_PATH, f'subject_{subject}', 'dwell_tuning'))
+
+    create_dir(os.path.join(OUTPUT_PATH, 'results'))
+    create_dir(os.path.join(OUTPUT_PATH, 'data'))
+    create_dir(os.path.join(OUTPUT_PATH, 'features'))
 
 
 # Checks if the online_test data label files specified in the file_management.json config files exist.
