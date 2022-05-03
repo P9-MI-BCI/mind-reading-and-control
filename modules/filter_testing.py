@@ -2,9 +2,10 @@ import copy
 
 import matplotlib.pyplot as plt
 
+from data_preprocessing.data_distribution import data_preparation, normalization
 from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
 from data_preprocessing.filters import multi_dataset_filtering
-from data_preprocessing.emg_processing import onset_detection
+from data_preprocessing.emg_processing import onset_detection, multi_dataset_onset_detection
 
 
 def run(config):
@@ -34,24 +35,27 @@ def run(config):
     multi_dataset_filtering(config.NOTCH, config, baseline_delta_notch, notch=True)
     multi_dataset_filtering(config.DELTA_BAND, config, baseline_delta_notch, notch=False)
 
+    multi_dataset_onset_detection(raw_delta, config)
 
+    X, Y = data_preparation(raw_delta, config)
+    X, scaler = normalization(X)
     # onset_detection(raw_data[2], config)
 
-    visualize_all_channels(raw_data, config)
-    #visualize_signals(baseline, baseline_notch, raw_delta, baseline_delta, baseline_delta_notch, config)
+    visualize_all_channels(raw_data, raw_delta, X, config)
+
+    # visualize_signals(baseline, baseline_notch, raw_delta, baseline_delta, baseline_delta_notch, config)
 
 
-def visualize_all_channels(raw_data, config):
+def visualize_all_channels(raw_data, delta, X, config):
     range = 12000
+
     fig, ax = plt.subplots(9, figsize=(75,5))
     for i, channel in enumerate(config.EEG_CHANNELS):
-        ax[i].plot(raw_data[3].data[channel].iloc[12000:24000], 'k')
+        ax[i].plot(X[i], 'k')
         ax[i].axis('off')
 
     plt.tight_layout()
     plt.show()
-
-
 
 
 def visualize_signals(baseline, baseline_notch, raw_delta, baseline_delta, baseline_delta_notch, config):
