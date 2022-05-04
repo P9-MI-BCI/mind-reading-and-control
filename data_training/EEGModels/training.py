@@ -50,6 +50,10 @@ def stratified_kfold_cv(X, Y, model, logger_location=None):
     if logger_location is not None:
         result_logger(logger_location, f'Training 5 fold cross validation.\n')
         result_logger(logger_location, f'{cv_scores}\n')
+        stringlist = []
+        model.summary(print_fn=lambda x: stringlist.append(x))
+        short_model_summary = "\n".join(stringlist)
+        result_logger(logger_location, short_model_summary)
 
     return model
     # X_reshaped = X.reshape((X.shape[0], X[0].shape[1], X[0].shape[0], kernels))

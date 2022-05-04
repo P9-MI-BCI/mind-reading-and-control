@@ -167,4 +167,8 @@ def transformer(X, Y, logger_location=None):
     if logger_location is not None:
         result_logger(logger_location, 'Training 5 fold cross validation.\n')
         result_logger(logger_location, f'{cv_scores}.\n')
+        stringlist = []
+        model.summary(print_fn=lambda x: stringlist.append(x))
+        short_model_summary = "\n".join(stringlist)
+        result_logger(logger_location, short_model_summary)
     return model

@@ -9,12 +9,12 @@ import time
 from utility.logger import result_logger
 
 
-def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data):
+def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location):
     now = datetime.now()
 
     now = now.strftime("%H:%M:%S")
     xgboost_logger_location = 'xgboost.txt'
-    result_logger(xgboost_logger_location, f'XGBOOST SIMULATION MODULE ----------- {now}\n')
+    result_logger(xgboost_logger_location, f'XGBOOST SIMULATION MODULE: {config.logger_id} ----- {now}\n')
 
     # Simulation
     simulation = Simulation(config)
@@ -36,11 +36,16 @@ def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data):
     simulation.tune_dwell(dwell_data)
 
     # test the first dataset
+    result_logger(xgboost_logger_location, f'-- Simulating Test 1 \n')
     simulation.mount_dataset(online_data[0])
     simulation.simulate(real_time=False)
 
     simulation.reset()
 
     # test the second dataset
+    result_logger(xgboost_logger_location, f'-- Simulating Test 1 \n')
     simulation.mount_dataset(online_data[1])
     simulation.simulate(real_time=False)
+
+    now = datetime.now()
+    result_logger(hypothesis_logger_location, f'XGBoost simulation finished: {now} \n')

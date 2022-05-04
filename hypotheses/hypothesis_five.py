@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from classes.Simulation import Simulation
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
@@ -14,6 +16,7 @@ from simulation_scripts.eegnet_script import eegnet_simulation
 from simulation_scripts.shallowconvnet_script import shallowconvnet_simulation
 from simulation_scripts.transformer_script import transformer_simulation
 from simulation_scripts.xgboost_script import xgboost_simulation
+from utility.logger import result_logger
 
 """
 Hypothesis five aims to test whether deep feature extraction models will perform better than handcrafted ones. It
@@ -29,6 +32,13 @@ def run(config):
     config.transfer_learning = False
     config.rest_classification = True
 
+    now = datetime.now()
+    hypothesis_logger_location = 'hypothesis_five.txt'
+    result_logger(hypothesis_logger_location, f'----- Initializing Hypothesis Five -- start time: {now} \n')
+    result_logger(hypothesis_logger_location, f'Logger ID: {config.logger_id} \n')
+    result_logger(hypothesis_logger_location, f'Subject ID: {subject_id} \n')
+    result_logger(hypothesis_logger_location, f'Transfer learning: {config.transfer_learning} \n')
+    result_logger(hypothesis_logger_location, f'Rest Classification: {config.rest_classification} \n')
     training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
 
     training_data = create_dataset(training_dataset_path, config)
@@ -39,20 +49,22 @@ def run(config):
     multi_dataset_onset_detection(online_data, config)
     dwell_data.clusters = []
 
-    data_preparation_with_filtering(training_data, config, config.EEGNET_BAND)
+    # data_preparation_with_filtering(training_data, config, config.EEGNET_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data)
-    eegnet_simulation(X, Y, scaler, config, online_data, dwell_data)
-    deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)
-    shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data)
+    cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    eegnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
 
     data_preparation_with_filtering(training_data, config, config.DELTA_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
-    xgboost_simulation(X, Y, scaler, config, online_data, dwell_data)
-    transformer_simulation(X, Y, scaler, config, online_data, dwell_data)
+    xgboost_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    transformer_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    now = datetime.now()
+    result_logger(hypothesis_logger_location, f'----- Hypothesis five has been completed: {now} \n')
 

@@ -1,5 +1,6 @@
 import os
 import sys
+import uuid
 
 import mne.decoding
 import numpy as np
@@ -16,7 +17,6 @@ from data_preprocessing.filters import butter_filter
 import matplotlib.patches as patches
 import neurokit2 as nk
 
-from utility.save_figure import save_figure
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
@@ -187,7 +187,7 @@ class Simulation:
         self._time_module(pbar)
 
     def tune_dwell(self, dwell_dataset):
-        get_logger().info('---------- Dwell Tuning')
+        get_logger().info('---------- Dwell Tuning\n')
         # runs the dwell dataset and should trigger the least amount of times.
         # run simulation on the dwell dataset
         self.freeze_counter = 6  # just to start the first iteration
@@ -208,10 +208,10 @@ class Simulation:
         if self.logger_location is not None:
             result_logger(self.logger_location, f'Dwell Tuning -- ')
             result_logger(self.logger_location, f'Acceptable level reached of {self.freeze_counter}'
-                                           f' false positive predictions in a '
-                                           f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
-            result_logger(self.logger_location, f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.\n')
-
+                                                f' false positive predictions in a '
+                                                f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
+            result_logger(self.logger_location,
+                          f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.\n')
 
     def reset(self):
         # reset dataset specific things.
@@ -331,7 +331,6 @@ class Simulation:
             reshaped = self.sliding_window.reshape(1, self.sliding_window.shape[1], self.sliding_window.shape[0], 1)
             prediction = self.model.predict(reshaped)[0][0]
             # return closest int
-            print(round(prediction))
             return round(prediction)
 
     def _eval_performance(self):
@@ -363,19 +362,26 @@ class Simulation:
         self._plot_predictions()
 
         if self.logger_location is not None:
-            result_logger(self.logger_location, 'Simulation Analysis -- ')
-            result_logger(self.logger_location, f'{self._dict_score_pp()}')
+            result_logger(self.logger_location, 'Simulation Analysis -- \n')
+            result_logger(self.logger_location, f'{self._dict_score_pp()} \n')
             result_logger(self.logger_location, f'Total Predictions made by the model {len(self.predictions)}.\n')
-            result_logger(self.logger_location, f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.\n')
-            result_logger(self.logger_location, f'Data buffer removed {discard_counter} movement intention windows during building process.\n')
-            result_logger(self.logger_location, f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} movement intention windows.\n')
+            result_logger(self.logger_location,
+                          f'Total movement intentions found in index for dataset: {len(self.dataset.clusters)}.\n')
+            result_logger(self.logger_location,
+                          f'Data buffer removed {discard_counter} movement intention windows during building process.\n')
+            result_logger(self.logger_location,
+                          f'Correctly predicted {sum(found_mrcp[discard_counter:])}/{len(found_mrcp[discard_counter:])} movement intention windows.\n')
             if len(furthest_distance) > 0:
-                result_logger(self.logger_location, f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)} seconds to the nearest prediction.\n')
+                result_logger(self.logger_location,
+                              f'The most missed intention window had {round(max(furthest_distance) / self.dataset.sample_rate, 2)} seconds to the nearest prediction.\n')
             else:
                 result_logger(self.logger_location, 'All movement intention windows were hit!\n')
-            result_logger(self.logger_location, f'Prediction lying furthest from intention windows {furthest_prediction} seconds.\n')
-            result_logger(self.logger_location, f'Mean time of distances from predictions to intention window: {mean_distance} seconds.\n')
-            result_logger(self.logger_location, f'Mean time for missed predictions to nearest window: {mean_missed_distance} seconds.\n')
+            result_logger(self.logger_location,
+                          f'Prediction lying furthest from intention windows {furthest_prediction} seconds.\n')
+            result_logger(self.logger_location,
+                          f'Mean time of distances from predictions to intention window: {mean_distance} seconds.\n')
+            result_logger(self.logger_location,
+                          f'Mean time for missed predictions to nearest window: {mean_missed_distance} seconds.\n')
 
     def _distance_to_nearest_mrcp(self):
         # note: freq_range[1] refers to the center of the prediction window
@@ -480,7 +486,8 @@ class Simulation:
         plt.autoscale()
 
         if self.logger_location is not None:
-            save_figure(os.path.join(OUTPUT_PATH, 'results', self.logger_location[:-4]), fig, overwrite=False)
+            # save_figure(os.path.join(OUTPUT_PATH, 'results', self.logger_location[:-4]), fig)
+            fig.savefig(os.path.join(OUTPUT_PATH, 'results', self.logger_location[:-4] + str(uuid.uuid4())))
 
         # plt.show()
 

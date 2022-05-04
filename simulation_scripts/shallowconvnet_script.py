@@ -7,12 +7,12 @@ import time
 from utility.logger import result_logger
 
 
-def shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data):
+def shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location):
     now = datetime.now()
 
     now = now.strftime("%H:%M:%S")
     shallow_logger_location = 'shallowconvnet.txt'
-    result_logger(shallow_logger_location, f'SHALLOW CONV NET SIMULATION MODULE ----------- {now}\n')
+    result_logger(shallow_logger_location, f'SHALLOW CONV NET SIMULATION MODULE: {config.logger_id} ----- {now}\n')
     shallow_deep_net = get_ShallowConvNet(X)
 
     model = stratified_kfold_cv(X, Y, shallow_deep_net, logger_location=shallow_logger_location)
@@ -30,11 +30,15 @@ def shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data):
     simulation.tune_dwell(dwell_data)
 
     # test the first dataset
+    result_logger(shallow_logger_location, f'-- Simulating Test 1 \n')
     simulation.mount_dataset(online_data[0])
     simulation.simulate(real_time=False)
 
     simulation.reset()
 
     # test the second dataset
+    result_logger(shallow_logger_location, f'-- Simulating Test 2 \n')
     simulation.mount_dataset(online_data[1])
     simulation.simulate(real_time=False)
+    now = datetime.now()
+    result_logger(hypothesis_logger_location, f'SHALLOWCONVNET simulation finished: {now} \n')

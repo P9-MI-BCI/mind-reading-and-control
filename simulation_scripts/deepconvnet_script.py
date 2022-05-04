@@ -6,12 +6,12 @@ from utility.logger import result_logger
 import time
 
 
-def deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data):
+def deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location):
     now = datetime.now()
 
     now = now.strftime("%H:%M:%S")
     deepconvnet_logger_location = 'deepconvnet.txt'
-    result_logger(deepconvnet_logger_location, f'DEEP CONV NET SIMULATION MODULE ----------- {now}\n')
+    result_logger(deepconvnet_logger_location, f'DEEP CONV NET SIMULATION MODULE: {config.logger_id} ----------- {now}\n')
     shallow_deep_net = get_DeepConvNet(X)
 
     model = stratified_kfold_cv(X, Y, shallow_deep_net, logger_location=deepconvnet_logger_location)
@@ -29,11 +29,16 @@ def deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data):
     simulation.tune_dwell(dwell_data)
 
     # test the first dataset
+    result_logger(deepconvnet_logger_location, f'-- Simulating Test 1 \n')
     simulation.mount_dataset(online_data[0])
     simulation.simulate(real_time=False)
 
     simulation.reset()
 
     # test the second dataset
+    result_logger(deepconvnet_logger_location, f'-- Simulating Test 2 \n')
     simulation.mount_dataset(online_data[1])
     simulation.simulate(real_time=False)
+
+    now = datetime.now()
+    result_logger(hypothesis_logger_location, f'DEEPCONVNET simulation finished: {now} \n')
