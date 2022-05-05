@@ -150,7 +150,7 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
 
 def transformer(X, Y, logger_location=None):
     Y = np.array(Y)
-    input_shape = (9, 2400, 1)
+    input_shape = (X.shape[2], X.shape[1], 1)
     skf = StratifiedKFold(n_splits=5, shuffle=True)
     cv_scores = {}
     split = 0

@@ -325,7 +325,7 @@ class Simulation:
                 reshaped = self.sliding_window.reshape(1, self.sliding_window.shape[1], self.sliding_window.shape[0])
                 features = self.extraction_method.transform(reshaped)
             else:
-                features = self.extraction_method(self.sliding_window)
+                features = self.extraction_method([self.sliding_window])
             return self.model.predict(features)[0]
         else:
             reshaped = self.sliding_window.reshape(1, self.sliding_window.shape[1], self.sliding_window.shape[0], 1)

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from classes.Simulation import Simulation
+from data_preprocessing.downsampling import downsample
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.handcrafted_feature_extraction import extract_features
@@ -49,15 +50,19 @@ def run(config):
     multi_dataset_onset_detection(online_data, config)
     dwell_data.clusters = []
 
-    # data_preparation_with_filtering(training_data, config, config.EEGNET_BAND)
+    training_down_sampled = downsample(training_data, config)
+    online_down_sampled = downsample(online_data, config)
+    dwell_down_sampled = downsample([dwell_data], config)[0]
+
+    data_preparation_with_filtering(training_down_sampled, config, config.EEGNET_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
-    eegnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
-    deepconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
-    shallowconvnet_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    cspsvm_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    eegnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    deepconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    shallowconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
 
     data_preparation_with_filtering(training_data, config, config.DELTA_BAND)
     X, Y = load_data_from_temp()

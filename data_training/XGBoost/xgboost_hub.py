@@ -47,10 +47,11 @@ def xgboost_training(X, Y, logger_location=None):
         validation_prediction = model.predict(X[val_index])
         results = model.evals_result()
         epochs = len(results['validation_0']['error'])
-         
+
+        epochs_avg.append(epochs)
+
         if logger.get_logger().level == 10:
             x_axis = range(0, epochs)
-            epochs_avg.append(epochs)
             fig, ax = pyplot.subplots(figsize=(12, 12))
             ax.plot(x_axis, results['validation_0']['auc'], label='Train')
             ax.plot(x_axis, results['validation_1']['auc'], label='Test')

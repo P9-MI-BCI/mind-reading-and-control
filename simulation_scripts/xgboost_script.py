@@ -22,7 +22,7 @@ def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis
     simulation.set_normalizer(scaler)
     simulation.set_filter(config.DELTA_BAND)
     simulation.set_evaluation_metrics()
-    simulation.feature_extraction(True, extract_features)
+    simulation.set_feature_extraction(True, extract_features)
     simulation.set_logger_location(xgboost_logger_location)
 
     # simulate for xgboost
