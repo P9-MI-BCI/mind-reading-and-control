@@ -4,11 +4,25 @@ import matplotlib.pyplot as plt
 import os
 import csv
 
+from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
+from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from collections import OrderedDict
 from classes import Dataset
 from definitions import OUTPUT_PATH
 from utility.save_figure import save_figure
 from utility.logger import get_logger
+
+
+def run(config):
+    subject_id = int(input("Choose subject to predict on 0-9\n"))
+
+    training_dataset_path, online_dataset_path, dwell_dataset_path = get_dataset_paths(subject_id, config)
+
+    training_data = create_dataset(training_dataset_path, config)
+    online_data = create_dataset(online_dataset_path, config)
+    dwell_data = create_dataset(dwell_dataset_path, config)
+
+    session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data=True, save_res=False)
 
 
 def session_analysis_hub(training_data, online_data, dwell_data, config, subject_id, extend_data: bool = True,
@@ -23,14 +37,13 @@ def session_analysis_hub(training_data, online_data, dwell_data, config, subject
     std_var, rsd_var, median_var = calc_std_rsd_median(var)
 
     # Plotting and saving results
+    boxplot(rsd, config, subject_id, 'rsd', show_points=True, extend_data=extend_data, save_fig=save_res)
+    barchart(rsd, config, subject_id, 'rsd', save_fig=save_res)
     if save_res:
-        boxplot(rsd, config, subject_id, 'rsd', show_points=True, extend_data=extend_data, save_fig=save_res)
-        barchart(rsd, config, subject_id, 'rsd', save_fig=save_res)
         write_results_to_csv(rsd_mean, subject_id, config)
 
 
-def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_data: Dataset,
-                     extend_data: bool = False):
+def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_data: Dataset, extend_data: bool = False):
     """
     Calc the mean, var, and RSD values for each channel in each session.
         session_mean = [mean_ch0, mean_ch1, ..., mean_ch8]
@@ -52,7 +65,7 @@ def session_analysis(training_data: [Dataset], online_data: [Dataset], dwell_dat
     subject_rsd = []
     # Goes through the sessions of current subject (if extend_data = True online and dwell sessions are included)
     for session_data in training_data:
-        session_data.data.drop(columns=['EMG'], inplace=True)  # Removes EMG channel
+        session_data.data.drop(columns=['EMG'], inplace=True)
         session_mean = []
         session_var = []
         session_rsd = []
@@ -106,8 +119,7 @@ def boxplot(session_results, config, subject_id: int, measure: str, show_points:
     fig, ax = plt.subplots()
 
     # Boxplot
-
-    for i in range(len(config.EEG_CHANNELS)):
+    for i in range(len(session_results[0])):
         channel_i = [channel_res[i] for channel_res in session_results]
         ax.boxplot(channel_i, positions=[i], showfliers=False)
         # Data points plot
@@ -128,7 +140,9 @@ def boxplot(session_results, config, subject_id: int, measure: str, show_points:
     by_label = OrderedDict(zip(labels, handles))
     plt.legend(by_label.values(), by_label.keys(), prop={'size': 8})
 
-    plt.xticks(range(len(config.EEG_CHANNELS)), config.EEG_CHANNELS)
+    channels = config.EEG_CHANNELS.copy()
+    channels.append('EOG')
+    plt.xticks(range(len(channels)), channels)
     plt.xlabel('Channels')
     plt.ylabel(measure)
     plt.title(f'Subject {subject_id}')
@@ -148,15 +162,16 @@ def boxplot(session_results, config, subject_id: int, measure: str, show_points:
 
 
 def barchart(session_results, config, subject_id: int, measure: str, save_fig: bool = False):
-    df = pd.DataFrame(session_results, columns=config.EEG_CHANNELS)
-    barchart = df.plot(y=config.EEG_CHANNELS, kind="bar", rot=0)
+    channels = config.EEG_CHANNELS.copy()
+    channels.append('EOG')
+    df = pd.DataFrame(session_results, columns=channels)
+    barchart = df.plot(y=channels, kind="bar", rot=0)
 
     labels = [item.get_text() for item in barchart.get_xticklabels()]
     labels[-3:] = ['Test 1', 'Test 2', 'Dwell']  # changes the labels of the last three xticks
     barchart.set_xticklabels(labels)
     for label in barchart.get_xticklabels()[-3:]:
         label.set_rotation(30)
-
     plt.xlabel('Session', labelpad=-10)
     plt.ylabel('RSD')
     plt.title(f'Subject {subject_id}')

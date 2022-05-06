@@ -1,5 +1,5 @@
 import logging
-from data_preprocessing.init_dataset import print_hypothesis_options
+from data_preprocessing.init_dataset import format_input, print_module_options
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
 from dispatch import preliminary
@@ -15,9 +15,9 @@ def main():
     preliminary.check_data_folders()
     preliminary.check_for_label_files(label_config)
 
-    print_hypothesis_options()
-    hypothesis_choice = int(input('Choose Hypothesis 1-6\n'))
-    config.hypothesis_choice = hypothesis_choice
+    print_module_options()
+    module_choice = int(input('Choose Module 1-7:\n'))
+    config.module_choice = module_choice
     config.logger_id = uuid.uuid4()
 
     dispatch(config)

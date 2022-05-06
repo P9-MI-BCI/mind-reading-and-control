@@ -43,50 +43,52 @@ def outlier_test(config, label_config, gridsearch=False):
     if (gridsearch):
         for static_clusters in (True, False):
             for proximity_outliers in (True, False):
-                for iter_threshold in (True, False):
                     for normalization in (True, False):
                         print(f'Trying Static clustering: {static_clusters} '
                               f'Proximity outlier removal: {proximity_outliers} '
-                              f'Iterative threshold: {iter_threshold}'
                               f'Normalization: {normalization}')
                         for dataset in data:
                             try:
                                 onset_detection(dataset, config, static_clusters=static_clusters,
-                                                proximity_outliers=proximity_outliers,
-                                                iter_threshold=iter_threshold, normalization=normalization)
+                                                proximity_outliers=proximity_outliers, normalization=normalization)
                                 assert len(dataset.clusters) == 20
                             except AssertionError:
                                 get_logger().warning(
                                     f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
                                     f"with current outlier parameters")
-                                get_logger().debug([f'Static clustering: {static_clusters}',
-                                                    f'Proximity outlier removal: {proximity_outliers}',
-                                                    f'Iterative threshold: {iter_threshold}',
-                                                    f'Normalization: {normalization}',
-                                                    f'Filename: {dataset.filename}'])
-                                if ((static_clusters, proximity_outliers, iter_threshold) in grid_results):
-                                    grid_results[(static_clusters, proximity_outliers, iter_threshold)] += 1
+                                # get_logger().debug([f'Static clustering: {static_clusters}',
+                                #                     f'Proximity outlier removal: {proximity_outliers}',
+                                #                     f'Normalization: {normalization}',
+                                #                     f'Filename: {dataset.filename}'])
+                                if ((static_clusters, proximity_outliers, normalization) in grid_results):
+                                    grid_results[(static_clusters, proximity_outliers, normalization)] += 1
                                 else:
-                                    grid_results[(static_clusters, proximity_outliers, iter_threshold)] = 1
+                                    grid_results[(static_clusters, proximity_outliers, normalization)] = 1
         print('Results of outlier gridsearch:\n')
         for k, v in grid_results.items():
-            print(f'Static clustering: {k[0]}, Proximity outlier merging: {k[1]}, '
-                  f'Adaptive threshold: {k[2]}, Normalization: {k[3]}, Datasets where clusters != 20: {v}\n')
+            print(f'Static clustering: {k[0]}, Proximity outlier merging: {k[1]}, Normalization: {k[2]}, '
+                  f'Datasets where clusters != 20: {v}')
 
     # try:
     else:
+        bad_datasets = []
+        missed_clusters = 0
         for dataset in data:
             try:
                 onset_detection(dataset, config,
                                 static_clusters=True,
                                 proximity_outliers=True,
-                                iter_threshold=False,
                                 normalization=True)
                 assert len(dataset.clusters) == 20
             except AssertionError:
-                get_logger().warning(f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
-                                     f"with current outlier parameters")
-                get_logger().debug(dataset.filename)
-
+                get_logger().debug(f"{dataset.filename} contains {len(dataset.clusters)} clusters (not 20) "
+                                   f"with current outlier parameters")
+                bad_datasets.append(dataset)
+        get_logger().debug('-' * 65)
+        get_logger().debug(f'Outier testing completed. Total bad datasets: {len(bad_datasets)}. Bad datasets were:')
+        for dataset in bad_datasets:
+            missed_clusters += 20 - len(dataset.clusters)
+            get_logger().debug(f'{dataset.filename} with {len(dataset.clusters)} clusters')
+        get_logger().debug(f'Total amount of potentially missed clusters: {missed_clusters}')
     # except TypeError:
     #    get_logger().error("Dataset for EMG outlier detection is probably Nonetype, fix path/config file")

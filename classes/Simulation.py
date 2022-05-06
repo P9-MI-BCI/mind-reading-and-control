@@ -1,21 +1,24 @@
 import os
 import sys
 import uuid
-
 import mne.decoding
+import datetime
+import time
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from classes.Dataset import Dataset
-import time
+import matplotlib.patches as patches
+import neurokit2 as nk
 import matplotlib.pyplot as plt
 from data_training.measurements import accuracy
 from definitions import OUTPUT_PATH
 from utility.logger import get_logger, result_logger
-import datetime
+from data_preprocessing.handcrafted_feature_extraction import extract_features
+from data_training.measurements import accuracy
+from utility.logger import get_logger
+from tqdm import tqdm
+from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
-import matplotlib.patches as patches
-import neurokit2 as nk
+
 
 
 TIME_PENALTY = 60  # 50 ms
@@ -449,6 +452,9 @@ class Simulation:
 
         for cluster in self.dataset.clusters:
             # dashed lines 2 seconds before onset and 1 second after
+
+
+            # plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
             plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
             plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
                         cluster.start + self.dataset.sample_rate,
