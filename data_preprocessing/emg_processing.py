@@ -118,11 +118,11 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
         # Check if no changes in previous iteration and break, else increase distance
         # small_clusters = []
         if static_clusters:
-            foo = []
+            cluster_lengths = []
             if len(cluster_list) == 21:
                 for cluster in cluster_list:
-                    foo.append(len(cluster.data))
-                median = np.median(foo)
+                    cluster_lengths.append(len(cluster.data))
+                median = np.median(cluster_lengths)
                 # TODO: Try this some more:
                 # small_clusters = [1 for size in foo if size < median*0.5]
                 for cluster in cluster_list:
