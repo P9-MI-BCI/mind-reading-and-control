@@ -10,11 +10,11 @@ from utility.logger import result_logger
 
 learning_rate = 0.001
 weight_decay = 0.0001
-batch_size = 256
-num_epochs = 1
+batch_size = 128
+num_epochs = 100
 image_length = 100
 image_height = 3
-num_patches = 168
+num_patches = 72
 projection_dim = 64
 num_heads = 4
 transformer_units = [
@@ -50,7 +50,7 @@ class Patches(layers.Layer):
         patches = tf.image.extract_patches(
             images=images,
             sizes=[1, self.height, self.length, 1],
-            strides=[1, 1, self.length, 1],
+            strides=[1, self.height, self.length, 1],
             rates=[1, 1, 1, 1],
             padding="VALID",
         )
