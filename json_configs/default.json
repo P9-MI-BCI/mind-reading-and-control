@@ -46,6 +46,6 @@
   "downsample_rate": 5,
   "transfer_learning": false,
   "rest_classification": false,
-  "logger_id": null
+  "logger_id": null,
   "module_choice": null
 }

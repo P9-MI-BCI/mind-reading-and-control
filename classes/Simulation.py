@@ -9,6 +9,8 @@ import pandas as pd
 import matplotlib.patches as patches
 import neurokit2 as nk
 import matplotlib.pyplot as plt
+
+from data_training.XGBoost.xgboost_hub import xgboost_training
 from data_training.measurements import accuracy
 from definitions import OUTPUT_PATH
 from utility.logger import get_logger, result_logger
@@ -33,7 +35,7 @@ class Simulation:
         self.real_time = real_time
         self.sliding_window = None
         self.model = None
-        self.PREV_PRED_SIZE = 1
+        self.PREV_PRED_SIZE = 0
         self.metrics = None  # maybe implement metrics class
         self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
         self.freeze_flag = False
@@ -53,6 +55,10 @@ class Simulation:
         self.feature_extraction = None
         self.extraction_method = None
         self.logger_location = None
+        self.dwell_snapshots = []
+        self.dwell_snapshots_labels = []
+        self.dwell_model = None
+        self.INTERNAL_DWELL_FLAG = False
         self.buffer_size = self.config.window_size * config.buffer_size
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
@@ -62,6 +68,7 @@ class Simulation:
         self.window_size = int(self.config.window_size * dataset.sample_rate)
         self.step_size = int(self.config.step_size * dataset.sample_rate)
         self.buffer_size = int(self.config.buffer_size * dataset.sample_rate)
+        self.PREV_PRED_SIZE = int((self.window_size / self.step_size) / 2) # half the window size
         self.dataset = dataset
 
     def load_models(self, models):
@@ -107,7 +114,8 @@ class Simulation:
         with tqdm(total=len(self.dataset.data), file=sys.stdout) as pbar:
             while self.iteration < simulation_duration:
                 # start, middle, end
-                self.frequency_range = [self.iteration, self.iteration + self.window_size / 2,
+                self.frequency_range = [self.iteration,
+                                        self.iteration + self.window_size / 2,
                                         self.iteration + self.window_size]
                 if self.freeze_flag:
                     self._freeze_module(pbar)
@@ -122,7 +130,8 @@ class Simulation:
                     self._initiate_simulation(pbar)
                 else:
                     self.data_buffer = pd.concat([self.data_buffer.iloc[
-                                                  self.step_size:],
+                                                  self.step_size:
+                                                  ],
                                                   self.dataset.data.iloc[
                                                   self.iteration:
                                                   self.iteration + self.step_size]
@@ -137,9 +146,10 @@ class Simulation:
                         self._filter_module(self.filter)
 
                     # Remove the oldest prediction before making new prediction
-                    if len(self.prev_pred_buffer) > self.PREV_PRED_SIZE:
+                    if len(self.prev_pred_buffer) >= self.PREV_PRED_SIZE:
                         self.prev_pred_buffer.pop(0)
 
+                    # Check if a blink is in the moving window
                     skip_prediction = False
                     for b in blinks:
                         if self.frequency_range[0] < b < self.frequency_range[-1]:
@@ -148,7 +158,19 @@ class Simulation:
                     if not skip_prediction:
                         self.prev_pred_buffer.append(self._prediction_module())
 
-                    self._check_heuristic()
+                        if self.INTERNAL_DWELL_FLAG:
+                            self.dwell_snapshots.append(self.prev_pred_buffer)
+                            t = False
+                            for cluster in self.dataset.clusters:
+                                if self.frequency_range[0] < cluster.start < self.frequency_range[2]:
+                                    t = True
+                                    self.dwell_snapshots_labels.append(1)
+                            if not t:
+                                self.dwell_snapshots_labels.append(0)
+
+                        if not self.INTERNAL_DWELL_FLAG:
+                            # if running dwell we don't want to freeze the system
+                            self._check_heuristic()
 
                     # update time
                     self._time_module(pbar)
@@ -193,16 +215,19 @@ class Simulation:
         get_logger().info('---------- Dwell Tuning\n')
         # runs the dwell dataset and should trigger the least amount of times.
         # run simulation on the dwell dataset
-        self.freeze_counter = 6  # just to start the first iteration
+        # self.freeze_counter = 4  # just to start the first iteration
+        self.INTERNAL_DWELL_FLAG = True
+        # while self.freeze_counter > 3:
+        self.reset()
+        self.mount_dataset(dwell_dataset)
+        self.simulate(real_time=False, description=False, analyse=False)
 
-        while self.freeze_counter > 3:
-            self.PREV_PRED_SIZE += 1
-            self.reset()
-            self.mount_dataset(dwell_dataset)
-            self.simulate(real_time=False, description=False, analyse=False)
-            get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
+        self.dwell_model = xgboost_training(np.array(self.dwell_snapshots), np.array(self.dwell_snapshots_labels))
+        get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
 
         self.reset()
+        self.INTERNAL_DWELL_FLAG = False
+
         get_logger().info(f'Acceptable level reached of {self.freeze_counter}'
                           f' false positive predictions in a '
                           f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
@@ -313,8 +338,11 @@ class Simulation:
         get_logger().info('Building Data Buffer.')
 
     def _check_heuristic(self):
-        if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
+        tset = self.dwell_model.predict(np.array([self.prev_pred_buffer]))[0]
+        if tset:
             self.freeze_flag = True
+        # if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
+        #     self.freeze_flag = True
 
     def _metric_information(self):
         if self.metrics is not None:

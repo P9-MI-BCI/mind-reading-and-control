@@ -83,7 +83,7 @@ def create_vit_classifier(input_shape):
     # Encode patches.
     encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
 
-    # Create multiple layers of the Transformer block.
+    # Create multiple layers of the transformer block.
     for _ in range(transformer_layers):
         # Layer normalization 1.
         x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)

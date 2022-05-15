@@ -26,14 +26,14 @@ def xgboost_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis
     simulation.set_logger_location(xgboost_logger_location)
 
     # simulate for xgboost
-    X = extract_features(X)
-    features_to_file(X, Y, scaler)
+    # X = extract_features(X)
+    # features_to_file(X, Y, scaler)
     X, Y = load_features_from_file()
     model = xgboost_training(X, Y, logger_location=xgboost_logger_location)
     # optimized_xgboost(X, Y)
 
     simulation.load_models(model)
-    simulation.tune_dwell(dwell_data)
+    simulation.tune_dwell(online_data[0])
 
     # test the first dataset
     result_logger(xgboost_logger_location, f'-- Simulating Test 1 \n')
