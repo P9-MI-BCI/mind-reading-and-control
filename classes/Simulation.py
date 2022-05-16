@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import uuid
@@ -25,6 +26,7 @@ from data_preprocessing.filters import butter_filter
 
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
+BLINK = 999
 
 
 class Simulation:
@@ -37,7 +39,7 @@ class Simulation:
         self.model = None
         self.PREV_PRED_SIZE = 0
         self.metrics = None  # maybe implement metrics class
-        self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
+        self.prev_pred_buffer = 0
         self.freeze_flag = False
         self.freeze_counter = 0
         self.data_buffer_flag = True
@@ -56,10 +58,10 @@ class Simulation:
         self.extraction_method = None
         self.logger_location = None
         self.dwell_snapshots = []
-        self.dwell_snapshots_labels = []
-        self.dwell_model = None
+        self.dwell_true_snapshots = []
+        self.dwell_true_buffer = 0
         self.INTERNAL_DWELL_FLAG = False
-        self.buffer_size = self.config.window_size * config.buffer_size
+        self.buffer_size = None
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
     def mount_dataset(self, dataset: Dataset):
@@ -68,7 +70,9 @@ class Simulation:
         self.window_size = int(self.config.window_size * dataset.sample_rate)
         self.step_size = int(self.config.step_size * dataset.sample_rate)
         self.buffer_size = int(self.config.buffer_size * dataset.sample_rate)
-        self.PREV_PRED_SIZE = int((self.window_size / self.step_size) / 2) # half the window size
+        self.PREV_PRED_SIZE = int((self.window_size / self.step_size) / 2)  # half the window size
+        self.prev_pred_buffer = [0] * self.PREV_PRED_SIZE
+        self.dwell_true_buffer = [0] * self.PREV_PRED_SIZE
         self.dataset = dataset
 
     def load_models(self, models):
@@ -149,24 +153,42 @@ class Simulation:
                     if len(self.prev_pred_buffer) >= self.PREV_PRED_SIZE:
                         self.prev_pred_buffer.pop(0)
 
+                        if self.INTERNAL_DWELL_FLAG:
+                            self.dwell_true_buffer.pop(0)
+
                     # Check if a blink is in the moving window
                     skip_prediction = False
                     for b in blinks:
-                        if self.frequency_range[0] < b < self.frequency_range[-1]:
-                            skip_prediction = True
+                         if self.frequency_range[0] < b < self.frequency_range[-1]:
+                             skip_prediction = True
+                             self.prev_pred_buffer.append(BLINK)
+
+                             if self.INTERNAL_DWELL_FLAG:
+                                self.dwell_snapshots.append(copy.deepcopy(self.prev_pred_buffer))
+                                self.dwell_true_buffer.append(BLINK)
+                                self.dwell_true_snapshots.append(copy.deepcopy(self.dwell_true_buffer))
+
+                         break
 
                     if not skip_prediction:
+                        if BLINK in self.prev_pred_buffer:
+                            self.prev_pred_buffer = [0] * (self.PREV_PRED_SIZE-1)
+                            if self.INTERNAL_DWELL_FLAG:
+                                self.dwell_true_buffer = [0] * (self.PREV_PRED_SIZE-1)
+
                         self.prev_pred_buffer.append(self._prediction_module())
 
                         if self.INTERNAL_DWELL_FLAG:
-                            self.dwell_snapshots.append(self.prev_pred_buffer)
+                            self.dwell_snapshots.append(copy.deepcopy(self.prev_pred_buffer))
                             t = False
                             for cluster in self.dataset.clusters:
                                 if self.frequency_range[0] < cluster.start < self.frequency_range[2]:
                                     t = True
-                                    self.dwell_snapshots_labels.append(1)
+                                    self.dwell_true_buffer.append(1)
+                                    break
                             if not t:
-                                self.dwell_snapshots_labels.append(0)
+                                self.dwell_true_buffer.append(0)
+                            self.dwell_true_snapshots.append(copy.deepcopy(self.dwell_true_buffer))
 
                         if not self.INTERNAL_DWELL_FLAG:
                             # if running dwell we don't want to freeze the system
@@ -222,7 +244,9 @@ class Simulation:
         self.mount_dataset(dwell_dataset)
         self.simulate(real_time=False, description=False, analyse=False)
 
-        self.dwell_model = xgboost_training(np.array(self.dwell_snapshots), np.array(self.dwell_snapshots_labels))
+        print([sum(y) for y in self.dwell_true_snapshots])
+        print([sum(x) for x in self.dwell_snapshots])
+
         get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
 
         self.reset()
@@ -234,7 +258,7 @@ class Simulation:
         get_logger().info(f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.')
 
         if self.logger_location is not None:
-            result_logger(self.logger_location, f'Dwell Tuning -- ')
+            result_logger(self.logger_location, f'Dwell Tuning -- \n')
             result_logger(self.logger_location, f'Acceptable level reached of {self.freeze_counter}'
                                                 f' false positive predictions in a '
                                                 f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
@@ -338,11 +362,8 @@ class Simulation:
         get_logger().info('Building Data Buffer.')
 
     def _check_heuristic(self):
-        tset = self.dwell_model.predict(np.array([self.prev_pred_buffer]))[0]
-        if tset:
+        if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
             self.freeze_flag = True
-        # if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
-        #     self.freeze_flag = True
 
     def _metric_information(self):
         if self.metrics is not None:
@@ -531,7 +552,3 @@ class Simulation:
         blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='mne')
 
         return blinks
-
-    def log_results(self, filepath):
-
-        pass
