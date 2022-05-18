@@ -22,8 +22,6 @@ from tqdm import tqdm
 from classes.Dataset import Dataset
 from data_preprocessing.filters import butter_filter
 
-
-
 TIME_PENALTY = 60  # 50 ms
 TIME_TUNER = 1  # 0.90  # has to be adjusted to emulate real time properly.
 BLINK = 999
@@ -39,7 +37,7 @@ class Simulation:
         self.model = None
         self.PREV_PRED_SIZE = 0
         self.metrics = None  # maybe implement metrics class
-        self.prev_pred_buffer = 0
+        self.prev_pred_buffer = []
         self.freeze_flag = False
         self.freeze_counter = 0
         self.data_buffer_flag = True
@@ -59,9 +57,10 @@ class Simulation:
         self.logger_location = None
         self.dwell_snapshots = []
         self.dwell_true_snapshots = []
-        self.dwell_true_buffer = 0
+        self.dwell_true_buffer = []
         self.INTERNAL_DWELL_FLAG = False
         self.buffer_size = None
+        self.dwell = 0
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
     def mount_dataset(self, dataset: Dataset):
@@ -159,22 +158,21 @@ class Simulation:
                     # Check if a blink is in the moving window
                     skip_prediction = False
                     for b in blinks:
-                         if self.frequency_range[0] < b < self.frequency_range[-1]:
-                             skip_prediction = True
-                             self.prev_pred_buffer.append(BLINK)
+                        if self.frequency_range[0] < b < self.frequency_range[-1]:
+                            skip_prediction = True
+                            self.prev_pred_buffer.append(BLINK)
 
-                             if self.INTERNAL_DWELL_FLAG:
-                                self.dwell_snapshots.append(copy.deepcopy(self.prev_pred_buffer))
+                            if self.INTERNAL_DWELL_FLAG:
+                                # //self.dwell_snapshots.append(copy.deepcopy(self.prev_pred_buffer))
                                 self.dwell_true_buffer.append(BLINK)
-                                self.dwell_true_snapshots.append(copy.deepcopy(self.dwell_true_buffer))
-
-                         break
+                                # self.dwell_true_snapshots.append(copy.deepcopy(self.dwell_true_buffer))
+                            break
 
                     if not skip_prediction:
                         if BLINK in self.prev_pred_buffer:
-                            self.prev_pred_buffer = [0] * (self.PREV_PRED_SIZE-1)
+                            self.prev_pred_buffer = [0] * (self.PREV_PRED_SIZE - 1)
                             if self.INTERNAL_DWELL_FLAG:
-                                self.dwell_true_buffer = [0] * (self.PREV_PRED_SIZE-1)
+                                self.dwell_true_buffer = [0] * (self.PREV_PRED_SIZE - 1)
 
                         self.prev_pred_buffer.append(self._prediction_module())
 
@@ -237,17 +235,31 @@ class Simulation:
         get_logger().info('---------- Dwell Tuning\n')
         # runs the dwell dataset and should trigger the least amount of times.
         # run simulation on the dwell dataset
-        # self.freeze_counter = 4  # just to start the first iteration
         self.INTERNAL_DWELL_FLAG = True
-        # while self.freeze_counter > 3:
         self.reset()
         self.mount_dataset(dwell_dataset)
         self.simulate(real_time=False, description=False, analyse=False)
 
-        print([sum(y) for y in self.dwell_true_snapshots])
-        print([sum(x) for x in self.dwell_snapshots])
+        v0 = [sum(y) for y in self.dwell_true_snapshots]
+        v1 = [sum(x) for x in self.dwell_snapshots]
 
-        get_logger().info(f'Dwell = {self.PREV_PRED_SIZE}, FP = {self.freeze_counter}')
+        indexes = [i for i, v in enumerate(v0) if v == 10]
+
+        comp0 = []
+        comp1 = []
+        for ix in indexes:
+            comp0.append(v0[ix])
+            comp1.append(v1[ix])
+
+        comp1.sort()
+        self.dwell = comp1[int(len(comp1)/2)]
+
+        indexes_where_dwell_triggers = [i for i, v in enumerate(v1) if v >= self.dwell]
+        res = [1 if v0[x] > 0 else 0 for x in indexes_where_dwell_triggers]
+
+        tp = sum(res) / len(res)
+        print(tp)
+        get_logger().info(f'Dwell = {self.dwell}, FP = {self.freeze_counter}')
 
         self.reset()
         self.INTERNAL_DWELL_FLAG = False
@@ -362,7 +374,7 @@ class Simulation:
         get_logger().info('Building Data Buffer.')
 
     def _check_heuristic(self):
-        if sum(self.prev_pred_buffer) == self.PREV_PRED_SIZE:
+        if sum(self.prev_pred_buffer) == self.dwell:
             self.freeze_flag = True
 
     def _metric_information(self):
@@ -496,12 +508,11 @@ class Simulation:
         plt.clf()
         fig = plt.figure(figsize=(40, 8))
         plot_arr = []
-        max_height = self.dataset.filtered_data[self.config.EMG_CHANNEL].max()
+        max_height = self.dataset.filtered_data.max()
         blinks = self._blink_detection()
 
         for cluster in self.dataset.clusters:
             # dashed lines 2 seconds before onset and 1 second after
-
 
             # plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
             plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
