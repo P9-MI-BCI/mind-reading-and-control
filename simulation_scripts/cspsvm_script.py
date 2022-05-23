@@ -28,7 +28,8 @@ def cspsvm_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_
     simulation.set_logger_location(csp_logger_location)
 
     simulation.load_models(model)
-    simulation.tune_dwell(dwell_data)
+    simulation.tune_dwell(dwell_data[0])
+    simulation.tune_dwell(dwell_data[1])
 
     # test the first dataset
     result_logger(csp_logger_location, f'-- Simulating Test 1 \n')

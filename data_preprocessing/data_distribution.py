@@ -91,7 +91,7 @@ def data_preparation(datasets, config):
 def normalization(X):
     scaler = StandardScaler()
 
-    flat_x = np.concatenate((X), axis=0)
+    flat_x = np.concatenate(X, axis=0)
     scaler.fit(flat_x)
     transformed_x = []
     for x in X:
@@ -238,10 +238,10 @@ def data_preparation_with_filtering(datasets, config, filter_band_range):
                 step_i += int(config.step_size * dataset.sample_rate)
 
             with open(os.path.join(OUTPUT_PATH, 'data', f'{temp_file_name}{dataset_num}'), 'wb') as f:
-                 pickle.dump(X, f)
-          
-            with open(os.path.join(OUTPUT_PATH, 'data',f'{temp_label_name}{dataset_num}'), 'wb') as f:
-                 pickle.dump(Y, f)
+                pickle.dump(X, f)
+
+            with open(os.path.join(OUTPUT_PATH, 'data', f'{temp_label_name}{dataset_num}'), 'wb') as f:
+                pickle.dump(Y, f)
 
             dataset_num += 1
 
@@ -256,7 +256,7 @@ def filter_module(config, filter_range, data_buffer, sample_rate):
                                                btype=config.EEG_BTYPE
                                                )
 
-    sliding_window = np.array(filtered_data.iloc[-int(config.window_size*sample_rate):].reset_index(drop=True))
+    sliding_window = np.array(filtered_data.iloc[-int(config.window_size * sample_rate):].reset_index(drop=True))#.tolist()
     return sliding_window
 
 

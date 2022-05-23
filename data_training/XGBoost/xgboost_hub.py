@@ -32,7 +32,7 @@ def xgboost_training(X, Y, logger_location=None):
         model = xgb.XGBClassifier(use_label_encoder=False,
                                   objective='binary:logistic',
                                   max_depth=13,
-                                  n_estimators=1,
+                                  n_estimators=1000,
                                   subsample=0.5,
                                   booster='gbtree',
                                   learning_rate=0.015,

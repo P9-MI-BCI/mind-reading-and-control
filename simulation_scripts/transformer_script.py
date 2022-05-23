@@ -25,7 +25,8 @@ def transformer_simulation(X, Y, scaler, config, online_data, dwell_data, hypoth
 
     # First model
     simulation.load_models(model)
-    simulation.tune_dwell(dwell_data)
+    simulation.tune_dwell(dwell_data[0])
+    simulation.tune_dwell(dwell_data[1])
 
     # test the first dataset
     result_logger(transformer_logger_location, f'-- Simulating Test 1 \n')

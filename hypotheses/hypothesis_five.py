@@ -48,29 +48,30 @@ def run(config):
 
     multi_dataset_onset_detection(training_data, config)
     multi_dataset_onset_detection(online_data, config)
-    dwell_data.clusters = []
+    multi_dataset_onset_detection(dwell_data, config)
+    # dwell_data.clusters = []
 
-    # data_preparation_with_filtering(training_data, config, config.DELTA_BAND)
+    data_preparation_with_filtering(training_data, config, config.DELTA_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
     xgboost_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
-    # transformer_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
+    transformer_simulation(X, Y, scaler, config, online_data, dwell_data, hypothesis_logger_location)
 
-    # training_down_sampled = downsample(training_data, config)
-    # online_down_sampled = downsample(online_data, config)
-    # dwell_down_sampled = downsample([dwell_data], config)[0]
+    training_down_sampled = downsample(training_data, config)
+    online_down_sampled = downsample(online_data, config)
+    dwell_down_sampled = downsample([dwell_data], config) # [0]
 
-    # data_preparation_with_filtering(training_down_sampled, config, config.EEGNET_BAND)
-    # X, Y = load_data_from_temp()
-    # X, Y = shuffle(X, Y)
-    # X, scaler = normalization(X)
+    data_preparation_with_filtering(training_down_sampled, config, config.EEGNET_BAND)
+    X, Y = load_data_from_temp()
+    X, Y = shuffle(X, Y)
+    X, scaler = normalization(X)
 
-    # cspsvm_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
-    # eegnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
-    # deepconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
-    # shallowconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    cspsvm_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    eegnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    deepconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    shallowconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
 
-    # now = datetime.now()
-    # result_logger(hypothesis_logger_location, f'----- Hypothesis five has been completed: {now} \n')
+    now = datetime.now()
+    result_logger(hypothesis_logger_location, f'----- Hypothesis five has been completed: {now} \n')
 

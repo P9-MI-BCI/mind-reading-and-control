@@ -60,7 +60,7 @@ class Simulation:
         self.dwell_true_buffer = []
         self.INTERNAL_DWELL_FLAG = False
         self.buffer_size = None
-        self.dwell = 0
+        self.dwell = None
         self.data_buffer = pd.DataFrame(columns=config.EEG_CHANNELS)
 
     def mount_dataset(self, dataset: Dataset):
@@ -251,31 +251,87 @@ class Simulation:
             comp0.append(v0[ix])
             comp1.append(v1[ix])
 
+        number_of_peaks = []
+        var = []
+        cluster_start = False
+        i = 0
+        while i < len(v0) - 1:
+            if v0[i + 1] > 0 and not cluster_start:
+                cluster_start = True
+                var.append(i + 1)
+            if cluster_start and v0[i + 1] == 0:
+                cluster_start = False
+                var.append(i)
+                number_of_peaks.append(var)
+                var = []
+            i += 1
+
         comp1.sort()
-        self.dwell = comp1[int(len(comp1)/2)]
+        median = comp1[int(len(comp1) / 2)]
+        # upper_percentile = comp1[int(len(comp1) * 0.9)]
 
-        indexes_where_dwell_triggers = [i for i, v in enumerate(v1) if v >= self.dwell]
-        res = [1 if v0[x] > 0 else 0 for x in indexes_where_dwell_triggers]
+        def evaluate_dwell(dwell):
+            correct_clusters_found = 0
+            correct_triggers = 0
+            INITIALIZED = False
+            while correct_triggers == correct_clusters_found or not INITIALIZED:
+                indexes_where_dwell_triggers = [i for i, v in enumerate(v1) if v >= dwell]
+                res = [1 if v0[x] > 0 else 0 for x in indexes_where_dwell_triggers]
 
-        tp = sum(res) / len(res)
-        print(tp)
-        get_logger().info(f'Dwell = {self.dwell}, FP = {self.freeze_counter}')
+                tp = sum(res) / len(res)
 
+                correct_triggers = 0
+                for (s, e) in number_of_peaks:
+                    cluster_met = False
+                    for i in indexes_where_dwell_triggers:
+                        if s < i < e:
+                            cluster_met = True
+                    if cluster_met:
+                        correct_triggers += 1
+
+                counter = 0
+                for i in indexes_where_dwell_triggers:
+                    in_a_cluster = False
+                    for (s, e) in number_of_peaks:
+                        if s < i < e:
+                            in_a_cluster = True
+                    if in_a_cluster:
+                        counter += 1
+
+                get_logger().info(
+                    f'Dwell = {dwell}, Precision = {round(tp, 2)}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)})')
+                result_logger(self.logger_location,
+                              f'Dwell = {dwell}, Precision = {round(tp, 2)}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)}) \n')
+
+                if not INITIALIZED:
+                    correct_clusters_found = correct_triggers
+                    INITIALIZED = True
+                if correct_triggers != correct_clusters_found:
+                    return dwell-1
+                else:
+                    dwell += 1
+
+        # first dwell dataset set the initial dwell
+        if self.dwell is None:
+            self.dwell = evaluate_dwell(median)
+        # 2nd dwell dataset take the average of two dwells
+        else:
+            self.dwell = (self.dwell + evaluate_dwell(median)) // 2
         self.reset()
         self.INTERNAL_DWELL_FLAG = False
 
-        get_logger().info(f'Acceptable level reached of {self.freeze_counter}'
-                          f' false positive predictions in a '
-                          f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
-        get_logger().info(f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.')
+        #get_logger().info(f'Acceptable level reached of {self.freeze_counter}'
+        #                  f' false positive predictions in a '
+        #                  f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))}.')
+        #get_logger().info(f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.')
 
-        if self.logger_location is not None:
-            result_logger(self.logger_location, f'Dwell Tuning -- \n')
-            result_logger(self.logger_location, f'Acceptable level reached of {self.freeze_counter}'
-                                                f' false positive predictions in a '
-                                                f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
-            result_logger(self.logger_location,
-                          f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.\n')
+        # if self.logger_location is not None:
+        #     result_logger(self.logger_location, f'Dwell Tuning -- \n')
+        #     result_logger(self.logger_location, f'Acceptable level reached of {self.freeze_counter}'
+        #                                        f' false positive predictions in a '
+        #                                        f'{datetime.timedelta(seconds=round(len(dwell_dataset.data) / self.dataset.sample_rate))} session\n')
+        #    result_logger(self.logger_location,
+        #                  f'Dwell parameter adjusted to be {len(self.prev_pred_buffer)} consecutive predictions.\n')
 
     def reset(self):
         # reset dataset specific things.
@@ -293,6 +349,9 @@ class Simulation:
         self.sliding_window = None
         self.data_buffer = pd.DataFrame(columns=self.config.EEG_CHANNELS)
         self.true_labels = []
+        self.dwell_snapshots = []
+        self.dwell_true_snapshots = []
+        self.dwell_true_buffer = []
         self.score = {}
 
     def _time_module(self, pbar):
