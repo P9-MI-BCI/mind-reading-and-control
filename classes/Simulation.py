@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.patches as patches
 import neurokit2 as nk
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tkr
 
 from data_training.XGBoost.xgboost_hub import xgboost_training
 from data_training.measurements import accuracy
@@ -565,50 +566,63 @@ class Simulation:
 
     def _plot_predictions(self):
         plt.clf()
-        fig = plt.figure(figsize=(40, 8))
-        plot_arr = []
+        fig, ax = plt.subplots(figsize=(25, 8))
+        # ax1 = plt.subplot(211)
+        # ax2 = plt.subplot(212, sharex=ax1)
+        # fig.subplots_adjust(wspace=0, hspace=0)
+
         max_height = self.dataset.filtered_data.max()
         blinks = self._blink_detection()
 
+        plot_arr = []
         for cluster in self.dataset.clusters:
-            # dashed lines 2 seconds before onset and 1 second after
-
-            # plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
-            plt.vlines(cluster.start, 0, max_height, linestyles='--', color='black')
-            plt.axvspan(cluster.start - self.dataset.sample_rate * self.config.window_size,
-                        cluster.start + self.dataset.sample_rate,
-                        alpha=0.80,
-                        color='lightblue')
             plot_arr.append(self.dataset.filtered_data.iloc[cluster.start:cluster.end])
+            # plt.vlines(cluster.start - self.dataset.sample_rate * 2, 0, max_height, linestyles='--', color='black')
 
-        plt.plot(np.abs(self.dataset.filtered_data), color='black')
+            # plot dashes line right at each cluster onset
+            ax.axvline(x=cluster.start, ls='--', color='black')
+
+        # plot filtered EMG signal
+        ax.plot(np.abs(self.dataset.filtered_data), color='black')
+        # plot colored clusters on top of signals
         for vals in plot_arr:
             plt.plot(np.abs(vals))
 
-        for prediction, correct in zip(self.prediction_frequency, self.true_labels):
+        # plot the span of the data bufer
+        plt.axvspan(0, self.config.buffer_size * self.dataset.sample_rate, alpha=0.80, color='#F8CECC')
 
+        # plot green and red squares for correct and not correct predictions
+        for prediction, correct in zip(self.prediction_frequency, self.true_labels):
             if correct:
-                plt.gca().add_patch(
-                    patches.Rectangle((prediction[0], max_height * 0.7), abs(prediction[0] - prediction[-1]),
+                ax.add_patch(
+                    patches.Rectangle((prediction[0], max_height * 1.25), abs(prediction[0] - prediction[-1]),
                                       max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='green', fill=True,
                                       edgecolor='black'))
             elif not correct:
-                plt.gca().add_patch(
-                    patches.Rectangle((prediction[0], max_height * 0.4), abs(prediction[0] - prediction[-1]),
+                ax.add_patch(
+                    patches.Rectangle((prediction[0], max_height * 1.25), abs(prediction[0] - prediction[-1]),
                                       max_height * 0.1, linewidth=0.5, alpha=0.5, facecolor='red', fill=True,
                                       edgecolor='black'))
+
+        # plot small boxes for blinks
         for b in blinks:
             size = self.prediction_frequency[0]
-            #
-            plt.gca().add_patch(
-                patches.Rectangle((b, max_height * 0.45), abs(size[0] - size[-1]) * 0.3,
+            ax.add_patch(
+                patches.Rectangle((b, max_height * 1.35), abs(size[0] - size[-1]) * 0.3,
                                   max_height * 0.025, linewidth=1, alpha=1, fill=False, edgecolor='black')
             )
-        plt.axvspan(0, self.config.buffer_size * self.dataset.sample_rate, alpha=0.80, color='yellow')
 
         plt.xlabel('Time (s)')
-        plt.ylabel('mV (Filtered)', labelpad=-2)
-        plt.autoscale()
+        plt.ylabel('mV (Filtered)')
+        plt.margins(x=0)
+
+        def tick_formatter(x, pos):
+            tick = '{}'.format(int(x / 1200))
+            return tick
+
+        x_formatter = tkr.FuncFormatter(tick_formatter)
+        ax.xaxis.set_major_formatter(x_formatter)
+        ax.locator_params(axis="x", nbins=20)
 
         if self.logger_location is not None:
             # save_figure(os.path.join(OUTPUT_PATH, 'results', self.logger_location[:-4]), fig)
