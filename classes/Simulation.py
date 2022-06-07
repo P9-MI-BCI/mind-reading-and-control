@@ -278,7 +278,7 @@ class Simulation:
                 indexes_where_dwell_triggers = [i for i, v in enumerate(v1) if v >= dwell]
                 res = [1 if v0[x] > 0 else 0 for x in indexes_where_dwell_triggers]
 
-                tp = sum(res) / len(res)
+                # tp = sum(res) / len(res)
 
                 correct_triggers = 0
                 for (s, e) in number_of_peaks:
@@ -299,10 +299,12 @@ class Simulation:
                         counter += 1
 
                 get_logger().info(
-                    f'Dwell = {dwell}, Precision = {round(tp, 2)}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)})')
+                    f'Dwell = {dwell}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)})')
                 result_logger(self.logger_location,
-                              f'Dwell = {dwell}, Precision = {round(tp, 2)}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)}) \n')
+                              f'Dwell = {dwell}, Clusters Hit = {correct_triggers}/{len(number_of_peaks)}, Predictions in a cluster {counter} / {len(indexes_where_dwell_triggers)} ({round(counter / len(indexes_where_dwell_triggers), 2)}) \n')
 
+                if dwell == 10:
+                    return dwell
                 if not INITIALIZED:
                     correct_clusters_found = correct_triggers
                     INITIALIZED = True
@@ -618,7 +620,7 @@ class Simulation:
 
     def _blink_detection(self):
         eog_cleaned = nk.eog_clean(self.dataset.data[self.config.EOG_CHANNEL], sampling_rate=self.dataset.sample_rate,
-                                   method='neurokit')
-        blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='mne')
+                                   method='agarwal2019')
+        blinks = nk.eog_findpeaks(eog_cleaned, sampling_rate=self.dataset.sample_rate, method='neurokit', show=False)
 
         return blinks
