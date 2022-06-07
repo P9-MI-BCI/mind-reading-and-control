@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import os
 from classes.Simulation import Simulation
 from data_preprocessing.downsampling import downsample
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
@@ -23,7 +23,7 @@ from utility.logger import result_logger
 Hypothesis five aims to test whether deep feature extraction models will perform better than handcrafted ones. It
 should compare the hand crafted feature extraction from last semester with the new one.
 """
-
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
 def run(config):
     """
@@ -60,17 +60,17 @@ def run(config):
 
     training_down_sampled = downsample(training_data, config)
     online_down_sampled = downsample(online_data, config)
-    dwell_down_sampled = downsample([dwell_data], config) # [0]
+    dwell_down_sampled = downsample(dwell_data, config) # [0]
 
     data_preparation_with_filtering(training_down_sampled, config, config.EEGNET_BAND)
     X, Y = load_data_from_temp()
     X, Y = shuffle(X, Y)
     X, scaler = normalization(X)
 
-    cspsvm_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
     eegnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
     deepconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
     shallowconvnet_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
+    cspsvm_simulation(X, Y, scaler, config, online_down_sampled, dwell_down_sampled, hypothesis_logger_location)
 
     now = datetime.now()
     result_logger(hypothesis_logger_location, f'----- Hypothesis five has been completed: {now} \n')

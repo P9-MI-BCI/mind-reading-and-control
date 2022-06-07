@@ -71,6 +71,7 @@ def pair_index_list(index: [int]):
 
 def channel_weights_calculation(average_channels):
     negativity_distance = [0] * len(average_channels)
+
     center = int(len(average_channels[0].data) / 2)
     for channel in range(0, len(average_channels)):
         negativity_distance[channel] = abs(average_channels[channel].data.idxmin() - center)

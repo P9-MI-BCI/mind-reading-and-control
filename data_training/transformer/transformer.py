@@ -11,7 +11,7 @@ from utility.logger import result_logger
 learning_rate = 0.001
 weight_decay = 0.0001
 batch_size = 128
-num_epochs = 100
+num_epochs = 1000
 image_length = 100
 image_height = 3
 num_patches = 72
@@ -107,7 +107,7 @@ def create_vit_classifier(input_shape):
     # Add MLP.
     features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
     # Classify outputs.
-    logits = layers.Dense(1)(features)
+    logits = layers.Dense(1, activation='sigmoid')(features)
     # Create the Keras model.
     model = keras.Model(inputs=inputs, outputs=logits)
     return model
@@ -118,7 +118,7 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate
                                         ),
-        loss=keras.losses.BinaryCrossentropy(from_logits=True),
+        loss=keras.losses.BinaryCrossentropy(),
         metrics=['accuracy'],
     )
 
@@ -138,7 +138,7 @@ def run_experiment(model, x_train, y_train, x_test, y_test):
         batch_size=batch_size,
         epochs=num_epochs,
         callbacks=[checkpoint_callback,
-                   EarlyStopping(monitor='val_loss', patience=10)],
+                   EarlyStopping(monitor='val_loss', patience=30)],
     )
 
     model.load_weights(checkpoint_filepath)
