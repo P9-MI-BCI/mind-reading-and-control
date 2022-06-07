@@ -17,7 +17,8 @@ def dispatch(config):
     elif config.module_choice == 2:
         hypothesis_two.run(config)
     elif config.module_choice == 3:
-        hypothesis_three.run(config)
+        for sub in range(10):
+            hypothesis_three.run(config, sub)
     elif config.module_choice == 4:
         hypothesis_four.run(config)
     elif config.module_choice == 5:
