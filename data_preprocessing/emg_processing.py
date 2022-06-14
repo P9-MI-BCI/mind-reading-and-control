@@ -8,7 +8,7 @@ from data_preprocessing.filters import butter_filter
 import matplotlib.pyplot as plt
 from scipy.stats import iqr
 from utility.logger import get_logger
-
+import matplotlib.ticker as tkr
 
 def emg_amplitude_tkeo(filtered_data):
     tkeo = np.zeros((len(filtered_data),))
@@ -20,7 +20,7 @@ def emg_amplitude_tkeo(filtered_data):
 
 
 def onset_detection(dataset: Dataset, config, static_clusters=True,
-                    proximity_outliers=True, normalization=True) -> [[int]]:
+                    proximity_outliers=True, normalization=True, size_outlier=True) -> [[int]]:
     # Filter EMG Data with specified butterworth filter params from config
     filtered_data = pd.DataFrame()
 
@@ -50,7 +50,8 @@ def onset_detection(dataset: Dataset, config, static_clusters=True,
     # Group onsets based on time
     emg_clusters, filtered_data[config.EMG_CHANNEL], threshold = emg_clustering(
         emg_data=np.abs(filtered_data[config.EMG_CHANNEL]), onsets=emg_onsets, threshold=threshold,
-        static_clusters=static_clusters, proximity_outliers=proximity_outliers, normalization=normalization)
+        static_clusters=static_clusters, proximity_outliers=proximity_outliers, normalization=normalization,
+        size_outlier=size_outlier)
 
     # Plotting of EMG signal and clusters
     t = [threshold] * len(filtered_data[config.EMG_CHANNEL])
@@ -60,17 +61,25 @@ def onset_detection(dataset: Dataset, config, static_clusters=True,
         for cluster in emg_clusters:
             cluster_plot_arr.append(filtered_data[config.EMG_CHANNEL].iloc[cluster.start:cluster.end])
 
-        fig = plt.figure(figsize=(20, 8))
+        fig, ax = plt.subplots(figsize=(12, 5))
         plt.plot(np.abs(filtered_data[config.EMG_CHANNEL]), color='black')
 
         for vals in cluster_plot_arr:
             plt.plot(np.abs(vals))
 
-        plt.plot(t, '--', color='black')
+        plt.plot(t, color='black', linestyle='--')
         plt.title(dataset.filename)
         plt.xlabel('Time (s)')
-        plt.ylabel('mV (Filtered)', labelpad=-2)
-        plt.autoscale()
+        plt.ylabel('Amplitude (mV Normalized)')
+        plt.margins(x=0, y=0)
+
+        def tick_formatter(x, pos):
+            tick = '{}'.format(int(x / 1200))
+            return tick
+
+        x_formatter = tkr.FuncFormatter(tick_formatter)
+        ax.xaxis.set_major_formatter(x_formatter)
+        ax.locator_params(axis="x", nbins=30)
         plt.show()
 
     dataset.clusters = emg_clusters
@@ -78,18 +87,16 @@ def onset_detection(dataset: Dataset, config, static_clusters=True,
 
 
 def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
-                   threshold=None, static_clusters=True, proximity_outliers=True) -> [
+                   threshold=None, static_clusters=True, proximity_outliers=True, size_outlier=True) -> [
     [int]]:
     if distance is None:
         distance = 100
 
     prev_cluster = []
     stop_loop = 0
-    noise_detected = False
 
     while True:
         clusters = []
-        removed_cluster = False
         temp_clusters = []
         cluster_list = []
         # For indices in detected onsets
@@ -118,30 +125,13 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
         # Check if no changes in previous iteration and break, else increase distance
         # small_clusters = []
         if static_clusters:
-            cluster_lengths = []
-            if len(cluster_list) == 21:
-                for cluster in cluster_list:
-                    cluster_lengths.append(len(cluster.data))
-                median = np.median(cluster_lengths)
-                # TODO: Try this some more:
-                # small_clusters = [1 for size in foo if size < median*0.5]
-                for cluster in cluster_list:
-                    if len(cluster.data) < median * 0.1:
-                        cluster_list.remove(cluster)
-                        removed_cluster = True
-                        # noise_detected = True
-                if removed_cluster:
-                    break
-                else:
-                    distance += 20
             if len(cluster_list) == 20:
                 break
             elif len(cluster_list) > 20:
-                distance += 20
+                distance += 10
             elif len(cluster_list) < 20 and stop_loop < 20:
                 stop_loop += 1
                 distance -= 1
-                # noise_detected = True
             else:
                 break
         else:
@@ -157,6 +147,14 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
         if proximity_outliers:
             assert len(cluster_list) > 2
             cluster_list = remove_outliers_by_x_axis_distance(cluster_list)
+        if size_outlier:
+            cluster_lengths = []
+            for cluster in cluster_list:
+                cluster_lengths.append(len(cluster.data))
+            median = np.median(cluster_lengths)
+            for cluster in cluster_list:
+                if len(cluster.data) < median * 0.1:
+                    cluster_list.remove(cluster)
 
         # Find peaks of clusters
         for onset_cluster in cluster_list:
@@ -168,11 +166,12 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                     index = onset
             onset_cluster.peak = index
 
+
+
+
         # Normalize the EMG data a single time
         if normalization:
             onsets, threshold, emg_data = normalize_peaks(cluster_list, np.abs(emg_data))
-            # if not noise_detected: #and len(small_clusters) < 3:
-            threshold = threshold * 0.85
             emg_rectified = np.abs(emg_data) > threshold
             emg_onsets = emg_rectified[emg_rectified == True].index.values.tolist()
             cluster_list, emg_data, threshold = emg_clustering(emg_data=np.abs(emg_data),
@@ -180,7 +179,8 @@ def emg_clustering(emg_data, onsets: [int], distance=None, normalization=True,
                                                                normalization=False,
                                                                threshold=threshold,
                                                                static_clusters=static_clusters,
-                                                               proximity_outliers=False)
+                                                               proximity_outliers=False,
+                                                               size_outlier=False)
 
         return cluster_list, emg_data, threshold
     except AssertionError:
@@ -215,7 +215,7 @@ def remove_outliers_by_x_axis_distance(clusters):
     # Calculate median of distances
     for i in range(0, len(clusters) - 1):
         distances.append(abs(clusters[i].end - clusters[i + 1].start))
-    prox_coef = np.median(distances) / 2
+    prox_coef = np.median(distances) * 0.5
 
     for i in range(0, len(clusters) - 2):
         # Check for all clusters if the subsequent cluster is closer in proximity than median/2
