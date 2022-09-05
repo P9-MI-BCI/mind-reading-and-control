@@ -1,6 +1,7 @@
 import os
 from utility.file_util import create_dir, file_exist
 from utility.logger import get_logger
+import time
 
 
 def save_figure(path: str, fig, overwrite: bool = False):

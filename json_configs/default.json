@@ -1,6 +1,6 @@
 {
   "SAMPLE_RATE": 1200,
-  "EEG_CHANNELS": ["T7", "C5", "C3", "C1", "Cz", "C2", "C4", "C6", "T8"],
+  "EEG_CHANNELS": ["T7","C5", "C3", "C1", "Cz", "C2", "C4", "C6", "T8"],
   "EMG_CHANNEL": "EMG",
   "EOG_CHANNEL": "EOG",
   "AGGREGATE_STRATEGY": "cluster_onset",
@@ -10,7 +10,7 @@
     100
   ],
   "DELTA_BAND": [
-    0.05,
+    0.5,
     4
   ],
   "THETA_BAND": [
@@ -29,6 +29,10 @@
     31,
     100
   ],
+  "EEGNET_BAND": [
+    0.1,
+    40
+  ],
   "EEG_ORDER": 2,
   "EMG_BTYPE_BANDPASS": "bandpass",
   "EMG_CUTOFF_BANDPASS": [30, 300],
@@ -39,8 +43,9 @@
   "window_size": 2,
   "step_size": 0.1,
   "buffer_size": 20,
-  "downsample_rate": 10,
+  "downsample_rate": 5,
   "transfer_learning": false,
   "rest_classification": false,
+  "logger_id": null,
   "module_choice": null
 }

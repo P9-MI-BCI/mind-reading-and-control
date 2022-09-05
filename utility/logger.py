@@ -1,8 +1,8 @@
 import logging
 import os
 import sys
-from definitions import OUTPUT_PATH
 
+from definitions import OUTPUT_PATH
 
 '''
 Logger levels:
@@ -80,3 +80,8 @@ def catch_output_stream_to_logger(
 ):
     sys.stdout = StreamToLogger(target_logger, level)
     sys.stderr = StreamToLogger(target_logger, logging.ERROR)
+
+
+def result_logger(filepath, string_line):
+    with open(os.path.join(OUTPUT_PATH, 'results', filepath), 'a+') as f:
+        f.write(string_line)

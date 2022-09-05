@@ -6,16 +6,19 @@ import hypotheses.hypothesis_five as hypothesis_five
 import hypotheses.hypothesis_six as hypothesis_six
 import modules.session_analysis as session_analysis
 from utility.logger import get_logger
+import numpy as np
 
 
 def dispatch(config):
+    np.random.seed(159)
 
     if config.module_choice == 1:
         hypothesis_one.run(config)
     elif config.module_choice == 2:
         hypothesis_two.run(config)
     elif config.module_choice == 3:
-        hypothesis_three.run(config)
+        for sub in range(10):
+            hypothesis_three.run(config, sub)
     elif config.module_choice == 4:
         hypothesis_four.run(config)
     elif config.module_choice == 5:

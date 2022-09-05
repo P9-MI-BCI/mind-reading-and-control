@@ -3,6 +3,7 @@ from data_preprocessing.init_dataset import format_input, print_module_options
 from dispatch.dispatch_hub import dispatch
 from utility.logger import get_logger
 from dispatch import preliminary
+import uuid
 
 """CONFIGURATION"""
 get_logger().setLevel(logging.INFO)  # Set logging level (INFO, WARNING, ERROR, CRITICAL, EXCEPTION, LOG)
@@ -17,6 +18,7 @@ def main():
     print_module_options()
     module_choice = int(input('Choose Module 1-7:\n'))
     config.module_choice = module_choice
+    config.logger_id = uuid.uuid4()
 
     dispatch(config)
 

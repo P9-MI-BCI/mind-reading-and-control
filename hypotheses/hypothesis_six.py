@@ -4,7 +4,7 @@ from data_preprocessing.data_distribution import data_preparation, normalization
 from data_preprocessing.emg_processing import multi_dataset_onset_detection
 from data_preprocessing.filters import multi_dataset_filtering, data_filtering
 from data_preprocessing.init_dataset import get_dataset_paths, create_dataset
-from data_training.EEGModels.training import EEGModels_training_hub
+# from data_training.EEGModels.training import EEGModels_training_hub
 from utility import logger
 
 def run(config):
@@ -23,7 +23,7 @@ def run(config):
     dwell_data = create_dataset(dwell_dataset_path, config)
 
     multi_dataset_onset_detection(training_data, config)
-    multi_dataset_onset_detection(online_data, config, is_online=True)
+    multi_dataset_onset_detection(online_data, config)
 
     multi_dataset_filtering(config.DELTA_BAND, config, training_data)
     multi_dataset_filtering(config.DELTA_BAND, config, online_data)
@@ -36,18 +36,18 @@ def run(config):
     # Hypothesis data divide
     logger.get_logger().info('Training using 25% of the dataset')
     X_25, Y_25 = select_dataset_subset(X, Y, 25)
-    EEGModels_training_hub(X_25, Y_25, online_X, online_Y)
+    # EEGModels_training_hub(X_25, Y_25, online_X, online_Y)
 
     logger.get_logger().info('Training using 50% of the dataset')
     X_50, Y_50 = select_dataset_subset(X, Y, 50)
-    EEGModels_training_hub(X_50, Y_50, online_X, online_Y)
+    # EEGModels_training_hub(X_50, Y_50, online_X, online_Y)
 
     logger.get_logger().info('Training using 75% of the dataset')
     X_75, Y_75 = select_dataset_subset(X, Y, 75)
-    EEGModels_training_hub(X_75, Y_75, online_X, online_Y)
+    # EEGModels_training_hub(X_75, Y_75, online_X, online_Y)
 
     logger.get_logger().info('Training using 100% of the dataset')
-    EEGModels_training_hub(X, Y, online_X, online_Y)
+    # EEGModels_training_hub(X, Y, online_X, online_Y)
 
 
 def select_dataset_subset(X, Y, percentage_data):
