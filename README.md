@@ -15,7 +15,7 @@ The data is structured as follows:
 - 1* dwell session (subject did not move for 1 minute)
 - 2 online testing sets were recorded for each subject with hand movements alternating.
 
-* We used 1 closing and 1 opening training set to tune our dwell heuristic.
+* *We used 1 closing and 1 opening training set to tune our dwell heuristic.
 
 Data structure: 
 channels 0-9 is the EEG data.
