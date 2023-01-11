@@ -21,6 +21,3 @@ Data structure:
 channels 0-9 is the EEG data.
 channel 12 is the EMG data.
 The dataset is not labeled and movements should be inferred from the EMG data.
-
-
--- Read more : https://projekter.aau.dk/projekter/files/474331713/cs_22_mi_10_11_thesis.pdf
